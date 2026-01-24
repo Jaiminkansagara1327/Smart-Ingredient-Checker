@@ -12,12 +12,24 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                 <div className="card product-card">
                     <div className="card-header">
                         <h2 className="card-title">Product Information</h2>
-                        <span className="badge badge-success">Detected from label</span>
+                        {data.ocr_metadata ? (
+                            <span className={`badge ${data.ocr_metadata.quality_score >= 70 ? 'badge-success' :
+                                data.ocr_metadata.quality_score >= 50 ? 'badge-warning' :
+                                    'badge-error'
+                                }`}>
+                                {data.ocr_metadata.quality_score >= 70 ? '✓ High Confidence' :
+                                    data.ocr_metadata.quality_score >= 50 ? '⚠ Medium Confidence' :
+                                        '⚠ Low Confidence'}
+                                {' '}({Math.round(data.ocr_metadata.quality_score)}%)
+                            </span>
+                        ) : (
+                            <span className="badge badge-success">Detected from label</span>
+                        )}
                     </div>
                     <div className="product-info">
                         <div className="product-image-wrapper">
                             <img
-                                src={image || placeholderImage}
+                                src={data.product_image_url || image || placeholderImage}
                                 alt="Product"
                                 className="product-image"
                             />

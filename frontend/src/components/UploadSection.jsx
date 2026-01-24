@@ -39,6 +39,13 @@ function UploadSection({ onAnalyze }) {
                 },
             });
 
+            // Check if analysis was successful
+            if (response.data.success === false) {
+                // Handle error cases
+                handleAnalysisError(response.data);
+                return;
+            }
+
             // Create image URL for display
             const imageUrl = URL.createObjectURL(file);
 
@@ -46,13 +53,35 @@ function UploadSection({ onAnalyze }) {
             onAnalyze(response.data, imageUrl);
         } catch (error) {
             console.error('Analysis error:', error);
-            // Use mock data if API fails
-            const mockData = generateMockAnalysis();
-            const imageUrl = URL.createObjectURL(file);
-            onAnalyze(mockData, imageUrl);
+
+            // Check if it's an API error response
+            if (error.response && error.response.data) {
+                handleAnalysisError(error.response.data);
+            } else {
+                // Network or other error
+                alert('Failed to connect to the server. Please check your connection and try again.');
+            }
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleAnalysisError = (errorData) => {
+        const { error, message, suggestions } = errorData;
+
+        let alertMessage = message || 'An error occurred during analysis.';
+
+        if (suggestions && suggestions.length > 0) {
+            alertMessage += '\n\nSuggestions:\n' + suggestions.map((s, i) => `${i + 1}. ${s}`).join('\n');
+        }
+
+        if (error === 'NO_INGREDIENTS_DETECTED') {
+            alertMessage += '\n\nPlease make sure you are photographing the ingredient list on the product label.';
+        } else if (error === 'LOW_CONFIDENCE') {
+            alertMessage += '\n\nTry taking a clearer photo with better lighting.';
+        }
+
+        alert(alertMessage);
     };
 
     const handleUrlAnalyze = async () => {
@@ -72,12 +101,23 @@ function UploadSection({ onAnalyze }) {
 
         try {
             const response = await axios.post('/api/analyze/url/', { url });
+
+            // Check if analysis was successful
+            if (response.data.success === false) {
+                handleAnalysisError(response.data);
+                return;
+            }
+
             onAnalyze(response.data, null);
         } catch (error) {
             console.error('Analysis error:', error);
-            // Use mock data if API fails
-            const mockData = generateMockAnalysis();
-            onAnalyze(mockData, null);
+
+            // Check if it's an API error response
+            if (error.response && error.response.data) {
+                handleAnalysisError(error.response.data);
+            } else {
+                alert('Failed to connect to the server. Please check your connection and try again.');
+            }
         } finally {
             setIsLoading(false);
         }
@@ -106,51 +146,6 @@ function UploadSection({ onAnalyze }) {
     const handleFileInputChange = (e) => {
         const file = e.target.files[0];
         handleFileSelect(file);
-    };
-
-    const generateMockAnalysis = () => {
-        return {
-            product: {
-                name: 'Organic Whole Wheat Bread',
-                brand: "Nature's Best",
-                category: 'Bakery • Bread',
-            },
-            verdict: 'Suitable for daily consumption, good source of fiber and nutrients with minimal processing.',
-            score: 8,
-            suitability: {
-                goodFor: 'High-fiber diets, heart health, sustained energy, digestive wellness',
-                cautionFor: 'Gluten sensitivity, low-carb diets, blood sugar management',
-                avoidFor: 'Celiac disease, wheat allergies, strict keto diet',
-            },
-            ingredientGroups: [
-                {
-                    title: 'Grains & Flours',
-                    description: 'Whole wheat flour provides fiber, vitamins, and minerals',
-                    note: 'Contains gluten - primary allergen concern',
-                },
-                {
-                    title: 'Leavening Agents',
-                    description: 'Yeast and natural fermentation for texture and digestibility',
-                    note: 'Generally safe, aids in nutrient absorption',
-                },
-                {
-                    title: 'Natural Sweeteners',
-                    description: 'Honey or molasses for mild sweetness and moisture',
-                    note: 'Low glycemic impact in small amounts',
-                },
-                {
-                    title: 'Preservatives',
-                    description: 'Minimal use of natural preservatives like vinegar',
-                    note: 'Clean label - no artificial additives',
-                },
-            ],
-            flags: [
-                { icon: '🌾', text: 'Contains Gluten' },
-                { icon: '🍯', text: 'Natural Sweeteners' },
-                { icon: '✨', text: 'Minimal Processing' },
-                { icon: '🌱', text: 'Organic Certified' },
-            ],
-        };
     };
 
     return (

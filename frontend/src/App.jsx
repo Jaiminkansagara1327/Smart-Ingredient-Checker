@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import Header from './components/Header';
 import UploadSection from './components/UploadSection';
 import ResultsSection from './components/ResultsSection';
+import AboutPage from './components/AboutPage';
+import Footer from './components/Footer';
 
 function App() {
+    const [currentPage, setCurrentPage] = useState('analyze');
     const [showResults, setShowResults] = useState(false);
     const [analysisData, setAnalysisData] = useState(null);
     const [uploadedImage, setUploadedImage] = useState(null);
@@ -20,20 +23,32 @@ function App() {
         setUploadedImage(null);
     };
 
+    const handleNavigate = (page) => {
+        setCurrentPage(page);
+        setShowResults(false);
+    };
+
     return (
         <>
-            <Header />
+            <Header onNavigate={handleNavigate} currentPage={currentPage} />
             <main className="main-content">
-                {!showResults ? (
-                    <UploadSection onAnalyze={handleAnalyze} />
+                {currentPage === 'about' ? (
+                    <AboutPage />
                 ) : (
-                    <ResultsSection
-                        data={analysisData}
-                        image={uploadedImage}
-                        onAnalyzeNew={handleAnalyzeNew}
-                    />
+                    <>
+                        {!showResults ? (
+                            <UploadSection onAnalyze={handleAnalyze} />
+                        ) : (
+                            <ResultsSection
+                                data={analysisData}
+                                image={uploadedImage}
+                                onAnalyzeNew={handleAnalyzeNew}
+                            />
+                        )}
+                    </>
                 )}
             </main>
+            <Footer />
         </>
     );
 }

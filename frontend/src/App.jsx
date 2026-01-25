@@ -3,6 +3,7 @@ import Header from './components/Header';
 import UploadSection from './components/UploadSection';
 import ResultsSection from './components/ResultsSection';
 import AboutPage from './components/AboutPage';
+import ContactPage from './components/ContactPage';
 import Footer from './components/Footer';
 
 function App() {
@@ -28,25 +29,26 @@ function App() {
         setShowResults(false);
     };
 
+    const renderContent = () => {
+        if (currentPage === 'about') return <AboutPage />;
+        if (currentPage === 'contact') return <ContactPage />;
+
+        return !showResults ? (
+            <UploadSection onAnalyze={handleAnalyze} />
+        ) : (
+            <ResultsSection
+                data={analysisData}
+                image={uploadedImage}
+                onAnalyzeNew={handleAnalyzeNew}
+            />
+        );
+    };
+
     return (
         <>
             <Header onNavigate={handleNavigate} currentPage={currentPage} />
             <main className="main-content">
-                {currentPage === 'about' ? (
-                    <AboutPage />
-                ) : (
-                    <>
-                        {!showResults ? (
-                            <UploadSection onAnalyze={handleAnalyze} />
-                        ) : (
-                            <ResultsSection
-                                data={analysisData}
-                                image={uploadedImage}
-                                onAnalyzeNew={handleAnalyzeNew}
-                            />
-                        )}
-                    </>
-                )}
+                {renderContent()}
             </main>
             <Footer />
         </>

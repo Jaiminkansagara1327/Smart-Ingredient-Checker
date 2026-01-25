@@ -212,3 +212,48 @@ def health_check(request):
             'openai': OPENAI_AVAILABLE and bool(os.getenv('OPENAI_API_KEY')),
         }
     }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def contact_submit(request):
+    """
+    Handle contact form submission
+    """
+    from .serializers import ContactMessageSerializer
+    from django.core.mail import send_mail
+    from django.conf import settings
+    
+    serializer = ContactMessageSerializer(data=request.data)
+    if serializer.is_valid():
+        instance = serializer.save()
+        
+        # Send Email Notification
+        try:
+            subject = f"New Contact Message: {instance.name}"
+            message = f"You received a new message from FoodView contact form.\n\n" \
+                      f"Name: {instance.name}\n" \
+                      f"Email: {instance.email}\n" \
+                      f"Message:\n{instance.message}\n\n" \
+                      f"Sent at: {instance.created_at}"
+            
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [settings.CONTACT_EMAIL_RECIPIENT],
+                fail_silently=False,
+            )
+        except Exception as e:
+            print(f"Error sending email: {e}")
+            # We still return success since the message is saved in DB
+            
+        return Response({
+            'success': True,
+            'message': 'Your message has been received. We read every message and will get back to you if needed.'
+        }, status=status.HTTP_201_CREATED)
+    
+    return Response({
+        'success': False,
+        'message': 'Please correct the errors in the form.',
+        'errors': serializer.errors
+    }, status=status.HTTP_400_BAD_REQUEST)

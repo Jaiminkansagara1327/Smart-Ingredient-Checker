@@ -7,7 +7,7 @@ function Footer() {
         <footer className="footer">
             <div className="footer-content">
                 <p className="footer-copyright">
-                    © {currentYear} FoodView. All rights reserved.
+                    © {currentYear} Ingrexa. All rights reserved.
                 </p>
                 <p className="footer-made-with">
                     Made with <span className="heart">❤️</span> by JK for people

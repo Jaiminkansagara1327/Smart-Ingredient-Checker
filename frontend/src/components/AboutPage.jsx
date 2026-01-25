@@ -5,7 +5,7 @@ function AboutPage() {
         <section className="about-page">
             <div className="about-container">
                 <div className="about-hero">
-                    <h1 className="about-title">Why FoodView?</h1>
+                    <h1 className="about-title">Why Ingrexa?</h1>
                 </div>
 
                 <div className="about-story">

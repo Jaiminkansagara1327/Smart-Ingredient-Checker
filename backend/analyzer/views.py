@@ -230,7 +230,7 @@ def contact_submit(request):
         # Send Email Notification
         try:
             subject = f"New Contact Message: {instance.name}"
-            message = f"You received a new message from FoodView contact form.\n\n" \
+            message = f"You received a new message from Ingrexa contact form.\n\n" \
                       f"Name: {instance.name}\n" \
                       f"Email: {instance.email}\n" \
                       f"Message:\n{instance.message}\n\n" \

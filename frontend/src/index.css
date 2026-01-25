@@ -10,11 +10,11 @@
     --color-bg-card: #ffffff;
     --color-bg-elevated: #fcfbf9;
 
-    /* Accent Colors - Earthy & Trustworthy */
-    --color-accent-primary: #d97706;
-    --color-accent-secondary: #92400e;
-    --color-accent-gradient: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-    --color-accent-light: #fef3c7;
+    /* Accent Colors - Ingrexa Teal/Emerald */
+    --color-accent-primary: #0d9488;
+    --color-accent-secondary: #0f766e;
+    --color-accent-gradient: linear-gradient(135deg, #0d9488 0%, #065f46 100%);
+    --color-accent-light: #f0fdfa;
 
     /* Status Colors */
     --color-success: #059669;
@@ -101,8 +101,8 @@ body::before {
     width: 100%;
     height: 100%;
     background-image:
-        radial-gradient(circle at 20% 50%, rgba(217, 119, 6, 0.03) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(146, 64, 14, 0.03) 0%, transparent 50%);
+        radial-gradient(circle at 20% 50%, rgba(13, 148, 136, 0.03) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(15, 118, 110, 0.03) 0%, transparent 50%);
     pointer-events: none;
     z-index: 0;
 }
@@ -148,10 +148,14 @@ body::before {
     gap: var(--spacing-sm);
 }
 
+.logo-img {
+    height: 40px;
+    width: auto;
+    object-fit: contain;
+}
+
 .logo-icon {
-    width: 32px;
-    height: 32px;
-    color: var(--color-accent-primary);
+    display: none;
 }
 
 .logo-text {

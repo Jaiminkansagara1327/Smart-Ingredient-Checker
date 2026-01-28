@@ -21,7 +21,12 @@ class IngredientAnalyzer:
         if OPENAI_AVAILABLE:
             api_key = os.getenv('OPENAI_API_KEY')
             if api_key:
-                self.openai_client = OpenAI(api_key=api_key)
+                try:
+                    self.openai_client = OpenAI(api_key=api_key)
+                except Exception as e:
+                    print(f"Warning: Could not initialize OpenAI client: {e}")
+                    print("Falling back to rule-based analysis")
+                    self.openai_client = None
     
     def analyze_ingredients(self, ingredient_text: str, confidence: float) -> Dict[str, Any]:
         """
@@ -68,7 +73,7 @@ class IngredientAnalyzer:
     def _analyze_with_ai(self, ingredient_text: str, confidence: float) -> Dict[str, Any]:
         """Use OpenAI GPT to analyze ingredients"""
         
-        prompt = f"""You are a food safety and nutrition expert. Analyze the following ingredient list and provide a comprehensive health assessment.
+        prompt = f"""You are a food safety and nutrition expert with expertise in ingredient analysis, food science, and public health. Analyze the following ingredient list and provide a comprehensive, honest, and actionable health assessment.
 
 Ingredient List:
 {ingredient_text}
@@ -78,40 +83,67 @@ OCR Confidence: {confidence}%
 Please provide your analysis in the following JSON format:
 {{
     "product": {{
-        "name": "Detected product name or 'Unknown Product'",
+        "name": "Detected product name or 'Food Product'",
         "brand": "Detected brand or 'Unknown Brand'",
-        "category": "Food category"
+        "category": "Specific food category (e.g., 'Sauce', 'Snack', 'Beverage')"
     }},
-    "verdict": "A clear, honest 2-3 sentence verdict about this product's healthiness",
-    "score": <number 1-10, where 10 is healthiest>,
+    "verdict": "A clear, HONEST, and direct 2-4 sentence verdict about this product's healthiness. Don't sugarcoat - if it's unhealthy, say so plainly. Mention specific concerns.",
+    "score": <number 1-10, where 10 is healthiest. Be strict: 7-10 = genuinely healthy, 4-6 = acceptable in moderation, 1-3 = concerning/unhealthy>,
     "suitability": {{
-        "goodFor": "Who should consume this (comma-separated)",
-        "cautionFor": "Who should be cautious (comma-separated)",
-        "avoidFor": "Who should avoid this (comma-separated)"
+        "goodFor": "Be specific about demographics/conditions (e.g., 'Active adults seeking quick energy', 'Those without dietary restrictions')",
+        "cautionFor": "List specific groups with clear reasons (e.g., 'Diabetics (high sugar content)', 'Those watching sodium intake')",
+        "avoidFor": "Be direct about who should not consume this (e.g., 'Children under 5 (artificial additives)', 'Those with wheat allergies')"
     }},
     "ingredientGroups": [
         {{
-            "title": "Category name",
-            "description": "What these ingredients do",
-            "note": "Health impact or concern"
+            "title": "Main Ingredients",
+            "description": "List the first 5-7 ingredients in order, as they make up most of the product",
+            "note": "Health impact: [Specific impact on health, nutrition, or concerns]"
+        }},
+        {{
+            "title": "Additives & Preservatives",
+            "description": "List all artificial colors, flavors, preservatives found",
+            "note": "Why they're used and any health concerns"
+        }},
+        {{
+            "title": "Sugars & Sweeteners" (only if relevant),
+            "description": "All forms of sugar/sweeteners found",
+            "note": "Total impact on blood sugar and health"
+        }},
+        {{
+            "title": "Notable Concerns" (only if any exist),
+            "description": "Problematic ingredients or combinations",
+            "note": "Specific health risks or reasons for concern"
         }}
     ],
     "flags": [
-        {{"icon": "🚩", "text": "Notable flag"}}
+        {{"icon": "🚩", "text": "High in added sugars"}},
+        {{"icon": "⚠️", "text": "Contains artificial colors"}},
+        {{"icon": "🧂", "text": "High sodium content"}},
+        {{"icon": "🌱", "text": "Contains whole grains"}} (use positive flags too!)
     ],
-    "confidence_note": "Any concerns about OCR quality or missing information"
+    "confidence_note": "Any concerns about OCR quality, missing information, or analysis limitations"
 }}
 
-Be honest and critical. If ingredients are unhealthy, say so clearly."""
+IMPORTANT GUIDELINES:
+- Be HONEST and CRITICAL. Don't be diplomatic about unhealthy products.
+- If it's junk food, call it junk food.
+- Mention specific health impacts (diabetes risk, heart health, obesity, etc.).
+- Consider the ENTIRE ingredient list, not just the problematic ones.
+- The first ingredients matter most (they're present in highest quantities).
+- Look for: artificial additives, high fructose corn syrup, excessive sodium, trans fats, artificial colors/flavors.
+- Give credit for: whole food ingredients, minimal processing, natural preservatives, beneficial nutrients.
+- Be specific in suitability recommendations - use medical/dietary conditions when relevant.
+"""
 
         response = self.openai_client.chat.completions.create(
             model="gpt-4-turbo-preview",
             messages=[
-                {"role": "system", "content": "You are a food safety expert providing honest ingredient analysis."},
+                {"role": "system", "content": "You are a food safety expert providing honest, comprehensive ingredient analysis. Be direct and specific about health impacts."},
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
-            temperature=0.7,
+            temperature=0.3,  # Lower temperature for more consistent, factual responses
         )
         
         analysis = json.loads(response.choices[0].message.content)
@@ -122,84 +154,86 @@ Be honest and critical. If ingredients are unhealthy, say so clearly."""
         return analysis
     
     def _analyze_with_rules(self, ingredient_text: str, confidence: float) -> Dict[str, Any]:
-        """Rule-based ingredient analysis (fallback when AI is not available)"""
+        """Enhanced rule-based ingredient analysis"""
+        from .additive_service import identify_additives, get_processing_score
         
         text_lower = ingredient_text.lower()
+        additives = identify_additives(text_lower)
+        processing = get_processing_score(text_lower)
         
-        # Detect concerning ingredients
-        red_flags = []
-        if any(term in text_lower for term in ['high fructose corn syrup', 'hfcs']):
-            red_flags.append({'icon': '🚩', 'text': 'High Fructose Corn Syrup'})
-        if any(term in text_lower for term in ['artificial color', 'red 40', 'yellow 5', 'blue 1']):
-            red_flags.append({'icon': '🎨', 'text': 'Artificial Colors'})
-        if any(term in text_lower for term in ['msg', 'monosodium glutamate']):
-            red_flags.append({'icon': '⚠️', 'text': 'MSG Present'})
-        if 'trans fat' in text_lower or 'partially hydrogenated' in text_lower:
-            red_flags.append({'icon': '🚫', 'text': 'Trans Fats'})
-        if any(term in text_lower for term in ['sodium benzoate', 'potassium sorbate', 'bha', 'bht']):
-            red_flags.append({'icon': '🧪', 'text': 'Preservatives'})
+        # Calculate Score
+        score = 8 # Start with a baseline for "whole food"
         
-        # Detect positive ingredients
-        good_flags = []
-        if 'organic' in text_lower:
-            good_flags.append({'icon': '🌱', 'text': 'Organic Ingredients'})
-        if 'whole grain' in text_lower or 'whole wheat' in text_lower:
-            good_flags.append({'icon': '🌾', 'text': 'Whole Grains'})
-        if any(term in text_lower for term in ['vitamin', 'mineral', 'fortified']):
-            good_flags.append({'icon': '💊', 'text': 'Fortified'})
+        flags = []
+        for a in additives:
+            if a['risk'] == "Avoid":
+                score -= 2
+                flags.append({"icon": "🚫", "text": a['name']})
+            elif a['risk'] == "Caution":
+                score -= 1
+                flags.append({"icon": "⚠️", "text": a['name']})
         
-        # Calculate score based on flags
-        score = 7  # Start neutral
-        score -= len(red_flags) * 1.5
-        score += len(good_flags) * 0.5
+        if "sugar" in text_lower or "syrup" in text_lower:
+            score -= 1
+            flags.append({"icon": "🧂", "text": "High Sugar/Sweeteners"})
+            
+        if "organic" in text_lower:
+            score += 1
+            flags.append({"icon": "🌱", "text": "Organic"})
+
         score = max(1, min(10, score))
         
-        # Generate verdict
+        # Create professional verdict
         if score >= 8:
-            verdict = "This product appears to have a clean ingredient list with minimal processing and few concerning additives."
-        elif score >= 6:
-            verdict = "This product has a moderate ingredient profile. Some processed ingredients present but generally acceptable for occasional consumption."
+            verdict = f"This product is {processing}. It contains mostly natural ingredients and is a healthy choice for your diet."
+        elif score >= 5:
+            verdict = f"This product is {processing}. It contains some concerning additives and should be consumed in moderation."
         else:
-            verdict = "This product contains several concerning ingredients including artificial additives and highly processed components. Consider healthier alternatives."
+            verdict = f"This product is {processing}. It has high levels of additives or heavy processing. Consider a more natural alternative."
+
+        # Map additives to ingredient groups
+        ingredient_groups = [
+            {
+                "title": "Processing Level",
+                "description": processing,
+                "note": "Based on the complexity and type of ingredients found."
+            }
+        ]
         
+        if additives:
+            ingredient_groups.append({
+                "title": "Detected Additives",
+                "description": ", ".join([a['name'] for a in additives]),
+                "note": "Specifically checked against food safety databases."
+            })
+
         return {
             'success': True,
             'confidence': confidence,
-            'method': 'rules',
+            'method': 'rules_v2',
             'product': {
-                'name': 'Food Product',
-                'brand': 'Unknown Brand',
+                'name': 'Detected Product',
+                'brand': 'Unknown',
                 'category': 'Packaged Food',
             },
             'verdict': verdict,
             'score': round(score),
             'suitability': {
-                'goodFor': 'General population (in moderation)',
-                'cautionFor': 'Those with dietary restrictions, children',
-                'avoidFor': 'People with specific allergies (check label)',
+                'goodFor': 'General fitness, balanced diets',
+                'cautionFor': 'Sensitive individuals, children',
+                'avoidFor': 'Those avoiding processed additives',
             },
-            'ingredientGroups': [
-                {
-                    'title': 'Detected Ingredients',
-                    'description': ingredient_text[:200] + ('...' if len(ingredient_text) > 200 else ''),
-                    'note': f'Extracted with {confidence:.0f}% confidence',
-                }
-            ],
-            'flags': red_flags + good_flags,
-            'confidence_note': f'Analysis based on {confidence:.0f}% OCR confidence. For best results, ensure clear image quality.',
+            'ingredientGroups': ingredient_groups,
+            'flags': flags,
+            'confidence_note': f"Rule-based analysis (v2) based on {confidence:.0f}% confidence.",
         }
 
 
 def analyze_product_from_ocr(ocr_result) -> Dict[str, Any]:
     """
-    Main function to analyze product from OCR result
-    
-    Args:
-        ocr_result: OCRResult object from ocr_service
-    
-    Returns:
-        Dictionary with complete analysis
+    Hybrid analysis: Database Search + AI/Rule Analysis
     """
+    from .off_service import search_product_by_name
     analyzer = IngredientAnalyzer()
     
     # Check if ingredients were detected
@@ -212,18 +246,39 @@ def analyze_product_from_ocr(ocr_result) -> Dict[str, Any]:
                 'Make sure you are photographing the ingredient list section',
                 'Ensure the ingredients text is clearly visible',
                 'Try zooming in on the ingredient label',
-                'Check that the image is not upside down or sideways',
             ],
             'extracted_text': ocr_result.text[:200] if ocr_result.text else None,
             'confidence': ocr_result.confidence,
             'quality_score': ocr_result.quality_score,
         }
     
-    # Analyze ingredients
+    # 1. Try to find product in real scientific database
+    # Only try to guess if the source isn't manual entry (where user should provide name)
+    db_product = None
+    if ocr_result.method != 'manual_entry':
+        # Extract a potential name from the first few words of OCR
+        # But ignore common start ingredients like "Water", "Sugar", etc.
+        potential_name = ocr_result.text.split(',')[0].strip()[:50].lower()
+        ignore_common = ['water', 'sugar', 'salt', 'milk', 'wheat', 'flour']
+        
+        if potential_name and not any(common in potential_name for common in ignore_common):
+            db_product = search_product_by_name(potential_name)
+    
+    # 2. Analyze ingredients (AI or Rules)
     analysis = analyzer.analyze_ingredients(
         ocr_result.text,
         ocr_result.quality_score
     )
+    
+    # 3. Merge Database data with Analysis
+    if db_product:
+        analysis['product']['name'] = db_product['name']
+        analysis['product']['brand'] = db_product['brand']
+        analysis['product']['database_match'] = True
+        analysis['product']['nutriscore'] = db_product['nutriscore']
+        analysis['product']['nova_group'] = db_product['nova_group']
+        if db_product['image']:
+            analysis['product_image_url'] = db_product['image']
     
     # Add OCR metadata
     analysis['ocr_metadata'] = {

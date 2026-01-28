@@ -5,7 +5,7 @@ from PIL import Image
 import io
 import traceback
 
-from .ocr_service import extract_ingredients_from_image, clean_ingredient_text
+from .ocr_service import extract_ingredients_from_image
 from .ai_service import analyze_product_from_ocr
 
 
@@ -188,6 +188,67 @@ def analyze_url(request):
                 'success': False,
                 'error': 'ANALYSIS_FAILED',
                 'message': 'An error occurred while analyzing the URL. Please try again.',
+                'details': str(e),
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+def analyze_text(request):
+    """
+    Analyze product from manually entered ingredient text
+    """
+    text = request.data.get('text')
+    
+    if not text or not text.strip():
+        return Response(
+            {
+                'success': False,
+                'error': 'NO_TEXT',
+                'message': 'No ingredient text provided',
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        # Step 1: Create a mock OCR result from the text input
+        from .ocr_service import OCRResult
+        
+        print(f"Analyzing manual text: {text[:200]}...")
+        
+        # Create OCR result with perfect confidence since it's manually entered
+        ocr_result = OCRResult(
+            text=text.strip(),
+            confidence=100.0,  # Perfect confidence for manual input
+            method='manual_entry',
+            raw_data={'original_text': text}
+        )
+        
+        # Step 2: Analyze ingredients with AI
+        print("Starting AI analysis...")
+        from .ai_service import analyze_product_from_ocr
+        analysis_result = analyze_product_from_ocr(ocr_result)
+        
+        # If analysis failed
+        if not analysis_result.get('success', True):
+            return Response(analysis_result, status=status.HTTP_200_OK)
+        
+        # Add metadata about manual entry
+        analysis_result['input_method'] = 'manual'
+        
+        # Return successful analysis
+        return Response(analysis_result, status=status.HTTP_200_OK)
+    
+    except Exception as e:
+        print(f"Text analysis error: {e}")
+        print(traceback.format_exc())
+        
+        return Response(
+            {
+                'success': False,
+                'error': 'ANALYSIS_FAILED',
+                'message': 'An error occurred while analyzing the ingredients. Please try again.',
                 'details': str(e),
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR

@@ -4,6 +4,7 @@ import axios from 'axios';
 function UploadSection({ onAnalyze }) {
     const [activeTab, setActiveTab] = useState('image');
     const [url, setUrl] = useState('');
+    const [manualText, setManualText] = useState('');
     const [isDragging, setIsDragging] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const fileInputRef = useRef(null);
@@ -123,6 +124,38 @@ function UploadSection({ onAnalyze }) {
         }
     };
 
+    const handleManualTextAnalyze = async () => {
+        if (!manualText.trim()) {
+            alert('Please enter ingredients to analyze');
+            return;
+        }
+
+        setIsLoading(true);
+
+        try {
+            const response = await axios.post('/api/analyze/text/', { text: manualText });
+
+            // Check if analysis was successful
+            if (response.data.success === false) {
+                handleAnalysisError(response.data);
+                return;
+            }
+
+            onAnalyze(response.data, null);
+        } catch (error) {
+            console.error('Analysis error:', error);
+
+            // Check if it's an API error response
+            if (error.response && error.response.data) {
+                handleAnalysisError(error.response.data);
+            } else {
+                alert('Failed to connect to the server. Please check your connection and try again.');
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleDragOver = (e) => {
         e.preventDefault();
         setIsDragging(true);
@@ -153,7 +186,7 @@ function UploadSection({ onAnalyze }) {
             <div className="upload-container">
                 <h1 className="main-title">Discover What's Inside Your Food</h1>
                 <p className="main-subtitle">
-                    Upload a product image or paste a URL to get instant ingredient analysis
+                    Upload an image, paste a URL, or type ingredients to get instant analysis
                 </p>
 
                 <div className="upload-tabs">
@@ -177,6 +210,16 @@ function UploadSection({ onAnalyze }) {
                             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                         Paste URL
+                    </button>
+                    <button
+                        className={`tab-btn ${activeTab === 'text' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('text')}
+                    >
+                        <svg className="tab-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Type Ingredients
                     </button>
                 </div>
 
@@ -213,7 +256,7 @@ function UploadSection({ onAnalyze }) {
                                 )}
                             </div>
                         </div>
-                    ) : (
+                    ) : activeTab === 'url' ? (
                         <div className={`tab-content active`}>
                             <div className="url-input-container">
                                 <input
@@ -228,6 +271,39 @@ function UploadSection({ onAnalyze }) {
                                 <button
                                     className="analyze-btn"
                                     onClick={handleUrlAnalyze}
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <div className="spinner" style={{ width: '20px', height: '20px', margin: 0 }}></div>
+                                            <span>Analyzing...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>Analyze</span>
+                                            <svg className="btn-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                                <polyline points="12 5 19 12 12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className={`tab-content active`}>
+                            <div className="text-input-container">
+                                <textarea
+                                    className="text-input"
+                                    placeholder="Enter ingredients here, separated by commas or line breaks...&#10;&#10;Example:&#10;Water, Sugar, Wheat Flour, Palm Oil, Salt, Milk Powder, Artificial Flavoring"
+                                    value={manualText}
+                                    onChange={(e) => setManualText(e.target.value)}
+                                    disabled={isLoading}
+                                    rows={10}
+                                />
+                                <button
+                                    className="analyze-btn"
+                                    onClick={handleManualTextAnalyze}
                                     disabled={isLoading}
                                 >
                                     {isLoading ? (

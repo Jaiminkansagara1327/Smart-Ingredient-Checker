@@ -244,21 +244,3 @@ def extract_ingredients_from_image(image_file):
     return best_result
 
 
-def clean_ingredient_text(raw_text):
-    """
-    Clean and format extracted ingredient text
-    """
-    if not raw_text:
-        return ''
-    
-    # Remove excessive whitespace
-    text = re.sub(r'\s+', ' ', raw_text)
-    
-    # Fix common OCR errors
-    text = text.replace('|', 'I')
-    text = text.replace('0', 'O')  # In ingredient names, 0 is often O
-    
-    # Remove non-printable characters
-    text = ''.join(char for char in text if char.isprintable())
-    
-    return text.strip()

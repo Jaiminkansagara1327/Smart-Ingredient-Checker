@@ -288,4 +288,5 @@ def analyze_product_from_ocr(ocr_result) -> Dict[str, Any]:
         'text_length': len(ocr_result.text),
     }
     
+    analysis['raw_ingredients'] = ocr_result.text
     return analysis

@@ -10,6 +10,76 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
     return (
         <section className="results-section">
             <div className="results-container-new">
+                {/* User Input Ingredients */}
+                {data.raw_ingredients && (() => {
+                    // Smart split that respects parentheses
+                    const splitIngredients = (text) => {
+                        const result = [];
+                        let current = '';
+                        let depth = 0;
+                        for (let i = 0; i < text.length; i++) {
+                            const char = text[i];
+                            if (char === '(') depth++;
+                            if (char === ')') depth--;
+                            if (char === ',' && depth === 0) {
+                                if (current.trim()) result.push(current.trim());
+                                current = '';
+                            } else {
+                                current += char;
+                            }
+                        }
+                        if (current.trim()) result.push(current.trim());
+                        return result;
+                    };
+
+                    const ingredientList = splitIngredients(data.raw_ingredients);
+
+                    return (
+                        <div className="raw-input-box" style={{
+                            background: 'rgba(0, 0, 0, 0.02)',
+                            padding: '1.25rem',
+                            borderRadius: '0.75rem',
+                            border: '1px solid var(--color-border)',
+                            marginBottom: '2rem'
+                        }}>
+                            <span style={{
+                                fontSize: '0.7rem',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em',
+                                fontWeight: 700,
+                                color: 'var(--color-text-tertiary)',
+                                display: 'block',
+                                marginBottom: '0.75rem'
+                            }}>Entered Ingredients</span>
+                            <div style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: '0.65rem'
+                            }}>
+                                {ingredientList.map((ing, idx) => {
+                                    // Clean up: remove leading 'and ' if it exists (case-insensitive)
+                                    const cleanIng = ing.trim().replace(/^and\s+/i, '');
+
+                                    return (
+                                        <span key={idx} style={{
+                                            fontSize: '0.85rem',
+                                            padding: '0.35rem 0.85rem',
+                                            background: '#fff',
+                                            border: '1px solid var(--color-border)',
+                                            borderRadius: '2rem',
+                                            color: 'var(--color-text-secondary)',
+                                            display: 'inline-block',
+                                            boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+                                        }}>
+                                            {cleanIng}
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })()}
+
                 {/* Hero Score Section */}
                 <div className="score-hero">
                     <div className="score-circle">

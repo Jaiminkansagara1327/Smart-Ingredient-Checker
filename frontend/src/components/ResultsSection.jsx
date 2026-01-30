@@ -12,16 +12,45 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
             <div className="results-container-new">
                 {/* User Input Ingredients */}
                 {data.raw_ingredients && (() => {
-                    // Smart split that respects parentheses
+                    // Helper to clean up ingredient text from conversational and technical noise
+                    const cleanIngredientText = (text) => {
+                        if (!text) return '';
+                        return text
+                            // 1. Remove LaTeX/Markdown math mode and escaping
+                            .replace(/\\\((.*?)\\\)/g, '$1')
+                            .replace(/\\\[(.*?)\\\]/g, '$1')
+                            .replace(/\\%/g, '%')
+                            .replace(/\\\*/g, '')
+                            // 2. Remove math/footnote symbols globally
+                            .replace(/[\^_{\}\*\†]/g, '')
+                            // 3. Remove conversational lead-ins and technical descriptors
+                            .replace(/^(it also contains|also contains|contains|ingredients include|ingredients are|and|plus|permitted|synthetic|natural|nature identical|artificial|added|contains permitted|food|colours|colors|flavouring|flavoring|flavours|flavors)\s*[:\-]?\s*/gi, '')
+                            // 4. Repeatedly strip common prefixes until clean
+                            .replace(/^(synthetic|natural|permitted|added|nature identical|artificial|food)\s+/gi, '')
+                            .trim()
+                            .replace(/\.$/, ''); // Remove trailing dots
+                    };
+
+                    // Smart split that respects parentheses and common delimiters
                     const splitIngredients = (text) => {
+                        if (!text) return [];
+
+                        let cleanedText = text.replace(/\s+/g, ' '); // normalize whitespace
                         const result = [];
                         let current = '';
                         let depth = 0;
-                        for (let i = 0; i < text.length; i++) {
-                            const char = text[i];
+
+                        for (let i = 0; i < cleanedText.length; i++) {
+                            const char = cleanedText[i];
                             if (char === '(') depth++;
                             if (char === ')') depth--;
-                            if (char === ',' && depth === 0) {
+
+                            const isComma = char === ',';
+                            const isPeriodSeparator = char === '.' &&
+                                depth === 0 &&
+                                (i === cleanedText.length - 1 || !/\d/.test(cleanedText[i + 1]));
+
+                            if ((isComma || isPeriodSeparator) && depth === 0) {
                                 if (current.trim()) result.push(current.trim());
                                 current = '';
                             } else {
@@ -29,7 +58,15 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                             }
                         }
                         if (current.trim()) result.push(current.trim());
-                        return result;
+
+                        return result
+                            .map(ing => cleanIngredientText(ing))
+                            .filter(ing => {
+                                const lower = ing.toLowerCase();
+                                if (lower.length < 2) return false;
+                                if (['etc', 'including', 'and', 'also', 'contains', 'ingredients'].includes(lower)) return false;
+                                return true;
+                            });
                     };
 
                     const ingredientList = splitIngredients(data.raw_ingredients);
@@ -164,7 +201,19 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                             {data.ingredientGroups.map((group, index) => (
                                 <div key={index} className="ingredient-item-modern">
                                     <h3>{group.title}</h3>
-                                    <p className="ingredient-desc">{group.description}</p>
+                                    <p className="ingredient-desc">
+                                        {group.description.split(',').map(s => {
+                                            const cleaned = s.replace(/\\\((.*?)\\\)/g, '$1')
+                                                .replace(/\\\[(.*?)\\\]/g, '$1')
+                                                .replace(/\\%/g, '%')
+                                                .replace(/\\\*/g, '')
+                                                .replace(/[\^_{\}\*\†]/g, '')
+                                                .replace(/^(it also contains|also contains|contains|ingredients include|ingredients are|and|plus|permitted|synthetic|natural|nature identical|artificial|added|contains permitted|food|colours|colors|flavouring|flavoring|flavours|flavors)\s*[:\-]?\s*/gi, '')
+                                                .replace(/^(synthetic|natural|permitted|added|nature identical|artificial|food)\s+/gi, '')
+                                                .trim();
+                                            return cleaned;
+                                        }).filter(Boolean).join(', ')}
+                                    </p>
                                     {group.note && <p className="ingredient-note">{group.note}</p>}
                                 </div>
                             ))}
@@ -180,7 +229,7 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                             {data.flags.map((flag, index) => (
                                 <div key={index} className="flag-modern">
                                     <span className="flag-emoji">{flag.icon}</span>
-                                    <span>{flag.text}</span>
+                                    <span>{flag.text.replace(/\\\((.*?)\\\)/g, '$1').replace(/\\%/g, '%').replace(/\\\*/g, '').replace(/[\^_{\}\*\†]/g, '')}</span>
                                 </div>
                             ))}
                         </div>

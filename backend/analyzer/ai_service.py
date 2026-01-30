@@ -97,22 +97,22 @@ Please provide your analysis in the following JSON format:
     "ingredientGroups": [
         {{
             "title": "Main Ingredients",
-            "description": "List the first 5-7 ingredients in order, as they make up most of the product",
+            "description": "A comma-separated list of the first 5-7 ingredients ONLY. Do not use full sentences or conversational lead-ins (e.g., 'It contains...', 'Ingredients include...').",
             "note": "Health impact: [Specific impact on health, nutrition, or concerns]"
         }},
         {{
             "title": "Additives & Preservatives",
-            "description": "List all artificial colors, flavors, preservatives found",
+            "description": "A comma-separated list of all artificial colors, flavors, and preservatives ONLY. If none found, say 'None detected'.",
             "note": "Why they're used and any health concerns"
         }},
         {{
             "title": "Sugars & Sweeteners" (only if relevant),
-            "description": "All forms of sugar/sweeteners found",
+            "description": "A comma-separated list of all forms of sugar/sweeteners found ONLY.",
             "note": "Total impact on blood sugar and health"
         }},
         {{
             "title": "Notable Concerns" (only if any exist),
-            "description": "Problematic ingredients or combinations",
+            "description": "A comma-separated list of problematic ingredients or combinations ONLY.",
             "note": "Specific health risks or reasons for concern"
         }}
     ],
@@ -126,6 +126,10 @@ Please provide your analysis in the following JSON format:
 }}
 
 IMPORTANT GUIDELINES:
+- **NO SENTENCES** in the "description" fields of `ingredientGroups`. Use comma-separated lists only.
+- **NO LaTeX or Markdown math mode**. Never use `\(`, `\)`, `\[`, `\]`, or escape percentages like `\%`. Use plain text like "8%" or "8 percent".
+- **NO ASTERISKS or FOOTNOTES**. Never use symbols like `*` or `†`.
+- **NO REDUNDANT DESCRIPTORS**. Do not use words like "Permitted", "Added", or "Contains" within the ingredient names themselves. Just the name.
 - Be HONEST and CRITICAL. Don't be diplomatic about unhealthy products.
 - If it's junk food, call it junk food.
 - Mention specific health impacts (diabetes risk, heart health, obesity, etc.).

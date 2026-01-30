@@ -122,14 +122,16 @@ Please provide your analysis in the following JSON format:
         {{"icon": "🧂", "text": "High sodium content"}},
         {{"icon": "🌱", "text": "Contains whole grains"}} (use positive flags too!)
     ],
+    "ingredients": ["Clean, properly formatted list of ALL detected ingredients as separate strings"],
     "confidence_note": "Any concerns about OCR quality, missing information, or analysis limitations"
 }}
 
 IMPORTANT GUIDELINES:
+- **EXTRACT ALL INGREDIENTS** into the `ingredients` array. If the input is a single block of text without commas, identify the individual ingredients yourself.
 - **NO SENTENCES** in the "description" fields of `ingredientGroups`. Use comma-separated lists only.
 - **NO LaTeX or Markdown math mode**. Never use `\(`, `\)`, `\[`, `\]`, or escape percentages like `\%`. Use plain text like "8%" or "8 percent".
 - **NO ASTERISKS or FOOTNOTES**. Never use symbols like `*` or `†`.
-- **NO REDUNDANT DESCRIPTORS**. Do not use words like "Permitted", "Added", or "Contains" within the ingredient names themselves. Just the name.
+- **NO REDUNDANT DESCRIPTORS**. Do not use words like "Permitted", "Added", "Contains", or "Or" within the ingredient names themselves. Just the name.
 - Be HONEST and CRITICAL. Don't be diplomatic about unhealthy products.
 - If it's junk food, call it junk food.
 - Mention specific health impacts (diabetes risk, heart health, obesity, etc.).

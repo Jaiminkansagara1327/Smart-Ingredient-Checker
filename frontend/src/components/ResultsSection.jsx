@@ -11,45 +11,57 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
         <section className="results-section">
             <div className="results-container-new">
                 {/* User Input Ingredients */}
-                {data.raw_ingredients && (() => {
+                {(data.ingredients || data.raw_ingredients) && (() => {
                     // Helper to clean up ingredient text from conversational and technical noise
                     const cleanIngredientText = (text) => {
                         if (!text) return '';
-                        return text
+                        let cleaned = text
                             // 1. Remove LaTeX/Markdown math mode and escaping
                             .replace(/\\\((.*?)\\\)/g, '$1')
                             .replace(/\\\[(.*?)\\\]/g, '$1')
-                            .replace(/\\%/g, '%')
-                            .replace(/\\\*/g, '')
+                            .replace(/\s*\\%\s*/g, '%') // handle escaped %
+                            .replace(/\s*\\\*\s*/g, '')  // handle escaped *
                             // 2. Remove math/footnote symbols globally
-                            .replace(/[\^_{\}\*\†]/g, '')
-                            // 3. Remove conversational lead-ins and technical descriptors
-                            .replace(/^(it also contains|also contains|contains|ingredients include|ingredients are|and|plus|permitted|synthetic|natural|nature identical|artificial|added|contains permitted|food|colours|colors|flavouring|flavoring|flavours|flavors)\s*[:\-]?\s*/gi, '')
-                            // 4. Repeatedly strip common prefixes until clean
-                            .replace(/^(synthetic|natural|permitted|added|nature identical|artificial|food)\s+/gi, '')
-                            .trim()
-                            .replace(/\.$/, ''); // Remove trailing dots
+                            .replace(/[\^_{\}\*\†]/g, '');
+
+                        // 3. Iteratively remove conversational lead-ins, slashes, and technical adjectives
+                        let previous;
+                        do {
+                            previous = cleaned;
+                            cleaned = cleaned
+                                // Remove leading slashes, spacers or "or" at the start
+                                .replace(/^[\s/\\|.,\-*:]+/i, '')
+                                .replace(/^(it also contains|also contains|contains|ingredients include|ingredients are|and|plus|permitted|synthetic|natural|nature identical|artificial|added|contains permitted|food|or)\s*[:\-]?\s*/gi, '')
+                                .trim();
+                        } while (cleaned !== previous);
+
+                        return cleaned.replace(/\.$/, ''); // Remove trailing dots
                     };
 
-                    // Smart split that respects parentheses and common delimiters
                     const splitIngredients = (text) => {
                         if (!text) return [];
 
-                        let cleanedText = text.replace(/\s+/g, ' '); // normalize whitespace
+                        let cleanedText = text.replace(/\s+/g, ' ');
+
+                        // If there are NO commas but there are spaces and parentheses
+                        // Example: "Potato (89%) Edible Oil (10%)"
+                        // This identifies a closing parenthesis followed by a space and another word
+                        if (!cleanedText.includes(',') && /\)\s+[A-Z]/.test(cleanedText)) {
+                            return cleanedText
+                                .split(/(?<=\))\s+(?=[A-Z])/)
+                                .map(ing => cleanIngredientText(ing))
+                                .filter(ing => ing.length > 1);
+                        }
+
                         const result = [];
                         let current = '';
                         let depth = 0;
-
                         for (let i = 0; i < cleanedText.length; i++) {
                             const char = cleanedText[i];
                             if (char === '(') depth++;
                             if (char === ')') depth--;
-
                             const isComma = char === ',';
-                            const isPeriodSeparator = char === '.' &&
-                                depth === 0 &&
-                                (i === cleanedText.length - 1 || !/\d/.test(cleanedText[i + 1]));
-
+                            const isPeriodSeparator = char === '.' && depth === 0 && (i === cleanedText.length - 1 || !/\d/.test(cleanedText[i + 1]));
                             if ((isComma || isPeriodSeparator) && depth === 0) {
                                 if (current.trim()) result.push(current.trim());
                                 current = '';
@@ -69,7 +81,11 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                             });
                     };
 
-                    const ingredientList = splitIngredients(data.raw_ingredients);
+                    // 1. Use AI-provided array if available (most reliable)
+                    // 2. Else use splitIngredients on raw text
+                    const ingredientList = data.ingredients
+                        ? data.ingredients.map(ing => cleanIngredientText(ing)).filter(i => i.length > 1)
+                        : splitIngredients(data.raw_ingredients);
 
                     return (
                         <div className="raw-input-box" style={{
@@ -203,14 +219,22 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                                     <h3>{group.title}</h3>
                                     <p className="ingredient-desc">
                                         {group.description.split(',').map(s => {
-                                            const cleaned = s.replace(/\\\((.*?)\\\)/g, '$1')
+                                            let cleaned = s.replace(/\\\((.*?)\\\)/g, '$1')
                                                 .replace(/\\\[(.*?)\\\]/g, '$1')
                                                 .replace(/\\%/g, '%')
                                                 .replace(/\\\*/g, '')
-                                                .replace(/[\^_{\}\*\†]/g, '')
-                                                .replace(/^(it also contains|also contains|contains|ingredients include|ingredients are|and|plus|permitted|synthetic|natural|nature identical|artificial|added|contains permitted|food|colours|colors|flavouring|flavoring|flavours|flavors)\s*[:\-]?\s*/gi, '')
-                                                .replace(/^(synthetic|natural|permitted|added|nature identical|artificial|food)\s+/gi, '')
-                                                .trim();
+                                                .replace(/[\^_{\}\*\†]/g, '');
+
+                                            // Iterative prefix removal
+                                            let previous;
+                                            do {
+                                                previous = cleaned;
+                                                cleaned = cleaned
+                                                    .replace(/^[\s/\\|.,\-*:]+/i, '')
+                                                    .replace(/^(it also contains|also contains|contains|ingredients include|ingredients are|and|plus|permitted|synthetic|natural|nature identical|artificial|added|contains permitted|food|or)\s*[:\-]?\s*/gi, '')
+                                                    .trim();
+                                            } while (cleaned !== previous);
+
                                             return cleaned;
                                         }).filter(Boolean).join(', ')}
                                     </p>

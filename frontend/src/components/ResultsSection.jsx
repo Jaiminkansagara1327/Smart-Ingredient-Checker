@@ -149,18 +149,33 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                                 cy="60"
                                 r="52"
                                 style={{
-                                    strokeDasharray: `${(data.score / 10) * 326.7} 326.7`,
-                                    stroke: data.score >= 7 ? '#10b981' : data.score >= 4 ? '#f59e0b' : '#ef4444'
+                                    strokeDasharray: `${(data.score / 100) * 326.7} 326.7`,
+                                    stroke: data.score >= 70 ? '#10b981' : data.score >= 40 ? '#f59e0b' : '#ef4444'
                                 }}
                             />
                         </svg>
                         <div className="score-content">
                             <div className="score-number">{data.score}</div>
-                            <div className="score-label">out of 10</div>
+                            <div className="score-label" style={{
+                                color: data.score >= 70 ? '#059669' : data.score >= 40 ? '#d97706' : '#dc2626',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                fontSize: '0.75rem',
+                                letterSpacing: '0.05em'
+                            }}>
+                                {data.score >= 85 ? 'Excellent' :
+                                    data.score >= 70 ? 'Very Good' :
+                                        data.score >= 55 ? 'Average' :
+                                            data.score >= 40 ? 'Fair' : 'Junk Food'}
+                            </div>
                         </div>
                     </div>
-                    <h1 className="product-name-hero">{data.product.name}</h1>
-                    <p className="product-brand-hero">{data.product.brand}</p>
+                    {data.product.name && !['Food Product', 'Detected Product'].includes(data.product.name) && (
+                        <h1 className="product-name-hero">{data.product.name}</h1>
+                    )}
+                    {data.product.brand && !['Unknown Brand', 'Unknown'].includes(data.product.brand) && (
+                        <p className="product-brand-hero">{data.product.brand}</p>
+                    )}
 
                     {/* Database Badges */}
                     {(data.product.nutriscore || data.product.nova_group) && (
@@ -177,6 +192,35 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                             )}
                         </div>
                     )}
+
+                    {/* How it's calculated */}
+                    <div style={{
+                        marginTop: '1.5rem',
+                        padding: '1rem',
+                        background: 'rgba(0,0,0,0.02)',
+                        borderRadius: '0.75rem',
+                        textAlign: 'left',
+                        fontSize: '0.85rem'
+                    }}>
+                        <details>
+                            <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                                How is this score calculated?
+                            </summary>
+                            <div style={{ marginTop: '0.75rem', color: 'var(--color-text-tertiary)', lineHeight: '1.5' }}>
+                                <p style={{ marginBottom: '0.5rem' }}>We start with a base of <strong>100 points</strong> and deduct for:</p>
+                                <ul style={{ paddingLeft: '1.25rem' }}>
+                                    <li><strong>Ultra-processing:</strong> -30 to -40 pts</li>
+                                    <li><strong>Artificial Additives:</strong> -5 pts each</li>
+                                    <li><strong>High Sugar/HFCS:</strong> -15 to -20 pts</li>
+                                    <li><strong>Refined Oils (Palm/Veg):</strong> -10 pts</li>
+                                    <li><strong>Excessive Sodium:</strong> -10 pts</li>
+                                </ul>
+                                <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', fontStyle: 'italic' }}>
+                                    *Bonus points are awarded for whole grains and zero additives.
+                                </p>
+                            </div>
+                        </details>
+                    </div>
                 </div>
 
                 {/* Verdict */}

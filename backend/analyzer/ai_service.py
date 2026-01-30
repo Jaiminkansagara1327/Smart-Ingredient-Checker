@@ -88,7 +88,7 @@ Please provide your analysis in the following JSON format:
         "category": "Specific food category (e.g., 'Sauce', 'Snack', 'Beverage')"
     }},
     "verdict": "A clear, HONEST, and direct 2-4 sentence verdict about this product's healthiness. Don't sugarcoat - if it's unhealthy, say so plainly. Mention specific concerns.",
-    "score": <number 1-10, where 10 is healthiest. Be strict: 7-10 = genuinely healthy, 4-6 = acceptable in moderation, 1-3 = concerning/unhealthy>,
+    "score": <number 1-100, where 100 is healthiest. BE STRICT and use the SCORING RULES below>,
     "suitability": {{
         "goodFor": "Be specific about demographics/conditions (e.g., 'Active adults seeking quick energy', 'Those without dietary restrictions')",
         "cautionFor": "List specific groups with clear reasons (e.g., 'Diabetics (high sugar content)', 'Those watching sodium intake')",
@@ -132,6 +132,16 @@ IMPORTANT GUIDELINES:
 - **NO LaTeX or Markdown math mode**. Never use `\(`, `\)`, `\[`, `\]`, or escape percentages like `\%`. Use plain text like "8%" or "8 percent".
 - **NO ASTERISKS or FOOTNOTES**. Never use symbols like `*` or `†`.
 - **NO REDUNDANT DESCRIPTORS**. Do not use words like "Permitted", "Added", "Contains", or "Or" within the ingredient names themselves. Just the name.
+- **SCORING RULES (1-100 Scale)**:
+    - **Base Score: 100**. Start at 100 and deduct points based on the following:
+    - **Ultra-processed (NOVA 4)**: Deduct 30-40 points immediately if it's junk/ultra-processed food.
+    - **Artificial Additives**: Deduct 5 points for EVERY artificial color, flavor, or stabilizer.
+    - **Sweeteners**: Deduct 15-20 points for High Fructose Corn Syrup or Aspartame. Deduct 10 points for excessive added sugar.
+    - **Preservatives**: Deduct 5-10 points for chemical preservatives (BHA/BHT, Nitrates).
+    - **Refined Oils**: Deduct 10 points for palm oil or highly refined vegetable oils.
+    - **Sodium**: Deduct 10 points if clearly high in salt.
+    - **Bonus Points**: Add 5-10 points for high fiber, whole grains, or zero additives.
+    - **Final Tally**: A score of 80+ should be rare (genuinely healthy). 0-40 is strictly junk.
 - Be HONEST and CRITICAL. Don't be diplomatic about unhealthy products.
 - If it's junk food, call it junk food.
 - Mention specific health impacts (diabetes risk, heart health, obesity, etc.).

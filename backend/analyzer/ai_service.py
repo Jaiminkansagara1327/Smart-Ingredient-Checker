@@ -127,7 +127,7 @@ Please provide your analysis in the following JSON format:
 }}
 
 IMPORTANT GUIDELINES:
-- **EXTRACT ALL INGREDIENTS** into the `ingredients` array. If the input is a single block of text without commas, identify the individual ingredients yourself.
+- **EXTRACT ALL INGREDIENTS** into the `ingredients` array. If the input is a single block of text or separated by line breaks without commas, identify and extract the individual ingredients yourself.
 - **NO SENTENCES** in the "description" fields of `ingredientGroups`. Use comma-separated lists only.
 - **NO LaTeX or Markdown math mode**. Never use `\(`, `\)`, `\[`, `\]`, or escape percentages like `\%`. Use plain text like "8%" or "8 percent".
 - **NO ASTERISKS or FOOTNOTES**. Never use symbols like `*` or `†`.

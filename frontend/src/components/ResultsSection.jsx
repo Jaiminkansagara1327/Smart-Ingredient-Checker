@@ -41,11 +41,20 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                     const splitIngredients = (text) => {
                         if (!text) return [];
 
+                        // 1. First, check if input has newlines but NO commas
+                        // This handles lists like:
+                        // Ingredient 1
+                        // Ingredient 2
+                        if (!text.includes(',') && text.includes('\n')) {
+                            return text
+                                .split(/\n+/)
+                                .map(ing => cleanIngredientText(ing.trim()))
+                                .filter(ing => ing.length > 1);
+                        }
+
                         let cleanedText = text.replace(/\s+/g, ' ');
 
-                        // If there are NO commas but there are spaces and parentheses
-                        // Example: "Potato (89%) Edible Oil (10%)"
-                        // This identifies a closing parenthesis followed by a space and another word
+                        // 2. Handle patterns like "Potato (89%) Edible Oil (10%)"
                         if (!cleanedText.includes(',') && /\)\s+[A-Z]/.test(cleanedText)) {
                             return cleanedText
                                 .split(/(?<=\))\s+(?=[A-Z])/)
@@ -53,6 +62,7 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                                 .filter(ing => ing.length > 1);
                         }
 
+                        // 3. Fallback to standard comma/period splitting
                         const result = [];
                         let current = '';
                         let depth = 0;

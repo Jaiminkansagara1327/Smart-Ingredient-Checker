@@ -3,11 +3,18 @@ import React from 'react';
 function Header({ onNavigate, currentPage }) {
   return (
     <header className="header">
-      <div className="logo" onClick={() => onNavigate('analyze')} style={{ cursor: 'pointer' }}>
+      <div className="logo" onClick={() => onNavigate('home')} style={{ cursor: 'pointer' }}>
         <img src="/logo.png" alt="Ingrexa Logo" className="logo-img" />
         <span className="logo-text">Ingrexa</span>
       </div>
       <nav className="nav">
+        <a
+          href="#"
+          className={`nav-link ${currentPage === 'home' ? 'active' : ''}`}
+          onClick={(e) => { e.preventDefault(); onNavigate('home'); }}
+        >
+          Home
+        </a>
         <a
           href="#"
           className={`nav-link ${currentPage === 'analyze' ? 'active' : ''}`}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Header from './components/Header';
+import HomePage from './components/HomePage';
 import UploadSection from './components/UploadSection';
 import ResultsSection from './components/ResultsSection';
 import AboutPage from './components/AboutPage';
@@ -7,7 +8,7 @@ import ContactPage from './components/ContactPage';
 import Footer from './components/Footer';
 
 function App() {
-    const [currentPage, setCurrentPage] = useState('analyze');
+    const [currentPage, setCurrentPage] = useState('home');
     const [showResults, setShowResults] = useState(false);
     const [analysisData, setAnalysisData] = useState(null);
     const [uploadedImage, setUploadedImage] = useState(null);
@@ -30,6 +31,7 @@ function App() {
     };
 
     const renderContent = () => {
+        if (currentPage === 'home') return <HomePage onNavigate={handleNavigate} />;
         if (currentPage === 'about') return <AboutPage />;
         if (currentPage === 'contact') return <ContactPage />;
 

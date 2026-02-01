@@ -93,9 +93,18 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
 
                     // 1. Use AI-provided array if available (most reliable)
                     // 2. Else use splitIngredients on raw text
-                    const ingredientList = data.ingredients
+                    const rawList = data.ingredients
                         ? data.ingredients.map(ing => cleanIngredientText(ing)).filter(i => i.length > 1)
                         : splitIngredients(data.raw_ingredients);
+
+                    // 3. Deduplicate (case-insensitive)
+                    const seen = new Set();
+                    const ingredientList = rawList.filter(ing => {
+                        const normalized = ing.toLowerCase().trim();
+                        if (seen.has(normalized)) return false;
+                        seen.add(normalized);
+                        return true;
+                    });
 
                     return (
                         <div className="raw-input-box" style={{

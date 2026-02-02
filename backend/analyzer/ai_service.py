@@ -82,6 +82,8 @@ OCR Confidence: {confidence}%
 
 Please provide your analysis in the following JSON format:
 {{
+    "is_valid_ingredient_list": <boolean - true ONLY if this is actually a food ingredient list. False if it's random text, sentences, conversations, or anything that's NOT ingredients>,
+    "validation_message": "If is_valid_ingredient_list is false, explain what's wrong (e.g., 'This appears to be random text, not food ingredients', 'This looks like a conversation or description, not an ingredient list'). Otherwise leave empty.",
     "product": {{
         "name": "Detected product name or 'Food Product'",
         "brand": "Detected brand or 'Unknown Brand'",
@@ -125,6 +127,35 @@ Please provide your analysis in the following JSON format:
     "ingredients": ["Clean, properly formatted list of ALL detected ingredients as separate strings"],
     "confidence_note": "Any concerns about OCR quality, missing information, or analysis limitations"
 }}
+
+CRITICAL - INPUT VALIDATION (MUST BE FIRST CHECK):
+- **YOU MUST REJECT** any input that is NOT a food ingredient list. Be EXTREMELY STRICT.
+- **ALL-OR-NOTHING RULE**: Even ONE non-food word/phrase means REJECT. Do not be lenient.
+
+- Set `is_valid_ingredient_list` to **FALSE** for:
+  ❌ **Mixed content** - REJECT if it contains ANY mix of real ingredients + random text (e.g., "Flour, Sugar, I am a student, Eggs")
+  ❌ **Conversational/biographical text** (e.g., "I am a student", "I work on...", "My name is...", "Computer Science")
+  ❌ **Complete sentences** with subjects and verbs about people, places, or events
+  ❌ **Job titles/roles** (e.g., "developer", "engineer", "student", "backend", "full-stack")
+  ❌ **Technical terms non-food** (e.g., "API", "authentication", "backend systems", "handling")
+  ❌ **Random words** without context (e.g., "hello world", "test test", "lorem ipsum")
+  ❌ **Numbers only** (e.g., "123456", "1 2 3 4 5")
+  ❌ **Personal information** (names, addresses, job descriptions, hobbies, interests)
+  ❌ **Questions or commands** (e.g., "How are you?", "Please analyze this")
+  ❌ **Generic text snippets** that don't relate to food at all
+  
+- Set `is_valid_ingredient_list` to **TRUE** ONLY if:
+  ✅ **EVERY SINGLE WORD** is either:
+     - A recognizable food ingredient name (e.g., "Flour", "Water", "Sugar", "Eggs", "Milk")
+     - A chemical/additive name found in food (e.g., "E471", "Sodium Benzoate", "Ascorbic Acid", "INS 471")
+     - A common food descriptor (e.g., "Wheat", "Organic", "Refined", "Whole")
+     - Punctuation or formatting (commas, parentheses, percentages for ingredients like "8%")
+  ✅ It follows typical ingredient list patterns (comma-separated or line-separated food items)
+  ✅ **100% of the content is food-related** - NO exceptions
+
+- **IMPORTANT**: If you see words like "student", "developer", "work", "interested", "building", "handling", "backend", "API", "authentication" - these are NOT food terms. REJECT immediately.
+- When in doubt, **REJECT IT**. Better to reject borderline cases than analyze non-food text.
+- If rejecting, provide a clear `validation_message` explaining why (e.g., "This contains personal/biographical information mixed with ingredient names, not a pure ingredient list").
 
 IMPORTANT GUIDELINES:
 - **EXTRACT ALL INGREDIENTS** into the `ingredients` array. If the input is a single block of text or separated by line breaks without commas, identify and extract the individual ingredients yourself.

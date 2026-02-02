@@ -1314,4 +1314,115 @@ html {
         padding: 0.875rem 2rem;
         font-size: 1rem;
     }
+}/* ===================================
+   Validation Error Card
+   =================================== */
+
+/* ===================================
+   Validation Error Card - Premium Minimalist
+   =================================== */
+
+.validation-error-card {
+    display: flex;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-xl);
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-left: 3px solid var(--color-text-tertiary);
+    border-radius: var(--radius-md);
+    margin: var(--spacing-lg) 0;
+    animation: fadeInUp 0.5s ease;
+    position: relative;
+    box-shadow: var(--shadow-sm);
+}
+
+.error-icon {
+    display: none;
+    /* Removed for minimalism */
+}
+
+.error-content {
+    flex: 1;
+    padding-right: var(--spacing-xl);
+}
+
+.error-title {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-sm);
+    letter-spacing: -0.01em;
+}
+
+.error-message {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-sm);
+    line-height: 1.6;
+}
+
+.error-suggestion {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-tertiary);
+    line-height: 1.5;
+}
+
+.error-example {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-tertiary);
+    font-family: 'Courier New', monospace;
+    background: var(--color-bg-secondary);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-sm);
+    margin-top: var(--spacing-md);
+    white-space: pre-line;
+    border: 1px solid var(--color-border);
+}
+
+.error-close-btn {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: absolute;
+    top: var(--spacing-lg);
+    right: var(--spacing-lg);
+}
+
+.error-close-btn:hover {
+    background: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+}
+
+.error-close-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+@media (max-width: 768px) {
+    .validation-error-card {
+        padding: var(--spacing-lg);
+        gap: var(--spacing-md);
+    }
+
+    .error-content {
+        padding-right: var(--spacing-lg);
+    }
+
+    .error-title {
+        font-size: var(--font-size-sm);
+    }
+
+    .error-close-btn {
+        top: var(--spacing-md);
+        right: var(--spacing-md);
+    }
 }

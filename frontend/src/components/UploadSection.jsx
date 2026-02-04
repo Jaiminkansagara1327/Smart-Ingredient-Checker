@@ -16,14 +16,22 @@ function UploadSection({ onAnalyze }) {
         // Validate file type
         const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
         if (!validTypes.includes(file.type)) {
-            alert('Please upload a valid image file (JPG, PNG, or WEBP)');
+            setValidationError({
+                title: 'Invalid File Type',
+                message: 'Please upload a valid image file (JPG, PNG, or WEBP).',
+                suggestion: 'Ensure your file has one of the supported extensions.'
+            });
             return;
         }
 
         // Validate file size (10MB max)
         const maxSize = 10 * 1024 * 1024;
         if (file.size > maxSize) {
-            alert('File size must be less than 10MB');
+            setValidationError({
+                title: 'File Too Large',
+                message: 'File size must be less than 10MB.',
+                suggestion: 'Please try uploading a smaller image or compressing the file.'
+            });
             return;
         }
 
@@ -75,8 +83,11 @@ function UploadSection({ onAnalyze }) {
             if (error.response && error.response.data) {
                 handleAnalysisError(error.response.data);
             } else {
-                // Network or other error
-                alert('Failed to connect to the server. Please check your connection and try again.');
+                setValidationError({
+                    title: 'Connection Error',
+                    message: 'Failed to connect to the server.',
+                    suggestion: 'Please check your internet connection and try again.'
+                });
             }
         } finally {
             setIsLoading(false);
@@ -98,19 +109,31 @@ function UploadSection({ onAnalyze }) {
             alertMessage += '\n\nTry taking a clearer photo with better lighting.';
         }
 
-        alert(alertMessage);
+        setValidationError({
+            title: 'Analysis Error',
+            message: alertMessage,
+            suggestion: 'Please try again or check the suggestions above.'
+        });
     };
 
     const handleUrlAnalyze = async () => {
         if (!url.trim()) {
-            alert('Please enter a valid URL');
+            setValidationError({
+                title: 'Invalid URL',
+                message: 'Please enter a valid URL.',
+                suggestion: 'Ensure the URL is correct and points to a valid resource.'
+            });
             return;
         }
 
         try {
             new URL(url);
         } catch (e) {
-            alert('Please enter a valid URL');
+            setValidationError({
+                title: 'Invalid URL Format',
+                message: 'Please enter a valid URL.',
+                suggestion: 'Ensure the URL starts with http:// or https://'
+            });
             return;
         }
 
@@ -148,7 +171,11 @@ function UploadSection({ onAnalyze }) {
             if (error.response && error.response.data) {
                 handleAnalysisError(error.response.data);
             } else {
-                alert('Failed to connect to the server. Please check your connection and try again.');
+                setValidationError({
+                    title: 'Connection Error',
+                    message: 'Failed to connect to the server.',
+                    suggestion: 'Please check your internet connection and try again.'
+                });
             }
         } finally {
             setIsLoading(false);
@@ -157,7 +184,11 @@ function UploadSection({ onAnalyze }) {
 
     const handleManualTextAnalyze = async () => {
         if (!manualText.trim()) {
-            alert('Please enter ingredients to analyze');
+            setValidationError({
+                title: 'Empty Input',
+                message: 'Please enter ingredients to analyze.',
+                suggestion: 'Type or paste the list of ingredients from the product label.'
+            });
             return;
         }
 
@@ -222,7 +253,11 @@ function UploadSection({ onAnalyze }) {
             if (error.response && error.response.data) {
                 handleAnalysisError(error.response.data);
             } else {
-                alert('Failed to connect to the server. Please check your connection and try again.');
+                setValidationError({
+                    title: 'Connection Error',
+                    message: 'Failed to connect to the server.',
+                    suggestion: 'Please check your internet connection and try again.'
+                });
             }
         } finally {
             setIsLoading(false);

@@ -154,39 +154,37 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
 
                 {/* Hero Score Section */}
                 <div className="score-hero">
-                    <div className="score-circle">
-                        <svg className="score-ring" viewBox="0 0 120 120">
-                            <circle
-                                className="score-ring-bg"
-                                cx="60"
-                                cy="60"
-                                r="52"
-                            />
-                            <circle
-                                className="score-ring-fill"
-                                cx="60"
-                                cy="60"
-                                r="52"
-                                style={{
-                                    strokeDasharray: `${(data.score / 100) * 326.7} 326.7`,
-                                    stroke: data.score >= 70 ? '#10b981' : data.score >= 40 ? '#f59e0b' : '#ef4444'
-                                }}
-                            />
-                        </svg>
-                        <div className="score-content">
-                            <div className="score-number">{data.score}</div>
-                            <div className="score-label" style={{
-                                color: data.score >= 70 ? '#059669' : data.score >= 40 ? '#d97706' : '#dc2626',
-                                fontWeight: 700,
-                                textTransform: 'uppercase',
-                                fontSize: '0.75rem',
-                                letterSpacing: '0.05em'
-                            }}>
-                                {data.score >= 85 ? 'Excellent' :
-                                    data.score >= 70 ? 'Very Good' :
-                                        data.score >= 55 ? 'Average' :
-                                            data.score >= 40 ? 'Fair' : 'Junk Food'}
+                    <div className="score-bar-container">
+                        <div className="score-header">
+                            <h3 className="score-title">Health Score</h3>
+                            <div className="score-value">
+                                <span className="score-number">{data.score}</span>
+                                <span className="score-max">/100</span>
                             </div>
+                        </div>
+
+                        <div className="score-bar-wrapper">
+                            <div className="score-bar-bg">
+                                <div
+                                    className="score-bar-fill"
+                                    style={{
+                                        width: `${data.score}%`,
+                                        backgroundColor: data.score >= 70 ? '#10b981' : data.score >= 40 ? '#f59e0b' : '#ef4444'
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="score-label" style={{
+                            color: data.score >= 70 ? '#059669' : data.score >= 40 ? '#d97706' : '#dc2626',
+                            fontWeight: 600,
+                            fontSize: '0.875rem',
+                            marginTop: '0.5rem'
+                        }}>
+                            {data.score >= 85 ? '✨ Excellent - Very Healthy' :
+                                data.score >= 70 ? '✅ Very Good' :
+                                    data.score >= 55 ? '⚠️ Average' :
+                                        data.score >= 40 ? '⚠️ Fair - Limit Intake' : '🚫 Junk Food - Avoid'}
                         </div>
                     </div>
                     {data.product.name && !['Food Product', 'Detected Product'].includes(data.product.name) && (

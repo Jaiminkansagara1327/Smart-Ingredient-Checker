@@ -1,10 +1,12 @@
 """
 AI-powered ingredient analysis service
 Uses OpenAI GPT to analyze ingredient lists and provide health insights
+Combined with scientific scoring based on NOVA/Nutri-Score methodology
 """
 import os
 import json
 from typing import Dict, Any, Optional
+from .ingredient_scorer import IngredientScorer
 
 try:
     from openai import OpenAI
@@ -18,6 +20,7 @@ class IngredientAnalyzer:
     
     def __init__(self):
         self.openai_client = None
+        self.scorer = IngredientScorer()  # Our scientific scorer
         if OPENAI_AVAILABLE:
             api_key = os.getenv('OPENAI_API_KEY')
             if api_key:
@@ -160,24 +163,75 @@ CRITICAL - INPUT VALIDATION (MUST BE FIRST CHECK):
 IMPORTANT GUIDELINES:
 - **EXTRACT ALL INGREDIENTS** into the `ingredients` array. If the input is a single block of text or separated by line breaks without commas, identify and extract the individual ingredients yourself.
 - **NO SENTENCES** in the "description" fields of `ingredientGroups`. Use comma-separated lists only.
-- **NO LaTeX or Markdown math mode**. Never use `\(`, `\)`, `\[`, `\]`, or escape percentages like `\%`. Use plain text like "8%" or "8 percent".
+- **NO LaTeX or Markdown math mode**. Never use `\\(`, `\\)`, `\\[`, `\\]`, or escape percentages like `\\%`. Use plain text like "8%" or "8 percent".
 - **NO ASTERISKS or FOOTNOTES**. Never use symbols like `*` or `†`.
 - **NO REDUNDANT DESCRIPTORS**. Do not use words like "Permitted", "Added", "Contains", or "Or" within the ingredient names themselves. Just the name.
-- **SCORING RULES (1-100 Scale)**:
-    - **Base Score: 100**. Start at 100 and deduct points based on the following:
-    - **Ultra-processed (NOVA 4)**: Deduct 30-40 points immediately if it's junk/ultra-processed food.
-    - **Artificial Additives**: Deduct 5 points for EVERY artificial color, flavor, or stabilizer.
-    - **Sweeteners**: Deduct 15-20 points for High Fructose Corn Syrup or Aspartame. Deduct 10 points for excessive added sugar.
-    - **Preservatives**: Deduct 5-10 points for chemical preservatives (BHA/BHT, Nitrates).
-    - **Refined Oils**: Deduct 10 points for palm oil or highly refined vegetable oils.
-    - **Sodium**: Deduct 10 points if clearly high in salt.
-    - **Bonus Points**: Add 5-10 points for high fiber, whole grains, or zero additives.
-    - **Final Tally**: A score of 80+ should be rare (genuinely healthy). 0-40 is strictly junk.
-- Be HONEST and CRITICAL. Don't be diplomatic about unhealthy products.
-- If it's junk food, call it junk food.
-- Mention specific health impacts (diabetes risk, heart health, obesity, etc.).
-- Consider the ENTIRE ingredient list, not just the problematic ones.
-- The first ingredients matter most (they're present in highest quantities).
+
+**NEW BALANCED SCORING SYSTEM (1-100 Scale)**:
+
+**STEP 1: Categorize the Product**
+Analyze the ingredient list and determine the primary category:
+
+A. **WHOLE FOODS / MINIMALLY PROCESSED** - Base Score: 85-100
+   - Recognizable whole ingredients (fruits, vegetables, grains, legumes, nuts, seeds)
+   - Simple processing (grinding, cooking, fermenting)
+   - Minimal or no additives
+   - Examples: "Oats, Almonds, Honey" or "Tomatoes, Olive Oil, Garlic, Basil, Salt"
+   
+B. **PROCESSED BUT ACCEPTABLE** - Base Score: 60-84
+   - Combination of whole foods + some processing
+   - Limited additives (mostly natural preservatives, emulsifiers from natural sources)
+   - May contain some added sugar/salt but in moderation
+   - Examples: "Whole Wheat Flour, Water, Yeast, Salt, Olive Oil" or "Milk, Sugar, Cocoa, Vanilla Extract"
+
+C. **HEAVILY PROCESSED** - Base Score: 30-59
+   - Many refined ingredients and additives
+   - Multiple artificial colors, flavors, or preservatives
+   - High in added sugars, sodium, or unhealthy fats
+   - Examples: "Enriched Flour, HFCS, Hydrogenated Oils, Artificial Flavors, Colors"
+
+D. **ULTRA-PROCESSED JUNK** - Base Score: 0-29
+   - Primarily artificial/synthetic ingredients
+   - Long list of unrecognizable chemicals
+   - Multiple harmful ingredients (trans fats, excessive sodium, artificial sweeteners)
+   - Examples: Products with 20+ ingredients, mostly E-numbers and chemicals
+
+**STEP 2: Adjust Score Based on Specific Factors**
+
+**POSITIVE ADJUSTMENTS (Add points):**
+- Organic/Whole grain ingredients: +5 to +10 points
+- High fiber content indicated: +5 points  
+- Healthy fats (olive oil, avocado, nuts): +5 points
+- Natural preservatives only (vinegar, lemon juice, salt): +5 points
+- Short ingredient list (5 or fewer whole foods): +10 points
+- No added sugars: +5 points
+- Low/no sodium: +5 points
+
+**NEGATIVE ADJUSTMENTS (Deduct points):**
+- **Artificial additives**: -3 points EACH (colors, flavors, preservatives like BHA/BHT)
+- **High Fructose Corn Syrup or Aspartame**: -15 points
+- **Excessive added sugar** (sugar in top 3 ingredients): -10 points
+- **Hydrogenated/Trans fats**: -20 points
+- **Palm oil or highly refined oils**: -8 points
+- **Excessive sodium** (sodium in top 3): -10 points
+- **Nitrates/Nitrites**: -10 points
+- **Multiple E-numbers** (3+): -5 points per additional E-number after 3
+
+**STEP 3: Final Score Range Guidelines**
+- **90-100**: Exceptionally healthy - whole foods, minimal processing
+- **75-89**: Healthy - good ingredients with minor processing
+- **60-74**: Acceptable - moderately processed but not harmful
+- **40-59**: Concerning - heavily processed, limit consumption
+- **20-39**: Unhealthy - ultra-processed, avoid regularly
+- **0-19**: Harmful - primarily artificial, do not consume
+
+**CRITICAL RULES:**
+1. **DO NOT** penalize products just for having more than 3-4 ingredients if they're all natural/whole foods
+2. **DO** give high scores (85-95) to products like "Whole Wheat Flour, Water, Salt, Yeast" 
+3. **DO** give high scores (80-90) to simple natural products like "Oats, Almonds, Honey, Cinnamon"
+4. **BE FAIR**: Distinguish between "many ingredients because it's a complex recipe" vs "many ingredients because it's ultra-processed"
+5. Natural ingredients like fruits, vegetables, grains, legumes, nuts, dairy, eggs, meat should NEVER lower the score
+6. Processing methods matter: "Crushed Tomatoes" is fine, "Tomato Flavoring (Artificial)" is not
 - Look for: artificial additives, high fructose corn syrup, excessive sodium, trans fats, artificial colors/flavors.
 - Give credit for: whole food ingredients, minimal processing, natural preservatives, beneficial nutrients.
 - Be specific in suitability recommendations - use medical/dietary conditions when relevant.
@@ -194,9 +248,22 @@ IMPORTANT GUIDELINES:
         )
         
         analysis = json.loads(response.choices[0].message.content)
+        
+        # Extract ingredients list from AI response
+        ingredients_list = analysis.get('ingredients', [])
+        
+        # Use our scientific scorer for the actual score
+        score_data = self.scorer.calculate_score(ingredients_list)
+        
+        # Override AI's score with our calculated score
+        analysis['score'] = score_data['score']
+        analysis['score_breakdown'] = score_data['score_breakdown']
+        analysis['nova_group'] = score_data['nova_group']
+        analysis['whole_food_percentage'] = score_data['whole_food_ratio']
+        
         analysis['success'] = True
         analysis['confidence'] = confidence
-        analysis['method'] = 'ai'
+        analysis['method'] = 'ai+scientific_scorer'
         
         return analysis
     
@@ -209,7 +276,10 @@ IMPORTANT GUIDELINES:
         processing = get_processing_score(text_lower)
         
         # Calculate Score
-        score = 8 # Start with a baseline for "whole food"
+        # Extract ingredients and use scientific scorer
+        ingredients_list = self._extract_ingredients_from_text(ingredient_text)
+        score_data = self.scorer.calculate_score(ingredients_list)
+        score = score_data["score"]  # Use 0-100 scale
         
         flags = []
         for a in additives:
@@ -228,7 +298,6 @@ IMPORTANT GUIDELINES:
             score += 1
             flags.append({"icon": "🌱", "text": "Organic"})
 
-        score = max(1, min(10, score))
         
         # Create professional verdict
         if score >= 8:
@@ -275,6 +344,13 @@ IMPORTANT GUIDELINES:
             'confidence_note': f"Rule-based analysis (v2) based on {confidence:.0f}% confidence.",
         }
 
+
+
+    def _extract_ingredients_from_text(self, text: str) -> list:
+        """Extract individual ingredients from text"""
+        if ',' in text:
+            return [i.strip() for i in text.split(',') if i.strip()]
+        return [i.strip() for i in text.split('\n') if i.strip()]
 
 def analyze_product_from_ocr(ocr_result) -> Dict[str, Any]:
     """

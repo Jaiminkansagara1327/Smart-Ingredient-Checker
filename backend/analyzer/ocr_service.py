@@ -44,7 +44,7 @@ class OCRResult:
         ingredient_keywords = [
             'ingredient', 'contains', 'wheat', 'flour', 'sugar', 'salt',
             'oil', 'water', 'milk', 'egg', 'soy', 'preservative',
-            'color', 'flavor', 'vitamin', 'mineral', 'acid', 'starch'
+            'color', 'flavor', 'vitamin', 'mineral', 'acid', 'starch', 'moringa', 'turmeric', 'amla', 'licorice', 'ginger', 'honey'
         ]
         
         text_lower = self.text.lower()
@@ -53,7 +53,7 @@ class OCRResult:
         # Check for comma-separated list pattern (common in ingredients)
         comma_count = text_lower.count(',')
         
-        return keyword_matches >= 2 or comma_count >= 3
+        return keyword_matches >= 1 or comma_count >= 2 or self.text.count('\n') >= 2
     
     def _calculate_quality(self):
         """Calculate overall quality score (0-100) based on multiple factors"""

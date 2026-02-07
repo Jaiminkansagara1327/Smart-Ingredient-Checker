@@ -25,7 +25,7 @@ function AboutPage() {
                     </p>
 
                     <p className="about-text small">
-                        Upload a product image or paste a URL to get instant, clear ingredient analysis.
+                        Analyze ingredient lists instantly to get clear analysis.
                         No more endless Googling.
                     </p>
                 </div>

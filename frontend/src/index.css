@@ -806,6 +806,28 @@ body::before {
     font-family: var(--font-family);
 }
 
+.btn-primary {
+    background: var(--color-accent-gradient);
+    color: white;
+    border: none;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all var(--transition-base);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    filter: brightness(1.1);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
 .btn-modern-primary {
     background: var(--color-accent-gradient);
     color: white;
@@ -815,6 +837,7 @@ body::before {
 .btn-modern-primary:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
+    filter: brightness(1.1);
 }
 
 .btn-modern-primary:active {

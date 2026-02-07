@@ -183,10 +183,126 @@ Provide a JSON response with the following structure:
         }
     
     def _extract_ingredients_from_text(self, text: str) -> list:
-        """Extract individual ingredients from text"""
-        if ',' in text:
-            return [i.strip() for i in text.split(',') if i.strip()]
-        return [i.strip() for i in text.split('\n') if i.strip()]
+        """
+        Extract individual ingredients from text using robust parsing.
+        Handles:
+        - Parentheses nesting (keeping inner text together)
+        - Lowercase conversion
+        - varied delimiters (comma, newline, semicolon, bullets)
+        - Contextual delimiters ('and', '&', 'contains')
+        - cleaning (removing 'permitted', 'added', etc.)
+        """
+        if not text:
+            return []
+            
+        # 1. Lowercase everything as requested
+        text = text.lower()
+            
+        # 2. Pre-processing
+        # Normalize newlines
+        text = text.replace('\r\n', '\n').replace('\r', '\n')
+        
+        # Remove common start prefixes
+        prefixes = ['ingredients:', 'contains:', 'ingredients', 'contains']
+        start_index = 0
+        for prefix in prefixes:
+            if text.startswith(prefix):
+                 start_index = len(prefix)
+                 while start_index < len(text) and not text[start_index].isalnum():
+                     start_index += 1
+                 break
+        processed_text = text[start_index:]
+        
+        # 3. Tokenization state machine
+        ingredients = []
+        current = []
+        depth = 0
+        
+        # Delimiters
+        hard_delimiters = {',', ';', '\n', '|', '•', '·', '—'}
+        
+        i = 0
+        n = len(processed_text)
+        
+        while i < n:
+            char = processed_text[i]
+            
+            # Parenthesis tracking
+            if char in '([{' :
+                depth += 1
+                current.append(char)
+            elif char in ')]}':
+                if depth > 0:
+                    depth -= 1
+                current.append(char)
+            
+            # Check for delimiters at top level
+            elif depth == 0:
+                is_delimiter = False
+                skip_len = 1
+                
+                if char in hard_delimiters:
+                    is_delimiter = True
+                
+                elif char == '&':
+                     is_delimiter = True
+                     
+                # Word-based separators
+                elif char == ' ':
+                    remaining = n - i
+                    # Check for " and "
+                    if remaining > 5 and processed_text[i:i+5] == ' and ':
+                        is_delimiter = True
+                        skip_len = 5
+                    # Check for " contains "
+                    elif remaining > 10 and processed_text[i:i+10] == ' contains ':
+                        is_delimiter = True
+                        skip_len = 10
+                    # Check for " like "
+                    elif remaining > 6 and processed_text[i:i+6] == ' like ':
+                         is_delimiter = True
+                         skip_len = 6
+                
+                if is_delimiter:
+                    item = "".join(current).strip()
+                    if item:
+                        ingredients.append(item)
+                    current = []
+                    i += skip_len - 1
+                else:
+                    current.append(char)
+            else:
+                current.append(char)
+            i += 1
+            
+        item = "".join(current).strip()
+        if item:
+            ingredients.append(item)
+            
+        # 4. Post-processing & Cleaning
+        final_list = []
+        seen = set()
+        
+        # filler words to remove
+        filler_words = {'permitted', 'added'}
+        
+        for ing in ingredients:
+            # Clean punctuation
+            ing = ing.strip('•·-—*#: .')
+            
+            # Remove filler words
+            words = ing.split()
+            clean_words = [w for w in words if w not in filler_words]
+            ing = " ".join(clean_words)
+            
+            if len(ing) < 2:
+                continue
+            
+            if ing not in seen:
+                final_list.append(ing)
+                seen.add(ing)
+                
+        return final_list
 
 
 def _detect_ingredients(text: str) -> bool:

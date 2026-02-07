@@ -2,6 +2,8 @@
 Ingredient Scoring Engine - Based on Open Food Facts & Nutri-Score methodology
 Scientifically accurate scoring system for food ingredient analysis
 """
+import re
+from typing import List, Dict
 
 class IngredientScorer:
     """
@@ -113,7 +115,7 @@ class IngredientScorer:
         'chlorophyll', 'aloe', 'aloe vera',
     }
     
-    # Red flag ingredients
+    # Red flag ingredients - Specific keys first, generic last
     RED_FLAGS = {
         'high fructose corn syrup': -20,
         'hfcs': -20,
@@ -122,9 +124,26 @@ class IngredientScorer:
         'trans fat': -25,
         'msg': -8,
         'monosodium glutamate': -8,
-        'artificial flavor': -5,
-        'artificial color': -5,
+        
+        # Artificial Sweeteners
+        'aspartame': -10,
+        'sucralose': -10,
+        'saccharin': -10,
+        'acesulfame': -10,
         'artificial sweetener': -10,
+        
+        # Artificial Flavors/Colors with variations
+        'artificial flavor': -5,
+        'artificial flavour': -5,
+        'artificial color': -5,
+        'artificial colour': -5,
+        'nature identical': -5,
+        
+        # Generic catch-alls
+        'artificial': -5,
+        'flavouring': -2,
+        'flavoring': -2,
+        'preservative': -2,
     }
     
     def calculate_score(self, ingredients_list: list) -> dict:
@@ -138,7 +157,7 @@ class IngredientScorer:
             dict with score, breakdown, and analysis
         """
         if not ingredients_list:
-            return {'score': 50, 'breakdown': [], 'nova_group': 3}
+            return {'score': 50, 'score_breakdown': [], 'nova_group': 3}
         
         # Start with classification
         nova_group = self._classify_nova(ingredients_list)
@@ -165,6 +184,15 @@ class IngredientScorer:
                 'description': f'{int(whole_food_ratio*100)}% whole food ingredients',
                 'points': bonus
             })
+            
+        # New Logic: Boost score for processed foods that are mostly whole ingredients
+        # This prevents healthy but slightly processed items from being stuck at 55
+        if nova_group == 3 and whole_food_ratio >= 0.5:
+             current_score += 10
+             adjustments.append({
+                 'description': 'Mainly whole ingredients despite processing',
+                 'points': 10
+             })
         
         # Check for harmful additives
         harmful_found = self._find_harmful_additives(ingredients_list)
@@ -183,7 +211,7 @@ class IngredientScorer:
                 if red_flag in ing_lower:
                     current_score += penalty
                     adjustments.append({
-                        'description': f'Contains {ingredient} (highly processed)',
+                        'description': f'Contains {red_flag} ({ingredient})',
                         'points': penalty
                     })
                     break
@@ -215,12 +243,14 @@ class IngredientScorer:
         3: Processed foods
         4: Ultra-processed
         """
-        # Ultra-processed indicators
+        # Ultra-processed indicators (Expanded)
         ultra_indicators = [
             'high fructose corn syrup', 'hfcs', 'hydrogenated', 'hydrolysed',
             'modified starch', 'maltodextrin', 'dextrose', 'corn syrup',
             'artificial', 'flavor enhancer', 'emulsifier', 'thickener',
-            'glazing agent', 'bleaching agent', 'bulking agent'
+            'glazing agent', 'bleaching agent', 'bulking agent',
+            'flavouring', 'flavoring', 'colour', 'color', 'preservative',
+            'nature identical'
         ]
         
         # Check for E-numbers (additives)
@@ -261,6 +291,12 @@ class IngredientScorer:
         count = 0
         for ing in ingredients:
             ing_lower = ing.lower()
+            
+            # Skip if it sounds artificial/processed to prevent false positives
+            # e.g. "artificial cream" shouldn't match "cream"
+            if any(x in ing_lower for x in ['artificial', 'imitation', 'synthetic', 'substitute', 'flavor', 'flavour', 'color', 'colour']):
+                continue
+                
             for whole_food in self.WHOLE_FOODS:
                 if whole_food in ing_lower:
                     count += 1

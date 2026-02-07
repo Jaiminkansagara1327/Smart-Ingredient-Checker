@@ -7,7 +7,6 @@ import os
 import json
 from typing import Dict, Any, Optional
 from .ingredient_scorer import IngredientScorer
-from .off_service import search_product_by_name
 
 try:
     from openai import OpenAI

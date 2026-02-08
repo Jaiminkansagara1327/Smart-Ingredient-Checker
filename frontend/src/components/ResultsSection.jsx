@@ -3,217 +3,241 @@ import React from 'react';
 function ResultsSection({ data, image, onAnalyzeNew }) {
     if (!data) return null;
 
+    // Check if we have the new structured format
+    const hasNewFormat = data.overview && data.frequency_verdict && data.ingredient_breakdown;
+
+    if (!hasNewFormat) {
+        // Fallback for old format (shouldn't happen, but safe)
+        return <div style={{ textAlign: 'center', padding: '3rem' }}>
+            <p>Analysis format not recognized. Please re-analyze.</p>
+        </div>;
+    }
+
     return (
         <section className="results-section">
-            <div className="results-container-new" style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <div className="results-container-new" style={{
+                maxWidth: '900px',
+                margin: '0 auto',
+                padding: '2rem 1rem'
+            }}>
 
-                {/* 1. Hero Score Section - Premium & Minimalist */}
-                <div className="score-hero" style={{ textAlign: 'center', padding: '3rem 0 2rem' }}>
-
-                    {/* Numeric Score */}
-                    <div className="score-circle-container" style={{ position: 'relative', marginBottom: '1.5rem' }}>
-                        <h1 style={{
-                            fontSize: '6rem',
-                            fontWeight: '300',
-                            lineHeight: '1',
-                            color: 'var(--color-text-primary)',
-                            fontFeatureSettings: '"tnum"',
-                            fontVariantNumeric: 'tabular-nums',
-                            letterSpacing: '-0.05em'
-                        }}>
-                            {data.score}
-                        </h1>
-                        <span style={{
-                            fontSize: '1rem',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.2em',
-                            color: 'var(--color-text-tertiary)',
-                            display: 'block',
-                            marginTop: '0.5rem',
-                            fontWeight: 500
-                        }}>
-                            Health Score
-                        </span>
-                    </div>
-
-                    {/* Sleek Progress Bar */}
-                    <div className="score-bar-wrapper" style={{
-                        height: '6px',
-                        background: 'rgba(0,0,0,0.05)',
-                        borderRadius: '3px',
-                        maxWidth: '300px',
-                        margin: '0 auto 1.5rem',
-                        overflow: 'hidden'
+                {/* SECTION 1: Product Overview */}
+                <div style={{ textAlign: 'center', marginBottom: '3rem', paddingBottom: '2rem', borderBottom: '1px solid var(--color-border)' }}>
+                    <h3 style={{
+                        fontSize: '0.75rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.15em',
+                        color: 'var(--color-text-tertiary)',
+                        marginBottom: '1.5rem',
+                        fontWeight: 600
                     }}>
-                        <div
-                            className="score-bar-fill"
-                            style={{
-                                width: `${data.score}%`,
-                                height: '100%',
-                                backgroundColor: data.score >= 80 ? '#10b981' :
-                                    data.score >= 50 ? '#f59e0b' : '#ef4444',
-                                borderRadius: '3px',
-                                transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)'
-                            }}
-                        />
-                    </div>
-
-                    {/* Minimal Text Verdict (No Emojis) */}
-                    <div className="score-label" style={{
-                        color: data.score >= 80 ? '#059669' : data.score >= 50 ? '#d97706' : '#dc2626',
-                        fontWeight: 600,
-                        fontSize: '1.1rem',
-                        letterSpacing: '0.05em'
-                    }}>
-                        {data.score >= 80 ? 'Excellent' :
-                            data.score >= 60 ? 'Good' :
-                                data.score >= 40 ? 'Average' : 'Poor Quality'}
+                        Product Overview
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1.5rem', maxWidth: '600px', margin: '0 auto' }}>
+                        <div>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Processing Level</p>
+                            <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.overview.processing_level}</p>
+                        </div>
+                        <div>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ingredient Count</p>
+                            <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.overview.ingredient_count} ingredients</p>
+                        </div>
+                        <div>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Additives Present</p>
+                            <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.overview.additives_present}</p>
+                        </div>
                     </div>
                 </div>
 
-                {/* Product Name */}
-                {(data.product.name || data.product.brand) && (
-                    <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-                        {data.product.name && !['Food Product', 'Detected Product'].includes(data.product.name) && (
-                            <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-text-primary)' }}>{data.product.name}</h2>
-                        )}
-                        {data.product.brand && !['Unknown Brand', 'Unknown'].includes(data.product.brand) && (
-                            <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.9rem' }}>{data.product.brand}</p>
-                        )}
-                    </div>
-                )}
-
-                {/* Verdict / Analysis Text */}
-                <div className="verdict-modern" style={{
+                {/* SECTION 2: Frequency Verdict (Prominent) */}
+                <div style={{
                     textAlign: 'center',
-                    fontSize: '1.1rem',
-                    lineHeight: '1.6',
-                    color: 'var(--color-text-secondary)',
-                    maxWidth: '600px',
-                    margin: '0 auto 2rem',
-                    fontWeight: 400
+                    marginBottom: '3rem',
+                    padding: '2rem',
+                    background: 'var(--color-bg-secondary)',
+                    borderRadius: '12px',
+                    border: '1px solid var(--color-border)'
                 }}>
-                    {data.verdict}
+                    <h3 style={{
+                        fontSize: '0.75rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.15em',
+                        color: 'var(--color-text-tertiary)',
+                        marginBottom: '1rem',
+                        fontWeight: 600
+                    }}>
+                        Frequency Verdict
+                    </h3>
+                    <p style={{
+                        fontSize: '1.5rem',
+                        fontWeight: 500,
+                        lineHeight: '1.4',
+                        color: 'var(--color-text-primary)'
+                    }}>
+                        {data.frequency_verdict}
+                    </p>
                 </div>
 
-                {/* VISIBLE Ingredient List (Restored & Cleaned) */}
-                {(data.ingredients || data.raw_ingredients) && (
-                    <div style={{
-                        margin: '0 auto 4rem',
-                        maxWidth: '700px',
+                {/* SECTION 3: Key Signals */}
+                <div style={{ marginBottom: '3rem' }}>
+                    <h3 style={{
+                        fontSize: '0.75rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.15em',
+                        color: 'var(--color-text-tertiary)',
+                        marginBottom: '1.5rem',
+                        fontWeight: 600,
                         textAlign: 'center'
                     }}>
-                        <p style={{
-                            fontSize: '0.7rem',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.1em',
-                            color: 'var(--color-text-tertiary)',
-                            marginBottom: '1rem',
-                            fontWeight: 600
-                        }}>
-                            Ingredients Analyzed
-                        </p>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center' }}>
-                            {(data.ingredients || (data.raw_ingredients ? data.raw_ingredients.split(',') : [])).map((ing, idx) => {
-                                // Basic cleaning for display
-                                const cleanIng = ing.replace(/[\(\)\[\]]/g, '').trim();
-                                if (!cleanIng || cleanIng.length < 2) return null;
-                                return (
-                                    <span key={idx} style={{
-                                        fontSize: '0.85rem',
-                                        padding: '0.35rem 0.85rem',
-                                        background: 'var(--color-bg-secondary)',
-                                        border: '1px solid var(--color-border)',
-                                        borderRadius: '100px',
-                                        color: 'var(--color-text-secondary)'
-                                    }}>
-                                        {cleanIng}
-                                    </span>
-                                );
-                            })}
+                        Key Signals
+                    </h3>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                        gap: '1rem',
+                        maxWidth: '700px',
+                        margin: '0 auto'
+                    }}>
+                        <div style={{ padding: '1rem', background: 'var(--color-bg-secondary)', borderRadius: '8px', textAlign: 'center' }}>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: '0.5rem' }}>Added Sugar</p>
+                            <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.key_signals.added_sugar}</p>
+                        </div>
+                        <div style={{ padding: '1rem', background: 'var(--color-bg-secondary)', borderRadius: '8px', textAlign: 'center' }}>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: '0.5rem' }}>Refined Flour/Starch</p>
+                            <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.key_signals.refined_flour_starch}</p>
+                        </div>
+                        <div style={{ padding: '1rem', background: 'var(--color-bg-secondary)', borderRadius: '8px', textAlign: 'center' }}>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: '0.5rem' }}>Artificial Colors</p>
+                            <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.key_signals.artificial_colors}</p>
+                        </div>
+                        <div style={{ padding: '1rem', background: 'var(--color-bg-secondary)', borderRadius: '8px', textAlign: 'center' }}>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: '0.5rem' }}>Preservatives</p>
+                            <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.key_signals.preservatives}</p>
+                        </div>
+                        <div style={{ padding: '1rem', background: 'var(--color-bg-secondary)', borderRadius: '8px', textAlign: 'center' }}>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: '0.5rem' }}>Artificial Flavors</p>
+                            <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.key_signals.artificial_flavors}</p>
                         </div>
                     </div>
-                )}
+                </div>
 
-                {/* Ingredient Breakdown List (Detailed Analysis) */}
-                {data.ingredientGroups && data.ingredientGroups.length > 0 && (
-                    <div className="ingredients-modern" style={{ marginTop: '2rem' }}>
-                        <p style={{
-                            textAlign: 'center',
-                            fontSize: '0.7rem',
+                {/* SECTION 4: Ingredient Breakdown */}
+                <div style={{ marginBottom: '3rem' }}>
+                    <h3 style={{
+                        fontSize: '0.75rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.15em',
+                        color: 'var(--color-text-tertiary)',
+                        marginBottom: '1.5rem',
+                        fontWeight: 600,
+                        textAlign: 'center'
+                    }}>
+                        Ingredient Breakdown
+                    </h3>
+                    <div style={{ maxWidth: '700px', margin: '0 auto' }}>
+                        {data.ingredient_breakdown.map((item, idx) => (
+                            <div key={idx} style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '0.75rem 1rem',
+                                borderBottom: idx < data.ingredient_breakdown.length - 1 ? '1px solid var(--color-border)' : 'none',
+                                gap: '1rem'
+                            }}>
+                                <span style={{ flex: '1', fontSize: '0.9rem', color: 'var(--color-text-primary)' }}>{item.name}</span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', minWidth: '80px', textAlign: 'center' }}>{item.role}</span>
+                                <span style={{ fontSize: '1.2rem', minWidth: '30px', textAlign: 'center' }}>{item.risk}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* SECTION 5: Who Should Limit This */}
+                {data.limit_groups && data.limit_groups.length > 0 && (
+                    <div style={{ marginBottom: '3rem' }}>
+                        <h3 style={{
+                            fontSize: '0.75rem',
                             textTransform: 'uppercase',
-                            letterSpacing: '0.1em',
+                            letterSpacing: '0.15em',
                             color: 'var(--color-text-tertiary)',
-                            marginBottom: '2rem',
-                            fontWeight: 600
+                            marginBottom: '1.5rem',
+                            fontWeight: 600,
+                            textAlign: 'center'
                         }}>
-                            Detailed Breakdown
-                        </p>
-                        <div className="ingredient-list-modern">
-                            {data.ingredientGroups.map((group, index) => (
-                                <div key={index} className="ingredient-item-modern" style={{
-                                    marginBottom: '2rem',
-                                    borderLeft: `2px solid ${group.title.includes('Quality') ? '#ef4444' : group.title.includes('Processing') ? '#f59e0b' : '#3b82f6'}`,
-                                    paddingLeft: '1.5rem'
-                                }}>
-                                    <h3 style={{
-                                        fontSize: '0.9rem',
-                                        textTransform: 'uppercase',
-                                        letterSpacing: '0.05em',
-                                        color: 'var(--color-text-tertiary)',
-                                        marginBottom: '0.5rem',
-                                        fontWeight: 600
-                                    }}>
-                                        {group.title}
-                                    </h3>
-                                    <p className="ingredient-desc" style={{
-                                        fontSize: '1rem',
+                            Who Should Limit This
+                        </h3>
+                        <div style={{
+                            maxWidth: '500px',
+                            margin: '0 auto',
+                            background: 'var(--color-bg-secondary)',
+                            padding: '1.5rem',
+                            borderRadius: '8px'
+                        }}>
+                            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                                {data.limit_groups.map((group, idx) => (
+                                    <li key={idx} style={{
+                                        fontSize: '0.95rem',
                                         color: 'var(--color-text-primary)',
-                                        lineHeight: '1.5'
+                                        marginBottom: idx < data.limit_groups.length - 1 ? '0.75rem' : 0,
+                                        paddingLeft: '1.5rem',
+                                        position: 'relative'
                                     }}>
-                                        {group.description.split(',').map(s => s.trim()).filter(Boolean).join(', ')}
-                                    </p>
-                                    {group.note && (
-                                        <p className="ingredient-note" style={{
-                                            fontSize: '0.85rem',
-                                            color: 'var(--color-text-tertiary)',
-                                            marginTop: '0.25rem',
-                                            fontStyle: 'italic'
-                                        }}>
-                                            {group.note}
-                                        </p>
-                                    )}
-                                </div>
-                            ))}
+                                        <span style={{ position: 'absolute', left: 0, color: 'var(--color-text-tertiary)' }}>•</span>
+                                        {group}
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
                     </div>
                 )}
 
-                {/* Flags (Clean Grid) */}
-                {data.flags && data.flags.length > 0 && (
-                    <div className="flags-modern" style={{ marginTop: '2rem' }}>
-                        <div className="flags-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                            {data.flags.map((flag, index) => (
-                                <div key={index} className="flag-modern" style={{
-                                    padding: '1rem',
-                                    background: 'var(--color-bg-tertiary)',
-                                    borderRadius: '8px',
-                                    fontSize: '0.9rem',
-                                    color: 'var(--color-text-secondary)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.75rem'
-                                }}>
-                                    <span style={{ fontSize: '1.2rem', opacity: 0.8 }}>{flag.icon}</span>
-                                    <span>{flag.text}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
+                {/* SECTION 6: Bottom Line */}
+                <div style={{
+                    marginBottom: '3rem',
+                    padding: '2rem',
+                    background: 'var(--color-bg-tertiary)',
+                    borderRadius: '12px',
+                    textAlign: 'center'
+                }}>
+                    <h3 style={{
+                        fontSize: '0.75rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.15em',
+                        color: 'var(--color-text-tertiary)',
+                        marginBottom: '1rem',
+                        fontWeight: 600
+                    }}>
+                        Bottom Line
+                    </h3>
+                    <p style={{
+                        fontSize: '1.1rem',
+                        lineHeight: '1.6',
+                        color: 'var(--color-text-primary)',
+                        fontWeight: 400
+                    }}>
+                        {data.bottom_line}
+                    </p>
+                </div>
 
-                {/* Actions */}
-                <div className="actions-modern" style={{ textAlign: 'center', marginTop: '4rem' }}>
+                {/* SECTION 7: Transparency Note */}
+                <div style={{
+                    textAlign: 'center',
+                    padding: '1.5rem',
+                    borderTop: '1px solid var(--color-border)',
+                    marginTop: '2rem'
+                }}>
+                    <p style={{
+                        fontSize: '0.8rem',
+                        color: 'var(--color-text-tertiary)',
+                        fontStyle: 'italic',
+                        lineHeight: '1.5'
+                    }}>
+                        {data.transparency_note}
+                    </p>
+                </div>
+
+                {/* Action Button */}
+                <div style={{ textAlign: 'center', marginTop: '3rem' }}>
                     <button
                         className="btn-modern btn-modern-primary"
                         onClick={onAnalyzeNew}
@@ -233,11 +257,6 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                     >
                         Analyze Another Product
                     </button>
-                </div>
-
-                {/* Disclaimer */}
-                <div className="disclaimer-modern" style={{ textAlign: 'center', marginTop: '3rem', opacity: 0.5 }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>AI evaluation based on ingredient text only.</p>
                 </div>
             </div>
         </section>

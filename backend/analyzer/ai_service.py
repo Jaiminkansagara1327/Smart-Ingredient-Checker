@@ -113,86 +113,175 @@ Provide a JSON response with the following structure:
         return analysis
 
     def _analyze_with_rules(self, ingredient_text: str, confidence: float) -> Dict[str, Any]:
-        """Enhanced rule-based ingredient analysis using scientific scorer"""
-        from .additive_service import identify_additives, get_processing_score
+        """
+        Factual, neutral, frequency-based ingredient analysis.
+        Generates exactly 7 sections as per new guidelines.
+        """
+        from .additive_service import identify_additives
         
-        # Parse ingredients from the text
+        # Parse ingredients
         ingredients_list = self._extract_ingredients_from_text(ingredient_text)
         
-        # Use our scientific scorer for the actual score
+        # Use scientific scorer
         score_data = self.scorer.calculate_score(ingredients_list)
-        
-        # Get additional context from additive service for descriptions
-        additives = identify_additives(ingredient_text.lower())
-        processing = get_processing_score(ingredient_text.lower())
-        
-        # Extract new sub-scores
-        details = score_data.get('details', {})
-        quality_score = details.get('quality_score', 0)
-        processing_score = details.get('processing_score', 0)
-        
-        # Create verdict based on comprehensive score
         score = score_data['score']
+        nova_group = score_data['nova_group']
         
-        # Dynamic Verdict Generation
-        verdict_parts = []
-        if score >= 80:
-            verdict_parts.append("Excellent choice!")
-        elif score >= 60:
-            verdict_parts.append("Good product.")
-        elif score >= 40:
-            verdict_parts.append("Average quality.")
+        # Detect additives
+        additives = identify_additives(ingredient_text.lower())
+        
+        # --- SECTION 1: Product Overview ---
+        processing_level = "Highly processed" if nova_group == 4 else \
+                          "Moderately processed" if nova_group == 3 else \
+                          "Minimally processed"
+        
+        ingredient_count = len(ingredients_list)
+        has_additives = len(additives) > 0
+        
+        overview = {
+            "processing_level": processing_level,
+            "ingredient_count": ingredient_count,
+            "additives_present": "Yes" if has_additives else "No"
+        }
+        
+        # --- SECTION 2: Frequency Verdict ---
+        # Based on score and processing
+        if score < 30 or nova_group == 4:
+            frequency_verdict = "❌ Not suitable for daily consumption"
+        elif score < 60 or nova_group == 3:
+            frequency_verdict = "⚠️ Okay occasionally"
         else:
-            verdict_parts.append("Avoid this product.")
-            
-        # Add context from sub-scores
-        if quality_score < 50:
-             verdict_parts.append("Contains low quality ingredients or additives.")
-        elif quality_score > 80:
-             verdict_parts.append("High quality ingredients.")
-            
-        if processing_score < 50:
-            verdict_parts.append("Highly processed.")
-            
-        verdict = " ".join(verdict_parts)
-
-        # Map ingredients to groups for UI
-        ingredient_groups = []
+            frequency_verdict = "✅ Fine for regular use"
         
-        # Add score breakdown sections
-        # 1. Quality Issues (Merged Nutrition & Concerns)
-        if quality_score < 70:
-            issues = [n['description'] for n in score_data['score_breakdown']]
-            if issues:
-                ingredient_groups.append({
-                    "title": "Ingredient Quality & Safety",
-                    "description": ", ".join(issues[:4]),
-                    "note": "Based on additives, sugar, and oil content."
-                })
-
+        # --- SECTION 3: Key Signals ---
+        text_lower = ingredient_text.lower()
+        
+        # Detect added sugar
+        sugar_keywords = ['sugar', 'glucose', 'fructose', 'syrup', 'sweetener', 'sucrose', 'maltose']
+        has_added_sugar = any(s in text_lower for s in sugar_keywords)
+        
+        # Detect refined flour/starch
+        refined_keywords = ['refined', 'maida', 'starch', 'corn starch', 'modified starch']
+        has_refined = any(r in text_lower for r in refined_keywords)
+        
+        # Detect artificial colors
+        color_keywords = ['color', 'colour', 'tartrazine', 'sunset yellow', 'carmoisine']
+        has_artificial_colors = any(c in text_lower for c in color_keywords)
+        
+        # Count preservatives
+        preservative_keywords = ['preservative', 'sodium benzoate', 'potassium sorbate', 'citric acid', 'acetic acid']
+        preservative_count = sum(1 for p in preservative_keywords if p in text_lower)
+        
+        # Detect artificial flavors
+        flavor_keywords = ['artificial flavor', 'artificial flavour', 'nature identical', 'flavouring']
+        has_artificial_flavors = any(f in text_lower for f in flavor_keywords)
+        
+        key_signals = {
+            "added_sugar": "Yes" if has_added_sugar else "No",
+            "refined_flour_starch": "Yes" if has_refined else "No",
+            "artificial_colors": "Yes" if has_artificial_colors else "No",
+            "preservatives": f"Yes ({preservative_count})" if preservative_count > 0 else "No",
+            "artificial_flavors": "Yes" if has_artificial_flavors else "No"
+        }
+        
+        # --- SECTION 4: Ingredient Breakdown ---
+        # Analyze each ingredient with role and risk level
+        ingredient_breakdown = []
+        
+        for ing in ingredients_list:
+            ing_lower = ing.lower()
+            
+            # Determine role (one word)
+            if any(s in ing_lower for s in ['wheat', 'rice', 'oat', 'potato', 'corn']):
+                role = "Base"
+            elif any(s in ing_lower for s in ['oil', 'fat', 'ghee', 'butter']):
+                role = "Fat"
+            elif any(s in ing_lower for s in sugar_keywords):
+                role = "Sweetener"
+            elif any(s in ing_lower for s in ['salt', 'sodium']):
+                role = "Seasoning"
+            elif any(s in ing_lower for s in preservative_keywords):
+                role = "Preservative"
+            elif any(s in ing_lower for s in color_keywords):
+                role = "Color"
+            elif any(s in ing_lower for s in flavor_keywords):
+                role = "Flavor"
+            elif 'emulsifier' in ing_lower:
+                role = "Emulsifier"
+            elif 'stabilizer' in ing_lower or 'thickener' in ing_lower:
+                role = "Stabilizer"
+            else:
+                role = "Ingredient"
+            
+            # Determine risk level
+            # 🟢 = low concern, 🟡 = moderate, 🔴 = high caution
+            if any(bad in ing_lower for bad in ['artificial', 'refined', 'hydrogenated', 'high fructose', 'msg', 'tartrazine']):
+                risk = "🔴"
+            elif any(mod in ing_lower for mod in ['sugar', 'salt', 'preservative', 'color', 'flavor', 'modified']):
+                risk = "🟡"
+            else:
+                risk = "🟢"
+            
+            ingredient_breakdown.append({
+                "name": ing,
+                "role": role,
+                "risk": risk
+            })
+        
+        # --- SECTION 5: Who Should Limit This ---
+        limit_groups = []
+        
+        if has_added_sugar or nova_group >= 3:
+            limit_groups.append("Children")
+        
+        if has_added_sugar:
+            limit_groups.append("Diabetics")
+        
+        if nova_group == 4 or score < 40:
+            limit_groups.append("People eating packaged food daily")
+        
+        # --- SECTION 6: Bottom Line ---
+        # 2 sentences max
+        sentence1 = f"This is a {processing_level.lower()} packaged food."
+        
+        if "❌" in frequency_verdict:
+            sentence2 = "Not recommended for regular consumption."
+        elif "⚠️" in frequency_verdict:
+            sentence2 = "It's okay occasionally, but not a good everyday habit."
+        else:
+            sentence2 = "Suitable for regular use based on ingredients."
+        
+        bottom_line = f"{sentence1} {sentence2}"
+        
+        # --- SECTION 7: Transparency Note ---
+        transparency_note = "Analysis is based only on the ingredient list, not quantities or manufacturing quality."
+        
+        # Return structured data
         return {
             'success': True,
             'confidence': confidence,
-            'method': 'scientific_scorer',
+            'method': 'factual_analysis',
+            'score': score,
+            'nova_group': nova_group,
+            
+            # New structured sections
+            'overview': overview,
+            'frequency_verdict': frequency_verdict,
+            'key_signals': key_signals,
+            'ingredient_breakdown': ingredient_breakdown,
+            'limit_groups': limit_groups,
+            'bottom_line': bottom_line,
+            'transparency_note': transparency_note,
+            
+            # Legacy fields for compatibility
             'product': {
-                'name': 'Detected Product',
+                'name': 'Analyzed Product',
                 'brand': 'Unknown',
                 'category': 'Packaged Food',
-                'nova_group': score_data['nova_group']
+                'nova_group': nova_group
             },
-            'verdict': verdict,
-            'score': score,
-            'nova_group': score_data['nova_group'],
-            'sub_scores': details,
-            'whole_food_percentage': 0, # Legacy field kept for compatibility
-            'suitability': {
-                'goodFor': 'General fitness' if score >= 70 else 'Limited use only',
-                'cautionFor': 'Everyone' if score < 40 else 'Sensitive individuals',
-                'avoidFor': 'Regular consumption' if score < 55 else 'Those avoiding processed foods',
-            },
-            'ingredientGroups': ingredient_groups,
             'ingredients': ingredients_list,
-            'flags': []
+            'verdict': frequency_verdict  # For backward compatibility
         }
     
     def _extract_ingredients_from_text(self, text: str) -> list:

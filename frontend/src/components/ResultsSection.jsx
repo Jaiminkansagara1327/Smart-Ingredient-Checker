@@ -7,7 +7,7 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
     const hasNewFormat = data.overview && data.frequency_verdict && data.ingredient_breakdown;
 
     if (!hasNewFormat) {
-        // Fallback for old format (shouldn't happen, but safe)
+        // Fallback for old format
         return <div style={{ textAlign: 'center', padding: '3rem' }}>
             <p>Analysis format not recognized. Please re-analyze.</p>
         </div>;
@@ -15,36 +15,44 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
 
     return (
         <section className="results-section">
-            <div className="results-container-new" style={{
-                maxWidth: '900px',
-                margin: '0 auto',
-                padding: '2rem 1rem'
-            }}>
+            <div className="results-container" style={{ maxWidth: '900px', margin: '0 auto', padding: 'var(--spacing-2xl)' }}>
 
                 {/* SECTION 1: Product Overview */}
-                <div style={{ textAlign: 'center', marginBottom: '3rem', paddingBottom: '2rem', borderBottom: '1px solid var(--color-border)' }}>
+                <div style={{
+                    background: 'var(--color-bg-card)',
+                    padding: 'var(--spacing-xl)',
+                    borderRadius: 'var(--radius-xl)',
+                    border: '1px solid var(--color-border)',
+                    boxShadow: 'var(--shadow-md)',
+                    marginBottom: 'var(--spacing-xl)',
+                    textAlign: 'center'
+                }}>
                     <h3 style={{
-                        fontSize: '0.75rem',
+                        fontSize: 'var(--font-size-xs)',
                         textTransform: 'uppercase',
                         letterSpacing: '0.15em',
                         color: 'var(--color-text-tertiary)',
-                        marginBottom: '1.5rem',
+                        marginBottom: 'var(--spacing-lg)',
                         fontWeight: 600
                     }}>
                         Product Overview
                     </h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1.5rem', maxWidth: '600px', margin: '0 auto' }}>
-                        <div>
-                            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Processing Level</p>
-                            <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.overview.processing_level}</p>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                        gap: 'var(--spacing-lg)'
+                    }}>
+                        <div style={{ padding: 'var(--spacing-md)', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+                            <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)', marginBottom: 'var(--spacing-xs)', fontWeight: 500 }}>Processing Level</p>
+                            <p style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.overview.processing_level}</p>
                         </div>
-                        <div>
-                            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ingredient Count</p>
-                            <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.overview.ingredient_count} ingredients</p>
+                        <div style={{ padding: 'var(--spacing-md)', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+                            <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)', marginBottom: 'var(--spacing-xs)', fontWeight: 500 }}>Ingredients</p>
+                            <p style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.overview.ingredient_count}</p>
                         </div>
-                        <div>
-                            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Additives Present</p>
-                            <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.overview.additives_present}</p>
+                        <div style={{ padding: 'var(--spacing-md)', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+                            <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)', marginBottom: 'var(--spacing-xs)', fontWeight: 500 }}>Additives</p>
+                            <p style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.overview.additives_present}</p>
                         </div>
                     </div>
                 </div>
@@ -52,40 +60,48 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                 {/* SECTION 2: Frequency Verdict (Prominent) */}
                 <div style={{
                     textAlign: 'center',
-                    marginBottom: '3rem',
-                    padding: '2rem',
-                    background: 'var(--color-bg-secondary)',
-                    borderRadius: '12px',
-                    border: '1px solid var(--color-border)'
+                    marginBottom: 'var(--spacing-xl)',
+                    padding: 'var(--spacing-2xl)',
+                    background: 'var(--color-accent-light)',
+                    borderRadius: 'var(--radius-xl)',
+                    border: '2px solid var(--color-accent-primary)',
+                    boxShadow: 'var(--shadow-lg)'
                 }}>
                     <h3 style={{
-                        fontSize: '0.75rem',
+                        fontSize: 'var(--font-size-xs)',
                         textTransform: 'uppercase',
                         letterSpacing: '0.15em',
-                        color: 'var(--color-text-tertiary)',
-                        marginBottom: '1rem',
+                        color: 'var(--color-accent-secondary)',
+                        marginBottom: 'var(--spacing-md)',
                         fontWeight: 600
                     }}>
                         Frequency Verdict
                     </h3>
                     <p style={{
-                        fontSize: '1.5rem',
-                        fontWeight: 500,
-                        lineHeight: '1.4',
-                        color: 'var(--color-text-primary)'
+                        fontSize: 'var(--font-size-2xl)',
+                        fontWeight: 600,
+                        color: 'var(--color-text-primary)',
+                        lineHeight: '1.4'
                     }}>
                         {data.frequency_verdict}
                     </p>
                 </div>
 
                 {/* SECTION 3: Key Signals */}
-                <div style={{ marginBottom: '3rem' }}>
+                <div style={{
+                    background: 'var(--color-bg-card)',
+                    padding: 'var(--spacing-xl)',
+                    borderRadius: 'var(--radius-xl)',
+                    border: '1px solid var(--color-border)',
+                    boxShadow: 'var(--shadow-md)',
+                    marginBottom: 'var(--spacing-xl)'
+                }}>
                     <h3 style={{
-                        fontSize: '0.75rem',
+                        fontSize: 'var(--font-size-xs)',
                         textTransform: 'uppercase',
                         letterSpacing: '0.15em',
                         color: 'var(--color-text-tertiary)',
-                        marginBottom: '1.5rem',
+                        marginBottom: 'var(--spacing-lg)',
                         fontWeight: 600,
                         textAlign: 'center'
                     }}>
@@ -93,59 +109,71 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                     </h3>
                     <div style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                        gap: '1rem',
-                        maxWidth: '700px',
-                        margin: '0 auto'
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                        gap: 'var(--spacing-md)'
                     }}>
-                        <div style={{ padding: '1rem', background: 'var(--color-bg-secondary)', borderRadius: '8px', textAlign: 'center' }}>
-                            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: '0.5rem' }}>Added Sugar</p>
-                            <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.key_signals.added_sugar}</p>
-                        </div>
-                        <div style={{ padding: '1rem', background: 'var(--color-bg-secondary)', borderRadius: '8px', textAlign: 'center' }}>
-                            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: '0.5rem' }}>Refined Flour/Starch</p>
-                            <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.key_signals.refined_flour_starch}</p>
-                        </div>
-                        <div style={{ padding: '1rem', background: 'var(--color-bg-secondary)', borderRadius: '8px', textAlign: 'center' }}>
-                            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: '0.5rem' }}>Artificial Colors</p>
-                            <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.key_signals.artificial_colors}</p>
-                        </div>
-                        <div style={{ padding: '1rem', background: 'var(--color-bg-secondary)', borderRadius: '8px', textAlign: 'center' }}>
-                            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: '0.5rem' }}>Preservatives</p>
-                            <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.key_signals.preservatives}</p>
-                        </div>
-                        <div style={{ padding: '1rem', background: 'var(--color-bg-secondary)', borderRadius: '8px', textAlign: 'center' }}>
-                            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', marginBottom: '0.5rem' }}>Artificial Flavors</p>
-                            <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{data.key_signals.artificial_flavors}</p>
-                        </div>
+                        {[
+                            { label: 'Added Sugar', value: data.key_signals.added_sugar },
+                            { label: 'Refined Flour', value: data.key_signals.refined_flour_starch },
+                            { label: 'Artificial Colors', value: data.key_signals.artificial_colors },
+                            { label: 'Preservatives', value: data.key_signals.preservatives },
+                            { label: 'Artificial Flavors', value: data.key_signals.artificial_flavors }
+                        ].map((signal, idx) => (
+                            <div key={idx} style={{
+                                padding: 'var(--spacing-md)',
+                                background: 'var(--color-bg-secondary)',
+                                borderRadius: 'var(--radius-md)',
+                                textAlign: 'center',
+                                border: '1px solid var(--color-border)'
+                            }}>
+                                <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)', marginBottom: 'var(--spacing-xs)' }}>{signal.label}</p>
+                                <p style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, color: 'var(--color-text-primary)' }}>{signal.value}</p>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
                 {/* SECTION 4: Ingredient Breakdown */}
-                <div style={{ marginBottom: '3rem' }}>
+                <div style={{
+                    background: 'var(--color-bg-card)',
+                    padding: 'var(--spacing-xl)',
+                    borderRadius: 'var(--radius-xl)',
+                    border: '1px solid var(--color-border)',
+                    boxShadow: 'var(--shadow-md)',
+                    marginBottom: 'var(--spacing-xl)'
+                }}>
                     <h3 style={{
-                        fontSize: '0.75rem',
+                        fontSize: 'var(--font-size-xs)',
                         textTransform: 'uppercase',
                         letterSpacing: '0.15em',
                         color: 'var(--color-text-tertiary)',
-                        marginBottom: '1.5rem',
+                        marginBottom: 'var(--spacing-lg)',
                         fontWeight: 600,
                         textAlign: 'center'
                     }}>
                         Ingredient Breakdown
                     </h3>
-                    <div style={{ maxWidth: '700px', margin: '0 auto' }}>
+                    <div>
                         {data.ingredient_breakdown.map((item, idx) => (
                             <div key={idx} style={{
                                 display: 'flex',
                                 justifyContent: 'space-between',
                                 alignItems: 'center',
-                                padding: '0.75rem 1rem',
+                                padding: 'var(--spacing-md)',
                                 borderBottom: idx < data.ingredient_breakdown.length - 1 ? '1px solid var(--color-border)' : 'none',
-                                gap: '1rem'
+                                gap: 'var(--spacing-md)'
                             }}>
-                                <span style={{ flex: '1', fontSize: '0.9rem', color: 'var(--color-text-primary)' }}>{item.name}</span>
-                                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', minWidth: '80px', textAlign: 'center' }}>{item.role}</span>
+                                <span style={{ flex: '1', fontSize: 'var(--font-size-base)', color: 'var(--color-text-primary)' }}>{item.name}</span>
+                                <span style={{
+                                    fontSize: 'var(--font-size-xs)',
+                                    color: 'var(--color-text-secondary)',
+                                    minWidth: '90px',
+                                    textAlign: 'center',
+                                    padding: 'var(--spacing-xs) var(--spacing-sm)',
+                                    background: 'var(--color-bg-secondary)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontWeight: 500
+                                }}>{item.role}</span>
                                 <span style={{ fontSize: '1.2rem', minWidth: '30px', textAlign: 'center' }}>{item.risk}</span>
                             </div>
                         ))}
@@ -154,66 +182,66 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
 
                 {/* SECTION 5: Who Should Limit This */}
                 {data.limit_groups && data.limit_groups.length > 0 && (
-                    <div style={{ marginBottom: '3rem' }}>
+                    <div style={{
+                        background: 'var(--color-warning-bg)',
+                        padding: 'var(--spacing-xl)',
+                        borderRadius: 'var(--radius-xl)',
+                        border: '1px solid var(--color-warning-border)',
+                        boxShadow: 'var(--shadow-md)',
+                        marginBottom: 'var(--spacing-xl)'
+                    }}>
                         <h3 style={{
-                            fontSize: '0.75rem',
+                            fontSize: 'var(--font-size-xs)',
                             textTransform: 'uppercase',
                             letterSpacing: '0.15em',
-                            color: 'var(--color-text-tertiary)',
-                            marginBottom: '1.5rem',
+                            color: 'var(--color-warning)',
+                            marginBottom: 'var(--spacing-lg)',
                             fontWeight: 600,
                             textAlign: 'center'
                         }}>
                             Who Should Limit This
                         </h3>
-                        <div style={{
-                            maxWidth: '500px',
-                            margin: '0 auto',
-                            background: 'var(--color-bg-secondary)',
-                            padding: '1.5rem',
-                            borderRadius: '8px'
-                        }}>
-                            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                {data.limit_groups.map((group, idx) => (
-                                    <li key={idx} style={{
-                                        fontSize: '0.95rem',
-                                        color: 'var(--color-text-primary)',
-                                        marginBottom: idx < data.limit_groups.length - 1 ? '0.75rem' : 0,
-                                        paddingLeft: '1.5rem',
-                                        position: 'relative'
-                                    }}>
-                                        <span style={{ position: 'absolute', left: 0, color: 'var(--color-text-tertiary)' }}>•</span>
-                                        {group}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
+                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                            {data.limit_groups.map((group, idx) => (
+                                <li key={idx} style={{
+                                    fontSize: 'var(--font-size-base)',
+                                    color: 'var(--color-text-primary)',
+                                    marginBottom: idx < data.limit_groups.length - 1 ? 'var(--spacing-sm)' : 0,
+                                    paddingLeft: 'var(--spacing-lg)',
+                                    position: 'relative'
+                                }}>
+                                    <span style={{ position: 'absolute', left: 0, color: 'var(--color-warning)', fontWeight: 700 }}>•</span>
+                                    {group}
+                                </li>
+                            ))}
+                        </ul>
                     </div>
                 )}
 
                 {/* SECTION 6: Bottom Line */}
                 <div style={{
-                    marginBottom: '3rem',
-                    padding: '2rem',
+                    marginBottom: 'var(--spacing-xl)',
+                    padding: 'var(--spacing-xl)',
                     background: 'var(--color-bg-tertiary)',
-                    borderRadius: '12px',
+                    borderRadius: 'var(--radius-xl)',
+                    border: '1px solid var(--color-border)',
                     textAlign: 'center'
                 }}>
                     <h3 style={{
-                        fontSize: '0.75rem',
+                        fontSize: 'var(--font-size-xs)',
                         textTransform: 'uppercase',
                         letterSpacing: '0.15em',
                         color: 'var(--color-text-tertiary)',
-                        marginBottom: '1rem',
+                        marginBottom: 'var(--spacing-md)',
                         fontWeight: 600
                     }}>
                         Bottom Line
                     </h3>
                     <p style={{
-                        fontSize: '1.1rem',
+                        fontSize: 'var(--font-size-lg)',
                         lineHeight: '1.6',
                         color: 'var(--color-text-primary)',
-                        fontWeight: 400
+                        fontWeight: 500
                     }}>
                         {data.bottom_line}
                     </p>
@@ -222,12 +250,12 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                 {/* SECTION 7: Transparency Note */}
                 <div style={{
                     textAlign: 'center',
-                    padding: '1.5rem',
+                    padding: 'var(--spacing-lg)',
                     borderTop: '1px solid var(--color-border)',
-                    marginTop: '2rem'
+                    marginTop: 'var(--spacing-xl)'
                 }}>
                     <p style={{
-                        fontSize: '0.8rem',
+                        fontSize: 'var(--font-size-sm)',
                         color: 'var(--color-text-tertiary)',
                         fontStyle: 'italic',
                         lineHeight: '1.5'
@@ -237,22 +265,13 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                 </div>
 
                 {/* Action Button */}
-                <div style={{ textAlign: 'center', marginTop: '3rem' }}>
+                <div style={{ textAlign: 'center', marginTop: 'var(--spacing-2xl)' }}>
                     <button
-                        className="btn-modern btn-modern-primary"
+                        className="analyze-btn"
                         onClick={onAnalyzeNew}
                         style={{
-                            background: 'var(--color-text-primary)',
-                            color: '#fff',
-                            border: 'none',
-                            padding: '1rem 2.5rem',
-                            borderRadius: '100px',
-                            fontSize: '0.95rem',
-                            fontWeight: 500,
-                            letterSpacing: '0.02em',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            boxShadow: 'var(--shadow-md)'
+                            width: 'auto',
+                            minWidth: '250px'
                         }}
                     >
                         Analyze Another Product

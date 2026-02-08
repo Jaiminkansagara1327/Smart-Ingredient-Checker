@@ -1,315 +1,242 @@
 """
-Ingredient Scoring Engine - Based on Open Food Facts & Nutri-Score methodology
-Scientifically accurate scoring system for food ingredient analysis
+Ingredient Scoring Engine - Advanced Multi-Criteria Analysis
+Methodology inspired by EWG Food Scores:
+1. Nutrition (Weight: 50%) - Based on ingredient quality mapping
+2. Ingredient Concerns (Weight: 30%) - Based on additive toxicology and health markers
+3. Processing (Weight: 20%) - Based on NOVA classification extent
 """
 import re
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 class IngredientScorer:
-    """
-    Advanced ingredient scoring based on:
-    - NOVA classification (processing level)
-    - Nutri-Score methodology
-    - Additive analysis
-    - Whole food recognition
-    """
-    
-    # Known harmful additives
-    HARMFUL_ADDITIVES = {
-        # Artificial colors
-        'E102', 'E104', 'E110', 'E122', 'E124', 'E129', 'E131', 'E132', 'E133',
-        'Tartrazine', 'Sunset Yellow', 'Allura Red', 'Brilliant Blue',
-        
-        # Preservatives of concern
-        'E210', 'E211', 'E212', 'E213', 'E214', 'E215', 'E216', 'E217', 'E218', 'E219',
-        'Sodium Benzoate', 'Potassium Benzoate', 'BHA', 'BHT', 'TBHQ',
-        
-        # Controversial sweeteners
-        'E951', 'E950', 'E954', 'Aspartame', 'Acesulfame K', 'Saccharin',
-        
-        # Trans fats
-        'Hydrogenated', 'Partially Hydrogenated',
-        
-        # Harmful preservatives
-        'E249', 'E250', 'E251', 'E252', 'Sodium Nitrite', 'Sodium Nitrate',
+    # -------------------------------------------------------------------------
+    # 1. NUTRITION DATA (Sugars, Fats, Sodium, Nutrients)
+    # -------------------------------------------------------------------------
+    ADDED_SUGARS = {
+        'sugar', 'sucrose', 'high fructose corn syrup', 'hfcs', 'corn syrup',
+        'cane sugar', 'brown sugar', 'dextrose', 'maltodextrin', 'glucose',
+        'fructose', 'invert sugar', 'syrup', 'molasses', 'honey', 'agave',
+        'coconut sugar', 'caramel', 'maltose', 'treacle', 'golden syrup'
+    }
+
+    UNHEALTHY_FATS = {
+        'palm oil', 'palm kernel oil', 'shortening', 'margarine',
+        'hydrogenated', 'partially hydrogenated', 'vegetable fat', 'vanaspati',
+        'dalda', 'interesterified', 'cottonseed oil', 'corn oil', 'soybean oil'
+    }
+
+    SODIUM_SOURCES = {
+        'salt', 'sodium', 'monosodium', 'baking soda', 'baking powder',
+        'disodium', 'trisodium', 'nitrite', 'nitrate', 'brine'
     }
     
-    # Beneficial whole food ingredients - COMPREHENSIVE DATABASE
+    # Beneficial whole food ingredients (Merged & Simplified for Nutrition Score)
     WHOLE_FOODS = {
-        # Grains & Cereals
-        'oats', 'quinoa', 'barley', 'brown rice', 'whole wheat', 'whole grain',
-        'wheat flour', 'rye', 'millet', 'buckwheat', 'spelt', 'amaranth', 'teff',
-        'sorghum', 'wild rice', 'farro', 'bulgur', 'rice', 'wheat', 'corn', 'maize',
-        
-        # Nuts & Seeds
-        'almonds', 'walnuts', 'cashews', 'pecans', 'peanuts', 'hazelnuts', 'pistachios',
-        'macadamia', 'brazil nuts', 'pine nuts',
-        'sunflower seeds', 'pumpkin seeds', 'chia seeds', 'flax seeds', 'flaxseed',
-        'sesame', 'hemp seeds', 'poppy seeds',
-        
-        # Fruits
-        'apple', 'banana', 'strawberry', 'blueberry', 'raspberry', 'blackberry', 'mango',
-        'orange', 'lemon', 'lime', 'grape', 'cherry', 'cranberry', 'date', 'fig',
-        'raisins', 'dried fruit', 'apricot', 'peach', 'pear', 'plum', 'prune',
-        'pineapple', 'papaya', 'guava', 'kiwi', 'watermelon', 'melon', 'cantaloupe',
-        'pomegranate', 'passion fruit', 'dragon fruit', 'lychee', 'coconut',
-        
-        # Vegetables
-        'tomato', 'carrot', 'spinach', 'kale', 'broccoli', 'pepper', 'bell pepper',
-        'onion', 'garlic', 'ginger', 'celery', 'cucumber', 'lettuce', 'cabbage',
-        'cauliflower', 'zucchini', 'eggplant', 'asparagus', 'beetroot', 'beet',
-        'sweet potato', 'potato', 'pumpkin', 'squash', 'radish', 'turnip',
-        'mushroom', 'green beans', 'snow peas', 'artichoke', 'brussels sprouts',
-        
-        # Legumes & Pulses
-        'chickpeas', 'lentils', 'beans', 'black beans', 'kidney beans', 'pinto beans',
-        'white beans', 'navy beans', 'lima beans', 'peas', 'green peas', 'split peas',
-        'soy', 'soybeans', 'tofu', 'tempeh', 'edamame', 'mung beans',
-        
-        # Dairy & Alternatives
-        'milk', 'cream', 'butter', 'ghee', 'cheese', 'yogurt', 'yoghurt', 'curd',
-        'whey', 'paneer', 'cottage cheese', 'ricotta', 'mozzarella', 'cheddar',
-        'almond milk', 'soy milk', 'oat milk', 'coconut milk',
-        
-        # Proteins
-        'eggs', 'egg', 'chicken', 'beef', 'pork', 'lamb', 'mutton', 'turkey', 'duck',
-        'fish', 'salmon', 'tuna', 'cod', 'sardines', 'mackerel', 'trout', 'tilapia',
-        'shrimp', 'prawns', 'crab', 'lobster', 'shellfish', 'meat',
-        
-        # Oils (healthier ones)
-        'olive oil', 'extra virgin olive oil', 'avocado oil', 'coconut oil',
-        'sunflower oil', 'sesame oil', 'mustard oil', 'groundnut oil', 'peanut oil',
-        'flaxseed oil', 'walnut oil', 'almond oil',
-        
-        # Natural Sweeteners
-        'honey', 'maple syrup', 'agave', 'agave nectar', 'molasses', 'date syrup',
-        'jaggery', 'stevia', 'monk fruit', 'coconut sugar', 'palm sugar',
-        
-        # SUPERFOODS & ADAPTOGENS
-        'moringa', 'spirulina', 'chlorella', 'wheatgrass', 'acai', 'goji', 'goji berries',
-        'maca', 'cacao', 'raw cacao', 'cocoa', 'matcha', 'green tea',
-        'ashwagandha', 'tulsi', 'holy basil', 'reishi', 'cordyceps', 'lions mane',
-        'rhodiola', 'schisandra', 'ginseng', 'astragalus',
-        
-        # HERBS & SPICES (Comprehensive)
-        'turmeric', 'curcumin', 'ginger', 'cinnamon', 'cardamom', 'cloves', 'nutmeg',
-        'basil', 'oregano', 'thyme', 'rosemary', 'sage', 'mint', 'peppermint',
-        'coriander', 'cilantro', 'parsley', 'dill', 'fennel', 'fenugreek',
-        'cumin', 'paprika', 'cayenne', 'chili', 'black pepper', 'white pepper',
-        'vanilla', 'saffron', 'bay leaves', 'curry leaves', 'mustard seeds',
-        'anise', 'star anise', 'tarragon', 'marjoram', 'chamomile', 'lavender',
-        
-        # AYURVEDIC & TRADITIONAL INGREDIENTS
-        'amla', 'amalaki', 'triphala', 'brahmi', 'shankhpushpi', 'guduchi',
-        'neem', 'giloy', 'shatavari', 'vidari', 'licorice', 'liquorice', 'mulethi',
-        'ajwain', 'carom seeds', 'methi', 'pudina', 'jeera', 'haldi',
-        
-        # Fermented & Cultured Foods
-        'kimchi', 'sauerkraut', 'miso', 'kombucha', 'kefir', 'yogurt culture',
-        'probiotic', 'vinegar', 'apple cider vinegar', 'rice vinegar',
-        
-        # Others
-        'salt', 'sea salt', 'himalayan salt', 'rock salt', 'water', 'yeast',
-        'baking soda', 'baking powder', 'pectin', 'agar', 'gelatin', 'collagen',
-        'nutritional yeast', 'seaweed', 'nori', 'kelp', 'wakame', 'dulse',
-        'chlorophyll', 'aloe', 'aloe vera',
+        'oats', 'quinoa', 'barley', 'rice', 'wheat', 'corn', 'millet', 'sorghum', # Grains
+        'almonds', 'walnuts', 'cashews', 'peanuts', 'seeds', 'nuts', # Nuts/Seeds
+        'milk', 'yogurt', 'curd', 'cheese', 'paneer', 'butter', 'ghee', # Dairy
+        'fruit', 'berry', 'apple', 'banana', 'mango', 'tomato', # Fruits
+        'vegetable', 'spinach', 'carrot', 'pea', 'bean', 'lentil', 'dal', 'gram', # Veg/Legumes
+        'chicken', 'egg', 'fish', 'meat', # Proteins
+        'cocoa', 'cacao', 'coffee', 'tea', 'water', 'spices', 'herbs' # Others
     }
-    
-    # Red flag ingredients - Specific keys first, generic last
-    RED_FLAGS = {
-        'high fructose corn syrup': -20,
-        'hfcs': -20,
-        'partially hydrogenated': -25,
-        'hydrogenated': -25,
-        'trans fat': -25,
-        'msg': -8,
-        'monosodium glutamate': -8,
+
+    # -------------------------------------------------------------------------
+    # 2. INGREDIENT CONCERNS (Additives & Toxicity)
+    # -------------------------------------------------------------------------
+    # Map specific concerns to severity (0-10 scale, 10 being worst)
+    ADDITIVE_CONCERNS = {
+        # High Concern (Carcinogens, Endocrine Disruptors, etc.)
+        'aspartame': 9, 'acesulfame': 8, 'saccharin': 8, 'sucralose': 7,
+        'bha': 9, 'bht': 9, 'tbhq': 8, 'sodium benzoate': 7, 'potassium benzoate': 7,
+        'nitrite': 10, 'nitrate': 9, 'bromate': 10, 'propyl gallate': 8,
+        'tartrazine': 8, 'sunset yellow': 8, 'allura red': 8, 'brilliant blue': 7,
+        'msg': 6, 'monosodium glutamate': 6, 'artificial color': 7, 'artificial flavor': 6,
+        'carrageenan': 6, 'dioxygen': 0, # inert
         
-        # Artificial Sweeteners
-        'aspartame': -10,
-        'sucralose': -10,
-        'saccharin': -10,
-        'acesulfame': -10,
-        'artificial sweetener': -10,
-        
-        # Artificial Flavors/Colors with variations
-        'artificial flavor': -5,
-        'artificial flavour': -5,
-        'artificial color': -5,
-        'artificial colour': -5,
-        'nature identical': -5,
-        
-        # Generic catch-alls
-        'artificial': -5,
-        'flavouring': -2,
-        'flavoring': -2,
-        'preservative': -2,
+        # Medium Concern (Allergens, Intolerance, processing aids)
+        'gum': 3, 'lecithin': 2, 'phosphate': 4, 'sorbate': 3,
+        'benzoate': 5, 'sulfite': 5, 'sulphite': 5, 'dextrin': 3,
+        'maltodextrin': 4, 'modified starch': 4, 'yeast extract': 4,
+        'flavor enhancer': 5, 'emulsifier': 3, 'stabilizer': 3,
+        'thickener': 2, 'acidity regulator': 1, 'anticaking': 2,
+        'preservative': 5, 'artificial': 5, 'synthetic': 5,
+        'nature identical': 4
     }
-    
-    def calculate_score(self, ingredients_list: list) -> dict:
+
+    # -------------------------------------------------------------------------
+    # 3. PROCESSING INDICATORS (NOVA)
+    # -------------------------------------------------------------------------
+    ULTRA_PROCESSED_INDICATORS = [
+        'high fructose corn syrup', 'hydrogenated', 'hydrolysed',
+        'isolate', 'modified', 'artificial', 'ester', 'fractionated',
+        'bleached', 'refined', 'reconstituted', 'flavoring', 'flavouring'
+    ]
+
+    def calculate_score(self, ingredients_list: List[str]) -> Dict:
         """
-        Calculate comprehensive health score (0-100)
-        
-        Args:
-            ingredients_list: List of ingredient strings
-            
-        Returns:
-            dict with score, breakdown, and analysis
+        Calculate Weighted Score (Ingredients Only):
+        - Ingredient Quality & Safety: 70% (Additives, Sugar, Oils vs Whole Foods)
+        - Processing: 30% (NOVA Classification)
         """
         if not ingredients_list:
-            return {'score': 50, 'score_breakdown': [], 'nova_group': 3}
+            return {'score': 0, 'score_breakdown': [], 'nova_group': 4}
+
+        # 1. Ingredient Quality & Safety Score (0-100)
+        # Merges Additive Safety + Material Quality (Sugar/Oil vs Whole Food)
+        quality_score, quality_notes = self._calculate_quality_score(ingredients_list)
         
-        # Start with classification
-        nova_group = self._classify_nova(ingredients_list)
-        base_score = self._get_base_score_from_nova(nova_group)
+        # 2. Processing Score (0-100)
+        processing_score, processing_notes, nova_group = self._calculate_processing_score(ingredients_list)
+
+        # Weighted Calculation
+        # Quality (70%) + Processing (30%)
+        # Note: Processing score is already low for NOVA 4, but we need to ensure the final score reflects the health impact.
+        base_score = (quality_score * 0.70) + (processing_score * 0.30)
         
-        adjustments = []
-        current_score = base_score
-        
-        # Count whole foods
-        whole_food_count = self._count_whole_foods(ingredients_list)
-        whole_food_ratio = whole_food_count / len(ingredients_list)
-        
-        if whole_food_ratio > 0.8:
-            bonus = 15
-            current_score += bonus
-            adjustments.append({
-                'description': f'Excellent! {int(whole_food_ratio*100)}% whole food ingredients detected',
-                'points': bonus
-            })
-        elif whole_food_ratio > 0.5:
-            bonus = 8
-            current_score += bonus
-            adjustments.append({
-                'description': f'{int(whole_food_ratio*100)}% whole food ingredients',
-                'points': bonus
-            })
+        final_score = base_score
+
+        # DYNAMIC CAPS & SCALING for Processed Foods
+        # Fix: Prevent all NOVA 4 products getting exactly 35. 
+        # Apply a heavy scaling factor instead of a flat cap.
+        if nova_group == 4:
+            # Ultra-processed foods are discouraged. 
+            # Scale the score down to ensure it stays in the "Poor" to "Average" range (0-45).
+            # A "clean" ultra-processed item (rare) might hit 40-45. 
+            # A "dirty" one will drop to 10-20.
+            final_score = base_score * 0.45 
+            processing_notes.append({'description': "Score heavily reduced (Ultra-Processed)", 'points': 0})
             
-        # New Logic: Boost score for processed foods that are mostly whole ingredients
-        # This prevents healthy but slightly processed items from being stuck at 55
-        if nova_group == 3 and whole_food_ratio >= 0.5:
-             current_score += 10
-             adjustments.append({
-                 'description': 'Mainly whole ingredients despite processing',
-                 'points': 10
-             })
-        
-        # Check for harmful additives
-        harmful_found = self._find_harmful_additives(ingredients_list)
-        for additive in harmful_found:
-            penalty = -5
-            current_score += penalty
-            adjustments.append({
-                'description': f'Contains {additive} (artificial additive)',
-                'points': penalty
-            })
-        
-        # Check for red flag ingredients
-        for ingredient in ingredients_list:
-            ing_lower = ingredient.lower()
-            for red_flag, penalty in self.RED_FLAGS.items():
-                if red_flag in ing_lower:
-                    current_score += penalty
-                    adjustments.append({
-                        'description': f'Contains {red_flag} ({ingredient})',
-                        'points': penalty
-                    })
-                    break
-        
-        # Short, clean ingredient lists get bonus
-        if len(ingredients_list) <= 5 and whole_food_ratio > 0.6:
-            bonus = 10
-            current_score += bonus
-            adjustments.append({
-                'description': 'Simple recipe with few ingredients',
-                'points': bonus
-            })
-        
-        # Cap score between 0-100
-        final_score = max(0, min(100, current_score))
+        elif nova_group == 3:
+            # Processed foods. Scale down slightly to cap around 70-75 max.
+            final_score = base_score * 0.75
+
+        final_score = round(max(0, min(100, final_score)))
+
+        # Combine notes
+        all_notes = quality_notes + processing_notes
         
         return {
-            'score': round(final_score),
-            'score_breakdown': adjustments,
+            'score': final_score,
+            'score_breakdown': all_notes,
             'nova_group': nova_group,
-            'whole_food_ratio': round(whole_food_ratio * 100)
+            'details': {
+                'quality_score': quality_score, # Replaces concern/nutrition
+                'processing_score': processing_score
+            }
         }
-    
-    def _classify_nova(self, ingredients: list) -> int:
+
+    def _calculate_quality_score(self, ingredients: List[str]) -> Tuple[float, List[Dict]]:
         """
-        Classify product using NOVA groups (1-4)
-        1: Unprocessed/minimally processed
-        2: Processed culinary ingredients
-        3: Processed foods
-        4: Ultra-processed
+        Evaluates Ingredient Quality (Additives - Sugar - Oil + Whole Foods).
+        Starts at 100.
         """
-        # Ultra-processed indicators (Expanded)
-        ultra_indicators = [
-            'high fructose corn syrup', 'hfcs', 'hydrogenated', 'hydrolysed',
-            'modified starch', 'maltodextrin', 'dextrose', 'corn syrup',
-            'artificial', 'flavor enhancer', 'emulsifier', 'thickener',
-            'glazing agent', 'bleaching agent', 'bulking agent',
-            'flavouring', 'flavoring', 'colour', 'color', 'preservative',
-            'nature identical'
-        ]
+        score = 100.0
+        notes = []
         
-        # Check for E-numbers (additives)
-        e_number_count = sum(1 for ing in ingredients if 'e' in ing.lower() and any(c.isdigit() for c in ing))
-        
-        # Check for ultra-processed indicators
-        ultra_count = 0
-        for ing in ingredients:
-            ing_lower = ing.lower()
-            if any(indicator in ing_lower for indicator in ultra_indicators):
-                ultra_count += 1
-        
-        # Classify
-        if ultra_count >= 3 or e_number_count >= 5:
-            return 4  # Ultra-processed
-        
-        if ultra_count >= 1 or e_number_count >= 2:
-            return 3  # Processed
-        
-        whole_food_count = self._count_whole_foods(ingredients)
-        if whole_food_count / len(ingredients) > 0.7:
-            return 1  # Unprocessed/minimally processed
-        
-        return 2  # Processed culinary ingredients
-    
-    def _get_base_score_from_nova(self, nova_group: int) -> int:
-        """Get base score from NOVA classification"""
-        base_scores = {
-            1: 90,  # Unprocessed/minimally processed
-            2: 75,  # Processed culinary ingredients
-            3: 55,  # Processed foods
-            4: 25,  # Ultra-processed
-        }
-        return base_scores.get(nova_group, 50)
-    
-    def _count_whole_foods(self, ingredients: list) -> int:
-        """Count how many ingredients are recognizable whole foods"""
-        count = 0
-        for ing in ingredients:
+        for i, ing in enumerate(ingredients):
             ing_lower = ing.lower()
             
-            # Skip if it sounds artificial/processed to prevent false positives
-            # e.g. "artificial cream" shouldn't match "cream"
-            if any(x in ing_lower for x in ['artificial', 'imitation', 'synthetic', 'substitute', 'flavor', 'flavour', 'color', 'colour']):
-                continue
+            # 1. Check Additives (Safety)
+            matched_concern = False
+            for additive, severity in self.ADDITIVE_CONCERNS.items():
+                if additive in ing_lower:
+                    penalty = severity * 3 # Higher penalty (Max 30 pts per bad additive)
+                    score -= penalty
+                    matched_concern = True
+                    notes.append({
+                        'description': f"Contains {ing} (Concerns found)",
+                        'points': -penalty
+                    })
+                    break 
+            
+            # E-numbers catch-all
+            if not matched_concern and ('ins ' in ing_lower or re.search(r'\be\d{3,4}', ing_lower)):
+                score -= 10
+                notes.append({'description': f"Artificial additive ({ing})", 'points': -10})
+
+            # 2. Check Low Quality Ingredients (Sugar/Refined Oil) - Weighted by order
+            # Only checking top 5 ingredients for major impact
+            if i < 5:
+                # Sugar penalty
+                if any(s in ing_lower for s in self.ADDED_SUGARS):
+                    # Only penalize if it's NOT 'sugar free'
+                    if 'sugar free' not in ing_lower:
+                        penalty = 15 if i == 0 else 10
+                        score -= penalty
+                        notes.append({'description': f"High added sugar ({ing})", 'points': -penalty})
                 
-            for whole_food in self.WHOLE_FOODS:
-                if whole_food in ing_lower:
-                    count += 1
-                    break
-        return count
-    
-    def _find_harmful_additives(self, ingredients: list) -> list:
-        """Find harmful additives in ingredient list"""
-        found = []
+                # Unhealthy Fat penalty
+                elif any(f in ing_lower for f in self.UNHEALTHY_FATS):
+                    penalty = 15 if i == 0 else 10
+                    score -= penalty
+                    notes.append({'description': f"Unhealthy fat ({ing})", 'points': -penalty})
+
+        # 3. Whole Food Bonus
+        whole_food_count = sum(1 for ing in ingredients if self._is_whole_food(ing.lower()))
+        if whole_food_count > 0:
+            bonus = min(20, whole_food_count * 5) # Max 20 pts bonus
+            score += bonus
+
+        return max(0, min(100, score)), notes
+
+    def _calculate_processing_score(self, ingredients: List[str]) -> Tuple[float, List[Dict], int]:
+        """
+        NOVA-based processing score.
+        Returns (Score 0-100, Notes, NOVA Group Int)
+        """
+        score = 100
+        notes = []
+        
+        # Detect Ultra-Processed Markers
+        markers = 0
         for ing in ingredients:
-            ing_upper = ing.upper()
-            for additive in self.HARMFUL_ADDITIVES:
-                if additive.upper() in ing_upper:
-                    found.append(ing)
-                    break
-        return found
+            ing_lower = ing.lower()
+            if any(m in ing_lower for m in self.ULTRA_PROCESSED_INDICATORS) or \
+               any(m in ing_lower for m in self.ADDITIVE_CONCERNS):
+                markers += 1
+
+        # Determine NOVA Group & Base Score
+        total = len(ingredients)
+        marker_ratio = markers / total if total > 0 else 1
+        
+        nova_group = 1
+        
+        if markers == 0 and total > 1:
+            # Check if likely NOVA 2 (Culinary ingredients like Oil, Sugar, Salt only)
+            if all(any(x in ing.lower() for x in self.ADDED_SUGARS | self.SODIUM_SOURCES | self.UNHEALTHY_FATS | {'oil', 'butter', 'starch'}) for ing in ingredients):
+                nova_group = 2
+                score = 80
+            else:
+                nova_group = 1
+                score = 100
+                notes.append({'description': "Minimally processed", 'points': 0})
+                
+        elif markers >= 1 or (markers >= 5 and marker_ratio > 0.3):
+             # Deep processing
+             if markers >= 2 or marker_ratio > 0.2:
+                 nova_group = 4
+                 score = 40
+                 notes.append({'description': "Ultra-processed product", 'points': -20})
+             else:
+                 nova_group = 3
+                 score = 60
+                 notes.append({'description': "Processed product", 'points': -10})
+                 
+        # Fine-tune based on additive count
+        if markers > 3:
+            penalty = (markers - 3) * 5
+            score -= penalty
+            
+        return max(0, min(100, score)), notes, nova_group
+
+    def _is_whole_food(self, ingredient: str) -> bool:
+        """Robust whole food check utilizing word boundaries"""
+        # Skip if 'artificial' or 'flavor' is present
+        if any(x in ingredient for x in ['artificial', 'flavor', 'flavour', 'synthetic']):
+            return False
+            
+        for wf in self.WHOLE_FOODS:
+            if re.search(rf'\b{re.escape(wf)}\w*', ingredient): # Matches "oats", "oatmeal", "oat"
+                return True
+        return False

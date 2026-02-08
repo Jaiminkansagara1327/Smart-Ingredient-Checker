@@ -3,318 +3,209 @@ import React from 'react';
 function ResultsSection({ data, image, onAnalyzeNew }) {
     if (!data) return null;
 
-    // Check if this was manual input (100% confidence or input_method = manual)
-    const isManualInput = data.input_method === 'manual' ||
-        (data.ocr_metadata && data.ocr_metadata.quality_score === 100);
-
     return (
         <section className="results-section">
-            <div className="results-container-new">
-                {/* User Input Ingredients */}
-                {(data.ingredients || data.raw_ingredients) && (() => {
-                    // Helper to clean up ingredient text from conversational and technical noise
-                    const cleanIngredientText = (text) => {
-                        if (!text) return '';
-                        let cleaned = text
-                            // 1. Remove LaTeX/Markdown math mode and escaping
-                            .replace(/\\\((.*?)\\\)/g, '$1')
-                            .replace(/\\\[(.*?)\\\]/g, '$1')
-                            .replace(/\s*\\%\s*/g, '%') // handle escaped %
-                            .replace(/\s*\\\*\s*/g, '')  // handle escaped *
-                            // 2. Remove math/footnote symbols globally
-                            .replace(/[\^_{\}\*\†]/g, '');
+            <div className="results-container-new" style={{ maxWidth: '800px', margin: '0 auto' }}>
 
-                        // 3. Iteratively remove conversational lead-ins, slashes, and technical adjectives
-                        let previous;
-                        do {
-                            previous = cleaned;
-                            cleaned = cleaned
-                                // Remove leading slashes, spacers or "or" at the start
-                                .replace(/^[\s/\\|.,\-*:]+/i, '')
-                                .replace(/^(it also contains|also contains|contains|ingredients include|ingredients are|and|plus|permitted|synthetic|natural|nature identical|artificial|added|contains permitted|food|or)\s*[:\-]?\s*/gi, '')
-                                .trim();
-                        } while (cleaned !== previous);
+                {/* 1. Hero Score Section - Premium & Minimalist */}
+                <div className="score-hero" style={{ textAlign: 'center', padding: '3rem 0 2rem' }}>
 
-                        return cleaned.replace(/\.$/, ''); // Remove trailing dots
-                    };
-
-                    const splitIngredients = (text) => {
-                        if (!text) return [];
-
-                        // 1. First, check if input has newlines but NO commas
-                        // This handles lists like:
-                        // Ingredient 1
-                        // Ingredient 2
-                        if (!text.includes(',') && text.includes('\n')) {
-                            return text
-                                .split(/\n+/)
-                                .map(ing => cleanIngredientText(ing.trim()))
-                                .filter(ing => ing.length > 1);
-                        }
-
-                        let cleanedText = text.replace(/\s+/g, ' ');
-
-                        // 2. Handle patterns like "Potato (89%) Edible Oil (10%)"
-                        if (!cleanedText.includes(',') && /\)\s+[A-Z]/.test(cleanedText)) {
-                            return cleanedText
-                                .split(/(?<=\))\s+(?=[A-Z])/)
-                                .map(ing => cleanIngredientText(ing))
-                                .filter(ing => ing.length > 1);
-                        }
-
-                        // 3. Fallback to standard comma/period splitting
-                        const result = [];
-                        let current = '';
-                        let depth = 0;
-                        for (let i = 0; i < cleanedText.length; i++) {
-                            const char = cleanedText[i];
-                            if (char === '(') depth++;
-                            if (char === ')') depth--;
-                            const isComma = char === ',';
-                            const isPeriodSeparator = char === '.' && depth === 0 && (i === cleanedText.length - 1 || !/\d/.test(cleanedText[i + 1]));
-                            if ((isComma || isPeriodSeparator) && depth === 0) {
-                                if (current.trim()) result.push(current.trim());
-                                current = '';
-                            } else {
-                                current += char;
-                            }
-                        }
-                        if (current.trim()) result.push(current.trim());
-
-                        return result
-                            .map(ing => cleanIngredientText(ing))
-                            .filter(ing => {
-                                const lower = ing.toLowerCase();
-                                if (lower.length < 2) return false;
-                                if (['etc', 'including', 'and', 'also', 'contains', 'ingredients'].includes(lower)) return false;
-                                return true;
-                            });
-                    };
-
-                    // 1. Use AI-provided array if available (most reliable)
-                    // 2. Else use splitIngredients on raw text
-                    const rawList = data.ingredients
-                        ? data.ingredients.map(ing => cleanIngredientText(ing)).filter(i => i.length > 1)
-                        : splitIngredients(data.raw_ingredients);
-
-                    // 3. Deduplicate (case-insensitive)
-                    const seen = new Set();
-                    const ingredientList = rawList.filter(ing => {
-                        const normalized = ing.toLowerCase().trim();
-                        if (seen.has(normalized)) return false;
-                        seen.add(normalized);
-                        return true;
-                    });
-
-                    return (
-                        <div className="raw-input-box" style={{
-                            background: 'rgba(0, 0, 0, 0.02)',
-                            padding: '1.25rem',
-                            borderRadius: '0.75rem',
-                            border: '1px solid var(--color-border)',
-                            marginBottom: '2rem'
+                    {/* Numeric Score */}
+                    <div className="score-circle-container" style={{ position: 'relative', marginBottom: '1.5rem' }}>
+                        <h1 style={{
+                            fontSize: '6rem',
+                            fontWeight: '300',
+                            lineHeight: '1',
+                            color: 'var(--color-text-primary)',
+                            fontFeatureSettings: '"tnum"',
+                            fontVariantNumeric: 'tabular-nums',
+                            letterSpacing: '-0.05em'
                         }}>
-                            <span style={{
-                                fontSize: '0.7rem',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.05em',
-                                fontWeight: 700,
-                                color: 'var(--color-text-tertiary)',
-                                display: 'block',
-                                marginBottom: '0.75rem'
-                            }}>Entered Ingredients</span>
-                            <div style={{
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                gap: '0.65rem'
-                            }}>
-                                {ingredientList.map((ing, idx) => {
-                                    // Clean up: remove leading 'and ' if it exists (case-insensitive)
-                                    const cleanIng = ing.trim().replace(/^and\s+/i, '');
-
-                                    return (
-                                        <span key={idx} style={{
-                                            fontSize: '0.85rem',
-                                            padding: '0.35rem 0.85rem',
-                                            background: '#fff',
-                                            border: '1px solid var(--color-border)',
-                                            borderRadius: '2rem',
-                                            color: 'var(--color-text-secondary)',
-                                            display: 'inline-block',
-                                            boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
-                                        }}>
-                                            {cleanIng}
-                                        </span>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    );
-                })()}
-
-                {/* Hero Score Section */}
-                <div className="score-hero">
-                    <div className="score-bar-container">
-                        <div className="score-header">
-                            <h3 className="score-title">Health Score</h3>
-                            <div className="score-value">
-                                <span className="score-number">{data.score}</span>
-                                <span className="score-max">/100</span>
-                            </div>
-                        </div>
-
-                        <div className="score-bar-wrapper">
-                            <div className="score-bar-bg">
-                                <div
-                                    className="score-bar-fill"
-                                    style={{
-                                        width: `${data.score}%`,
-                                        backgroundColor: data.score >= 70 ? '#10b981' : data.score >= 40 ? '#f59e0b' : '#ef4444'
-                                    }}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="score-label" style={{
-                            color: data.score >= 70 ? '#059669' : data.score >= 40 ? '#d97706' : '#dc2626',
-                            fontWeight: 600,
-                            fontSize: '0.875rem',
-                            marginTop: '0.5rem'
+                            {data.score}
+                        </h1>
+                        <span style={{
+                            fontSize: '1rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.2em',
+                            color: 'var(--color-text-tertiary)',
+                            display: 'block',
+                            marginTop: '0.5rem',
+                            fontWeight: 500
                         }}>
-                            {data.score >= 85 ? '✨ Excellent - Very Healthy' :
-                                data.score >= 70 ? '✅ Very Good' :
-                                    data.score >= 55 ? '⚠️ Average' :
-                                        data.score >= 40 ? '⚠️ Fair - Limit Intake' : '🚫 Junk Food - Avoid'}
-                        </div>
+                            Health Score
+                        </span>
                     </div>
-                    {data.product.name && !['Food Product', 'Detected Product'].includes(data.product.name) && (
-                        <h1 className="product-name-hero">{data.product.name}</h1>
-                    )}
-                    {data.product.brand && !['Unknown Brand', 'Unknown'].includes(data.product.brand) && (
-                        <p className="product-brand-hero">{data.product.brand}</p>
-                    )}
 
-                    {/* Database Badges */}
-                    {(data.product.nutriscore || data.product.nova_group) && (
-                        <div className="pro-badges">
-                            {data.product.nutriscore && (
-                                <div className={`pro-badge nutri-score nutri-${data.product.nutriscore}`}>
-                                    Nutri-Score {data.product.nutriscore.toUpperCase()}
-                                </div>
-                            )}
-                            {data.product.nova_group && (
-                                <div className={`pro-badge nova-group nova-${data.product.nova_group}`}>
-                                    NOVA {data.product.nova_group}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* How it's calculated */}
-                    <div style={{
-                        marginTop: '1.5rem',
-                        padding: '1rem',
-                        background: 'rgba(0,0,0,0.02)',
-                        borderRadius: '0.75rem',
-                        textAlign: 'left',
-                        fontSize: '0.85rem'
+                    {/* Sleek Progress Bar */}
+                    <div className="score-bar-wrapper" style={{
+                        height: '6px',
+                        background: 'rgba(0,0,0,0.05)',
+                        borderRadius: '3px',
+                        maxWidth: '300px',
+                        margin: '0 auto 1.5rem',
+                        overflow: 'hidden'
                     }}>
-                        <details>
-                            <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                                How is this score calculated?
-                            </summary>
-                            <div style={{ marginTop: '0.75rem', color: 'var(--color-text-tertiary)', lineHeight: '1.5' }}>
-                                <p style={{ marginBottom: '0.5rem' }}>We start with a base of <strong>100 points</strong> and deduct for:</p>
-                                <ul style={{ paddingLeft: '1.25rem' }}>
-                                    <li><strong>Ultra-processing:</strong> -30 to -40 pts</li>
-                                    <li><strong>Artificial Additives:</strong> -5 pts each</li>
-                                    <li><strong>High Sugar/HFCS:</strong> -15 to -20 pts</li>
-                                    <li><strong>Refined Oils (Palm/Veg):</strong> -10 pts</li>
-                                    <li><strong>Excessive Sodium:</strong> -10 pts</li>
-                                </ul>
-                                <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', fontStyle: 'italic' }}>
-                                    *Bonus points are awarded for whole grains and zero additives.
-                                </p>
-                            </div>
-                        </details>
+                        <div
+                            className="score-bar-fill"
+                            style={{
+                                width: `${data.score}%`,
+                                height: '100%',
+                                backgroundColor: data.score >= 80 ? '#10b981' :
+                                    data.score >= 50 ? '#f59e0b' : '#ef4444',
+                                borderRadius: '3px',
+                                transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)'
+                            }}
+                        />
+                    </div>
+
+                    {/* Minimal Text Verdict (No Emojis) */}
+                    <div className="score-label" style={{
+                        color: data.score >= 80 ? '#059669' : data.score >= 50 ? '#d97706' : '#dc2626',
+                        fontWeight: 600,
+                        fontSize: '1.1rem',
+                        letterSpacing: '0.05em'
+                    }}>
+                        {data.score >= 80 ? 'Excellent' :
+                            data.score >= 60 ? 'Good' :
+                                data.score >= 40 ? 'Average' : 'Poor Quality'}
                     </div>
                 </div>
 
-                {/* Verdict */}
-                <div className="verdict-modern">
-                    <p className="verdict-text-modern">{data.verdict}</p>
+                {/* Product Name */}
+                {(data.product.name || data.product.brand) && (
+                    <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+                        {data.product.name && !['Food Product', 'Detected Product'].includes(data.product.name) && (
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-text-primary)' }}>{data.product.name}</h2>
+                        )}
+                        {data.product.brand && !['Unknown Brand', 'Unknown'].includes(data.product.brand) && (
+                            <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.9rem' }}>{data.product.brand}</p>
+                        )}
+                    </div>
+                )}
+
+                {/* Verdict / Analysis Text */}
+                <div className="verdict-modern" style={{
+                    textAlign: 'center',
+                    fontSize: '1.1rem',
+                    lineHeight: '1.6',
+                    color: 'var(--color-text-secondary)',
+                    maxWidth: '600px',
+                    margin: '0 auto 2rem',
+                    fontWeight: 400
+                }}>
+                    {data.verdict}
                 </div>
 
-                {/* Suitability Grid */}
-                <div className="suitability-grid">
-                    <div className="suitability-card-modern good">
-                        <div className="suitability-header">
-                            <span className="suitability-emoji">✓</span>
-                            <h3>Good For</h3>
+                {/* VISIBLE Ingredient List (Restored & Cleaned) */}
+                {(data.ingredients || data.raw_ingredients) && (
+                    <div style={{
+                        margin: '0 auto 4rem',
+                        maxWidth: '700px',
+                        textAlign: 'center'
+                    }}>
+                        <p style={{
+                            fontSize: '0.7rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.1em',
+                            color: 'var(--color-text-tertiary)',
+                            marginBottom: '1rem',
+                            fontWeight: 600
+                        }}>
+                            Ingredients Analyzed
+                        </p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center' }}>
+                            {(data.ingredients || (data.raw_ingredients ? data.raw_ingredients.split(',') : [])).map((ing, idx) => {
+                                // Basic cleaning for display
+                                const cleanIng = ing.replace(/[\(\)\[\]]/g, '').trim();
+                                if (!cleanIng || cleanIng.length < 2) return null;
+                                return (
+                                    <span key={idx} style={{
+                                        fontSize: '0.85rem',
+                                        padding: '0.35rem 0.85rem',
+                                        background: 'var(--color-bg-secondary)',
+                                        border: '1px solid var(--color-border)',
+                                        borderRadius: '100px',
+                                        color: 'var(--color-text-secondary)'
+                                    }}>
+                                        {cleanIng}
+                                    </span>
+                                );
+                            })}
                         </div>
-                        <p>{data.suitability.goodFor}</p>
                     </div>
-                    <div className="suitability-card-modern caution">
-                        <div className="suitability-header">
-                            <span className="suitability-emoji">⚠</span>
-                            <h3>Use Caution</h3>
-                        </div>
-                        <p>{data.suitability.cautionFor}</p>
-                    </div>
-                    <div className="suitability-card-modern avoid">
-                        <div className="suitability-header">
-                            <span className="suitability-emoji">✕</span>
-                            <h3>Avoid If</h3>
-                        </div>
-                        <p>{data.suitability.avoidFor}</p>
-                    </div>
-                </div>
+                )}
 
-                {/* Ingredient Groups - Simplified */}
+                {/* Ingredient Breakdown List (Detailed Analysis) */}
                 {data.ingredientGroups && data.ingredientGroups.length > 0 && (
-                    <div className="ingredients-modern">
-                        <h2 className="section-title-modern">Ingredients Breakdown</h2>
+                    <div className="ingredients-modern" style={{ marginTop: '2rem' }}>
+                        <p style={{
+                            textAlign: 'center',
+                            fontSize: '0.7rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.1em',
+                            color: 'var(--color-text-tertiary)',
+                            marginBottom: '2rem',
+                            fontWeight: 600
+                        }}>
+                            Detailed Breakdown
+                        </p>
                         <div className="ingredient-list-modern">
                             {data.ingredientGroups.map((group, index) => (
-                                <div key={index} className="ingredient-item-modern">
-                                    <h3>{group.title}</h3>
-                                    <p className="ingredient-desc">
-                                        {group.description.split(',').map(s => {
-                                            let cleaned = s.replace(/\\\((.*?)\\\)/g, '$1')
-                                                .replace(/\\\[(.*?)\\\]/g, '$1')
-                                                .replace(/\\%/g, '%')
-                                                .replace(/\\\*/g, '')
-                                                .replace(/[\^_{\}\*\†]/g, '');
-
-                                            // Iterative prefix removal
-                                            let previous;
-                                            do {
-                                                previous = cleaned;
-                                                cleaned = cleaned
-                                                    .replace(/^[\s/\\|.,\-*:]+/i, '')
-                                                    .replace(/^(it also contains|also contains|contains|ingredients include|ingredients are|and|plus|permitted|synthetic|natural|nature identical|artificial|added|contains permitted|food|or)\s*[:\-]?\s*/gi, '')
-                                                    .trim();
-                                            } while (cleaned !== previous);
-
-                                            return cleaned;
-                                        }).filter(Boolean).join(', ')}
+                                <div key={index} className="ingredient-item-modern" style={{
+                                    marginBottom: '2rem',
+                                    borderLeft: `2px solid ${group.title.includes('Quality') ? '#ef4444' : group.title.includes('Processing') ? '#f59e0b' : '#3b82f6'}`,
+                                    paddingLeft: '1.5rem'
+                                }}>
+                                    <h3 style={{
+                                        fontSize: '0.9rem',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.05em',
+                                        color: 'var(--color-text-tertiary)',
+                                        marginBottom: '0.5rem',
+                                        fontWeight: 600
+                                    }}>
+                                        {group.title}
+                                    </h3>
+                                    <p className="ingredient-desc" style={{
+                                        fontSize: '1rem',
+                                        color: 'var(--color-text-primary)',
+                                        lineHeight: '1.5'
+                                    }}>
+                                        {group.description.split(',').map(s => s.trim()).filter(Boolean).join(', ')}
                                     </p>
-                                    {group.note && <p className="ingredient-note">{group.note}</p>}
+                                    {group.note && (
+                                        <p className="ingredient-note" style={{
+                                            fontSize: '0.85rem',
+                                            color: 'var(--color-text-tertiary)',
+                                            marginTop: '0.25rem',
+                                            fontStyle: 'italic'
+                                        }}>
+                                            {group.note}
+                                        </p>
+                                    )}
                                 </div>
                             ))}
                         </div>
                     </div>
                 )}
 
-                {/* Notable Flags */}
+                {/* Flags (Clean Grid) */}
                 {data.flags && data.flags.length > 0 && (
-                    <div className="flags-modern">
-                        <h2 className="section-title-modern">Notable Points</h2>
-                        <div className="flags-grid">
+                    <div className="flags-modern" style={{ marginTop: '2rem' }}>
+                        <div className="flags-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                             {data.flags.map((flag, index) => (
-                                <div key={index} className="flag-modern">
-                                    <span className="flag-emoji">{flag.icon}</span>
-                                    <span>{flag.text.replace(/\\\((.*?)\\\)/g, '$1').replace(/\\%/g, '%').replace(/\\\*/g, '').replace(/[\^_{\}\*\†]/g, '')}</span>
+                                <div key={index} className="flag-modern" style={{
+                                    padding: '1rem',
+                                    background: 'var(--color-bg-tertiary)',
+                                    borderRadius: '8px',
+                                    fontSize: '0.9rem',
+                                    color: 'var(--color-text-secondary)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.75rem'
+                                }}>
+                                    <span style={{ fontSize: '1.2rem', opacity: 0.8 }}>{flag.icon}</span>
+                                    <span>{flag.text}</span>
                                 </div>
                             ))}
                         </div>
@@ -322,15 +213,31 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                 )}
 
                 {/* Actions */}
-                <div className="actions-modern">
-                    <button className="btn-modern btn-modern-primary" onClick={onAnalyzeNew}>
+                <div className="actions-modern" style={{ textAlign: 'center', marginTop: '4rem' }}>
+                    <button
+                        className="btn-modern btn-modern-primary"
+                        onClick={onAnalyzeNew}
+                        style={{
+                            background: 'var(--color-text-primary)',
+                            color: '#fff',
+                            border: 'none',
+                            padding: '1rem 2.5rem',
+                            borderRadius: '100px',
+                            fontSize: '0.95rem',
+                            fontWeight: 500,
+                            letterSpacing: '0.02em',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            boxShadow: 'var(--shadow-md)'
+                        }}
+                    >
                         Analyze Another Product
                     </button>
                 </div>
 
                 {/* Disclaimer */}
-                <div className="disclaimer-modern">
-                    <p>This analysis is for informational purposes only. Consult healthcare professionals for personalized advice.</p>
+                <div className="disclaimer-modern" style={{ textAlign: 'center', marginTop: '3rem', opacity: 0.5 }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>AI evaluation based on ingredient text only.</p>
                 </div>
             </div>
         </section>

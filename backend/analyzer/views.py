@@ -214,6 +214,38 @@ def contact_submit(request):
     serializer = ContactMessageSerializer(data=sanitized_data)
     if serializer.is_valid():
         serializer.save()
+        
+        # Send email notification
+        try:
+            from django.core.mail import send_mail
+            from django.conf import settings
+            
+            subject = f"New Contact Message from {sanitized_data['name']}"
+            message = f"""
+You have received a new contact message from Ingrexa:
+
+From: {sanitized_data['name']}
+Email: {sanitized_data['email']}
+
+Message:
+{sanitized_data['message']}
+
+---
+Sent from Ingrexa Contact Form
+            """
+            
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [settings.CONTACT_EMAIL_RECIPIENT],
+                fail_silently=False,
+            )
+            print(f"[EMAIL] Contact notification sent to {settings.CONTACT_EMAIL_RECIPIENT}")
+        except Exception as e:
+            # Log email error but still return success (message is saved)
+            print(f"[EMAIL ERROR] Failed to send notification: {str(e)}")
+        
         print(f"[SECURITY] Contact form submitted: {sanitized_data['email']}")
         return Response({
             'success': True,

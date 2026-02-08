@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../api';
 
 function UploadSection({ onAnalyze }) {
     const [manualText, setManualText] = useState('');
@@ -62,7 +62,7 @@ function UploadSection({ onAnalyze }) {
         setIsLoading(true);
 
         try {
-            const response = await axios.post('/api/analyze/text/', { text: manualText });
+            const response = await api.post('/api/analyze/text/', { text: manualText });
 
             // Check if analysis was successful
             if (response.data.success === false) {

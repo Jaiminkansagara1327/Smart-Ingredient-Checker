@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../api';
+import './ContactPage.css';
 
 function ContactPage() {
     const [formData, setFormData] = useState({
@@ -15,8 +16,8 @@ function ContactPage() {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
+        setFormData(prevState => ({
+            ...prevState,
             [name]: value
         }));
     };
@@ -26,7 +27,7 @@ function ContactPage() {
         setStatus({ submitting: true, success: false, error: null });
 
         try {
-            const response = await axios.post('/api/contact/', formData);
+            const response = await api.post('/api/contact/', formData);
             if (response.data.success) {
                 setStatus({ submitting: false, success: true, error: null });
                 setFormData({ name: '', email: '', message: '' });

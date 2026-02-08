@@ -29,7 +29,6 @@ networkx==3.2.1
 ninja==1.13.0
 numpy==1.26.3
 openai==2.16.0
-opencv-python==4.9.0.80
 opencv-python-headless==4.11.0.86
 packaging==26.0
 Pillow==10.1.0
@@ -51,8 +50,8 @@ soupsieve==2.8.3
 sqlparse==0.5.5
 sympy==1.14.0
 tifffile==2024.8.30
-torch==2.8.0
-torchvision==0.23.0
+torch
+torchvision
 tqdm==4.67.1
 typing-inspection==0.4.2
 typing_extensions==4.15.0

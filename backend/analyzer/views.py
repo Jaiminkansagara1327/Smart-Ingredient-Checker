@@ -215,13 +215,14 @@ def contact_submit(request):
     if serializer.is_valid():
         serializer.save()
         
-        # Send email notification
-        try:
-            from django.core.mail import send_mail
-            from django.conf import settings
-            
-            subject = f"New Contact Message from {sanitized_data['name']}"
-            message = f"""
+        # Send email notification in background (non-blocking)
+        def send_email_notification():
+            try:
+                from django.core.mail import send_mail
+                from django.conf import settings
+                
+                subject = f"New Contact Message from {sanitized_data['name']}"
+                message = f"""
 You have received a new contact message from Ingrexa:
 
 From: {sanitized_data['name']}
@@ -232,19 +233,24 @@ Message:
 
 ---
 Sent from Ingrexa Contact Form
-            """
-            
-            send_mail(
-                subject,
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                [settings.CONTACT_EMAIL_RECIPIENT],
-                fail_silently=False,
-            )
-            print(f"[EMAIL] Contact notification sent to {settings.CONTACT_EMAIL_RECIPIENT}")
-        except Exception as e:
-            # Log email error but still return success (message is saved)
-            print(f"[EMAIL ERROR] Failed to send notification: {str(e)}")
+                """
+                
+                send_mail(
+                    subject,
+                    message,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [settings.CONTACT_EMAIL_RECIPIENT],
+                    fail_silently=True,  # Don't raise exceptions
+                )
+                print(f"[EMAIL] Contact notification sent to {settings.CONTACT_EMAIL_RECIPIENT}")
+            except Exception as e:
+                print(f"[EMAIL ERROR] Failed to send notification: {str(e)}")
+        
+        # Start email sending in background thread
+        import threading
+        email_thread = threading.Thread(target=send_email_notification)
+        email_thread.daemon = True
+        email_thread.start()
         
         print(f"[SECURITY] Contact form submitted: {sanitized_data['email']}")
         return Response({

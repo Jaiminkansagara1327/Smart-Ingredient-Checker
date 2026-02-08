@@ -1,0 +1,12 @@
+# Robots.txt for Ingrexa - Food Ingredient Checker
+# Allow all search engines to crawl the site
+
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://ingrexa-frontend.onrender.com/sitemap.xml
+
+# Crawl-delay (polite to servers)
+Crawl-delay: 1

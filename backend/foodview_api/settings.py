@@ -25,20 +25,7 @@ INSTALLED_APPS = [
     'analyzer',
 ]
 
-MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
-    # Custom middleware - temporarily disabled during development
-    # 'analyzer.middleware.SecurityHeadersMiddleware',  # Custom: Security headers
-    # 'analyzer.middleware.IPRateLimitMiddleware',      # Custom: Global rate limiting
-    # 'analyzer.middleware.RequestValidationMiddleware', # Custom: Suspicious pattern detection
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
+
 
 ROOT_URLCONF = 'foodview_api.urls'
 
@@ -61,15 +48,45 @@ TEMPLATES = [
 WSGI_APPLICATION = 'foodview_api.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+# Database Configuration
+import dj_database_url
 
+# Default to SQLite for local development
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Override with Database URL for Production (Render)
+db_from_env = dj_database_url.config(conn_max_age=600)
+if db_from_env:
+    DATABASES['default'].update(db_from_env)
+
+# Static Files (Whitenoise)
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Allow Render Hosting
+if not DEBUG:
+    ALLOWED_HOSTS = ['*']  # Temporarily allow all for easy setup
+
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Needs to be right after SecurityMiddleware
+    'corsheaders.middleware.CorsMiddleware',
+    # Custom middleware - temporarily disabled during development
+    # 'analyzer.middleware.SecurityHeadersMiddleware',  # Custom: Security headers
+    # 'analyzer.middleware.IPRateLimitMiddleware',      # Custom: Global rate limiting
+    # 'analyzer.middleware.RequestValidationMiddleware', # Custom: Suspicious pattern detection
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

@@ -1,0 +1,350 @@
+/* ===================================
+   MOBILE-FIRST RESPONSIVE ENHANCEMENTS
+   Premium Mobile Experience
+   =================================== */
+
+/* Mobile Base (up to 480px) - Phone Portrait */
+@media (max-width: 480px) {
+    :root {
+        --spacing-sm: 0.5rem;
+        --spacing-md: 0.75rem;
+        --spacing-lg: 1rem;
+        --spacing-xl: 1.5rem;
+        --spacing-2xl: 2rem;
+    }
+
+    /* Header - Sleek Mobile Header */
+    .header {
+        padding: var(--spacing-md) var(--spacing-lg);
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .logo-text {
+        font-size: 1.125rem;
+    }
+
+    .logo-img {
+        height: 28px;
+    }
+
+    /* Navigation - Stack or Hide */
+    .nav {
+        gap: var(--spacing-sm);
+    }
+
+    .nav-link {
+        font-size: 0.8125rem;
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+
+    /* Main Content - Breathing Room */
+    .main-content {
+        padding: var(--spacing-lg);
+    }
+
+    /* Upload Section - Optimized for Touch */
+    .upload-section {
+        min-height: calc(100vh - 160px);
+        padding: var(--spacing-lg) 0;
+    }
+
+    .main-title {
+        font-size: 1.875rem;
+        line-height: 1.15;
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .main-subtitle {
+        font-size: 0.9375rem;
+        margin-bottom: var(--spacing-xl);
+        line-height: 1.5;
+    }
+
+    /* Upload Tabs - Touch-Friendly */
+    .upload-tabs {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-sm);
+    }
+
+    .tab-button {
+        padding: var(--spacing-md);
+        font-size: 0.9375rem;
+    }
+
+    /* Upload Box - Comfortable */
+    .upload-box {
+        padding: var(--spacing-xl);
+        border-radius: var(--radius-md);
+    }
+
+    .upload-area {
+        padding: var(--spacing-2xl) var(--spacing-lg);
+        border-radius: var(--radius-md);
+    }
+
+    .upload-icon {
+        font-size: 2.5rem;
+    }
+
+    .upload-label {
+        font-size: 0.9375rem;
+    }
+
+    .upload-hint {
+        font-size: 0.8125rem;
+    }
+
+    /* Text Input - Bigger Touch Target */
+    .manual-input-container textarea {
+        min-height: 200px;
+        font-size: 0.9375rem;
+        padding: var(--spacing-md);
+    }
+
+    /* Analyze Button - Full Width, Larger */
+    .analyze-btn {
+        width: 100%;
+        padding: var(--spacing-lg);
+        font-size: 1rem;
+        border-radius: var(--radius-md);
+    }
+
+    /* Results - Card Stack */
+    .results-container-new {
+        padding: var(--spacing-xl) var(--spacing-md);
+        gap: var(--spacing-xl);
+    }
+
+    /* Product Card */
+    .product-card-premium {
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-md);
+    }
+
+    .product-title {
+        font-size: 1.5rem;
+    }
+
+    .product-subtitle {
+        font-size: 0.875rem;
+    }
+
+    /* Score - Bigger */
+    .score-circle {
+        width: 100px;
+        height: 100px;
+    }
+
+    .score-value {
+        font-size: 2rem;
+    }
+
+    .score-label {
+        font-size: 0.75rem;
+    }
+
+    /* Verdict Card */
+    .verdict-card-premium {
+        padding: var(--spacing-lg);
+        font-size: 0.9375rem;
+    }
+
+    /* Ingredients Grid */
+    .ingredients-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+    }
+
+    .ingredient-card {
+        padding: var(--spacing-md);
+    }
+
+    .ingredient-name {
+        font-size: 0.9375rem;
+    }
+
+    /* Suitability Boxes */
+    .suitability-boxes {
+        flex-direction: column;
+        gap: var(--spacing-md);
+    }
+
+    .suitability-box {
+        padding: var(--spacing-md);
+    }
+
+    /* About Page */
+    .about-hero {
+        padding: var(--spacing-2xl) var(--spacing-lg);
+    }
+
+    .about-title {
+        font-size: 2rem;
+    }
+
+    .about-text {
+        font-size: 0.9375rem;
+    }
+
+    /* Contact Form */
+    .contact-form {
+        padding: var(--spacing-xl) var(--spacing-lg);
+    }
+
+    .form-group label {
+        font-size: 0.875rem;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        font-size: 0.9375rem;
+        padding: var(--spacing-md);
+    }
+
+    /* Footer */
+    .footer {
+        padding: var(--spacing-xl) var(--spacing-lg);
+        font-size: 0.8125rem;
+    }
+}
+
+/* Tablet Portrait (481px to 768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+    .header {
+        padding: var(--spacing-lg) var(--spacing-xl);
+    }
+
+    .main-title {
+        font-size: 2.25rem;
+    }
+
+    .upload-tabs {
+        flex-direction: row;
+    }
+
+    .upload-box {
+        padding: var(--spacing-2xl);
+    }
+
+    .results-container-new {
+        padding: var(--spacing-2xl) var(--spacing-xl);
+    }
+
+    .ingredients-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Tablet Landscape / Small Desktop (769px to 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .main-content {
+        padding: var(--spacing-2xl) var(--spacing-xl);
+    }
+
+    .upload-container {
+        max-width: 650px;
+    }
+
+    .results-container-new {
+        max-width: 750px;
+    }
+
+    .ingredients-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Touch Device Enhancements (Universal) */
+@media (hover: none) and (pointer: coarse) {
+    /* Larger touch targets */
+    .nav-link,
+    .tab-button,
+    button,
+    a {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Remove hover effects on touch */
+    .nav-link:hover,
+    .analyze-btn:hover {
+        transform: none;
+    }
+
+    /* Better active states for touch */
+    .nav-link:active {
+        transform: scale(0.98);
+        opacity: 0.7;
+    }
+
+    .analyze-btn:active:not(:disabled) {
+        transform: scale(0.98);
+    }
+}
+
+/* Landscape Phone - Special Handling */
+@media (max-height: 500px) and (orientation: landscape) {
+    .upload-section {
+        min-height: auto;
+        padding: var(--spacing-lg) 0;
+    }
+
+    .main-title {
+        font-size: 1.75rem;
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .main-subtitle {
+        font-size: 0.875rem;
+        margin-bottom: var(--spacing-lg);
+    }
+
+    .upload-area {
+        padding: var(--spacing-xl) var(--spacing-md);
+    }
+}
+
+/* Very Small Screens (320px) - Galaxy Fold, etc. */
+@media (max-width: 360px) {
+    .header {
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+
+    .logo-text {
+        font-size: 1rem;
+    }
+
+    .nav {
+        gap: 0.25rem;
+    }
+
+    .nav-link {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.5rem;
+    }
+
+    .main-title {
+        font-size: 1.625rem;
+    }
+
+    .upload-box {
+        padding: var(--spacing-lg);
+    }
+}
+
+/* Accessibility - Reduce Motion */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Dark Mode Support (if OS prefers) */
+@media (prefers-color-scheme: dark) {
+    /* Enable dark mode in future if needed */
+}

@@ -126,37 +126,49 @@ Provide a JSON response with the following structure:
         additives = identify_additives(ingredient_text.lower())
         processing = get_processing_score(ingredient_text.lower())
         
-        # Create verdict based on score
+        # Extract new sub-scores
+        details = score_data.get('details', {})
+        quality_score = details.get('quality_score', 0)
+        processing_score = details.get('processing_score', 0)
+        
+        # Create verdict based on comprehensive score
         score = score_data['score']
-        if score >= 85:
-            verdict = f"Excellent choice! This product contains {score_data['whole_food_ratio']}% whole food ingredients and minimal processing. A genuinely healthy option for your diet."
-        elif score >= 70:
-            verdict = f"Good quality product with {score_data['whole_food_ratio']}% whole food ingredients. {processing} with acceptable ingredients."
-        elif score >= 55:
-            verdict = f"Average product. {processing}. Contains some processed ingredients - consume in moderation."
+        
+        # Dynamic Verdict Generation
+        verdict_parts = []
+        if score >= 80:
+            verdict_parts.append("Excellent choice!")
+        elif score >= 60:
+            verdict_parts.append("Good product.")
         elif score >= 40:
-            verdict = f"Heavily processed with {len(additives)} detected additives. {processing}. Limit consumption."
+            verdict_parts.append("Average quality.")
         else:
-            verdict = f"Ultra-processed junk food. Contains many artificial ingredients. Consider a more natural alternative."
+            verdict_parts.append("Avoid this product.")
+            
+        # Add context from sub-scores
+        if quality_score < 50:
+             verdict_parts.append("Contains low quality ingredients or additives.")
+        elif quality_score > 80:
+             verdict_parts.append("High quality ingredients.")
+            
+        if processing_score < 50:
+            verdict_parts.append("Highly processed.")
+            
+        verdict = " ".join(verdict_parts)
 
-        # Map ingredients to groups
+        # Map ingredients to groups for UI
         ingredient_groups = []
         
-        # Add score breakdown
-        if score_data['score_breakdown']:
-            breakdown_desc = ", ".join([f"{item['description']} ({item['points']:+d})" for item in score_data['score_breakdown'][:3]])
-            ingredient_groups.append({
-                "title": "Score Breakdown",
-                "description": breakdown_desc,
-                "note": f"NOVA Group {score_data['nova_group']}: {['Unprocessed', 'Processed ingredients', 'Processed food', 'Ultra-processed'][score_data['nova_group']-1]}"
-            })
-        
-        if additives:
-            ingredient_groups.append({
-                "title": "Detected Additives",
-                "description": ", ".join([a['name'] for a in additives[:5]]),
-                "note": "Specifically checked against food safety databases."
-            })
+        # Add score breakdown sections
+        # 1. Quality Issues (Merged Nutrition & Concerns)
+        if quality_score < 70:
+            issues = [n['description'] for n in score_data['score_breakdown']]
+            if issues:
+                ingredient_groups.append({
+                    "title": "Ingredient Quality & Safety",
+                    "description": ", ".join(issues[:4]),
+                    "note": "Based on additives, sugar, and oil content."
+                })
 
         return {
             'success': True,
@@ -166,11 +178,13 @@ Provide a JSON response with the following structure:
                 'name': 'Detected Product',
                 'brand': 'Unknown',
                 'category': 'Packaged Food',
+                'nova_group': score_data['nova_group']
             },
             'verdict': verdict,
             'score': score,
             'nova_group': score_data['nova_group'],
-            'whole_food_percentage': score_data['whole_food_ratio'],
+            'sub_scores': details,
+            'whole_food_percentage': 0, # Legacy field kept for compatibility
             'suitability': {
                 'goodFor': 'General fitness' if score >= 70 else 'Limited use only',
                 'cautionFor': 'Everyone' if score < 40 else 'Sensitive individuals',

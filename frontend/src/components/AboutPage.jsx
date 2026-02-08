@@ -21,7 +21,7 @@ function AboutPage() {
                     </p>
 
                     <p className="about-text emphasis">
-                        By users, for users. 🇮🇳
+                        Making food transparency accessible to everyone. 🇮🇳
                     </p>
 
                     <p className="about-text small">

@@ -215,14 +215,15 @@ def contact_submit(request):
     if serializer.is_valid():
         serializer.save()
         
-        # Send email notification in background (non-blocking)
-        def send_email_notification():
-            try:
-                from django.core.mail import send_mail
-                from django.conf import settings
-                
-                subject = f"New Contact Message from {sanitized_data['name']}"
-                message = f"""
+        # Send email notification synchronously
+        # (Background threads with daemon=True get killed by Gunicorn on production)
+        email_sent = False
+        try:
+            from django.core.mail import send_mail
+            from django.conf import settings
+            
+            subject = f"New Contact Message from {sanitized_data['name']}"
+            message = f"""
 You have received a new contact message from Ingrexa:
 
 From: {sanitized_data['name']}
@@ -233,26 +234,27 @@ Message:
 
 ---
 Sent from Ingrexa Contact Form
-                """
-                
-                send_mail(
-                    subject,
-                    message,
-                    settings.DEFAULT_FROM_EMAIL,
-                    [settings.CONTACT_EMAIL_RECIPIENT],
-                    fail_silently=True,  # Don't raise exceptions
-                )
-                print(f"[EMAIL] Contact notification sent to {settings.CONTACT_EMAIL_RECIPIENT}")
-            except Exception as e:
-                print(f"[EMAIL ERROR] Failed to send notification: {str(e)}")
+            """
+            
+            print(f"[EMAIL] Attempting to send to {settings.CONTACT_EMAIL_RECIPIENT}")
+            print(f"[EMAIL] Using backend: {settings.EMAIL_BACKEND}")
+            print(f"[EMAIL] From: {settings.DEFAULT_FROM_EMAIL}")
+            
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [settings.CONTACT_EMAIL_RECIPIENT],
+                fail_silently=False,  # Raise exceptions so we can log them
+            )
+            email_sent = True
+            print(f"[EMAIL] Contact notification sent successfully to {settings.CONTACT_EMAIL_RECIPIENT}")
+        except Exception as e:
+            print(f"[EMAIL ERROR] Failed to send notification: {type(e).__name__}: {str(e)}")
+            import traceback
+            print(f"[EMAIL ERROR] Traceback: {traceback.format_exc()}")
         
-        # Start email sending in background thread
-        import threading
-        email_thread = threading.Thread(target=send_email_notification)
-        email_thread.daemon = True
-        email_thread.start()
-        
-        print(f"[SECURITY] Contact form submitted: {sanitized_data['email']}")
+        print(f"[SECURITY] Contact form submitted: {sanitized_data['email']} (email_sent={email_sent})")
         return Response({
             'success': True,
             'message': 'Message sent successfully!'

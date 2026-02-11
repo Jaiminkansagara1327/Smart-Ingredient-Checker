@@ -218,34 +218,7 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                     </div>
                 )}
 
-                {/* SECTION 6: Bottom Line */}
-                <div style={{
-                    marginBottom: 'var(--spacing-xl)',
-                    padding: 'var(--spacing-xl)',
-                    background: 'var(--color-bg-tertiary)',
-                    borderRadius: 'var(--radius-xl)',
-                    border: '1px solid var(--color-border)',
-                    textAlign: 'center'
-                }}>
-                    <h3 style={{
-                        fontSize: 'var(--font-size-xs)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.15em',
-                        color: 'var(--color-text-tertiary)',
-                        marginBottom: 'var(--spacing-md)',
-                        fontWeight: 600
-                    }}>
-                        Bottom Line
-                    </h3>
-                    <p style={{
-                        fontSize: 'var(--font-size-lg)',
-                        lineHeight: '1.6',
-                        color: 'var(--color-text-primary)',
-                        fontWeight: 500
-                    }}>
-                        {data.bottom_line}
-                    </p>
-                </div>
+
 
                 {/* SECTION 7: Transparency Note */}
                 <div style={{
@@ -265,13 +238,21 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                 </div>
 
                 {/* Action Button */}
-                <div style={{ textAlign: 'center', marginTop: 'var(--spacing-2xl)' }}>
+
+                <div style={{
+                    marginTop: 'var(--spacing-2xl)',
+                    display: 'flex',
+                    justifyContent: 'center'
+                }}>
                     <button
                         className="analyze-btn"
                         onClick={onAnalyzeNew}
                         style={{
-                            width: 'auto',
-                            minWidth: '250px'
+                            width: '100%',
+                            maxWidth: '500px',
+                            fontSize: 'var(--font-size-lg)',
+                            padding: 'var(--spacing-lg)',
+                            boxShadow: 'var(--shadow-xl)'
                         }}
                     >
                         Analyze Another Product

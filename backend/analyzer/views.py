@@ -5,6 +5,7 @@ from rest_framework.throttling import AnonRateThrottle
 import traceback
 import re
 import html
+import os
 from .models import ContactMessage
 from .serializers import ContactMessageSerializer
 from .ai_service import analyze_product_from_text

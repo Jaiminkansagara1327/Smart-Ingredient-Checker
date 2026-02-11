@@ -215,46 +215,52 @@ def contact_submit(request):
     if serializer.is_valid():
         serializer.save()
         
-        # Send email notification synchronously
-        # (Background threads with daemon=True get killed by Gunicorn on production)
-        email_sent = False
-        try:
-            from django.core.mail import send_mail
-            from django.conf import settings
+        # Send email using lightweight smtplib in a non-daemon thread
+        # Django's send_mail + SMTP backend causes OOM on Render free tier
+        # because torch/easyocr already consume most of the 512MB RAM
+        def send_lightweight_email():
+            import smtplib
+            from email.mime.text import MIMEText
             
-            subject = f"New Contact Message from {sanitized_data['name']}"
-            message = f"""
-You have received a new contact message from Ingrexa:
-
-From: {sanitized_data['name']}
-Email: {sanitized_data['email']}
-
-Message:
-{sanitized_data['message']}
-
----
-Sent from Ingrexa Contact Form
-            """
-            
-            print(f"[EMAIL] Attempting to send to {settings.CONTACT_EMAIL_RECIPIENT}")
-            print(f"[EMAIL] Using backend: {settings.EMAIL_BACKEND}")
-            print(f"[EMAIL] From: {settings.DEFAULT_FROM_EMAIL}")
-            
-            send_mail(
-                subject,
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                [settings.CONTACT_EMAIL_RECIPIENT],
-                fail_silently=False,  # Raise exceptions so we can log them
-            )
-            email_sent = True
-            print(f"[EMAIL] Contact notification sent successfully to {settings.CONTACT_EMAIL_RECIPIENT}")
-        except Exception as e:
-            print(f"[EMAIL ERROR] Failed to send notification: {type(e).__name__}: {str(e)}")
-            import traceback
-            print(f"[EMAIL ERROR] Traceback: {traceback.format_exc()}")
+            try:
+                from django.conf import settings
+                
+                to_email = getattr(settings, 'CONTACT_EMAIL_RECIPIENT', '') or getattr(settings, 'EMAIL_HOST_USER', '')
+                from_email = getattr(settings, 'EMAIL_HOST_USER', '')
+                password = getattr(settings, 'EMAIL_HOST_PASSWORD', '')
+                host = getattr(settings, 'EMAIL_HOST', 'smtp.gmail.com')
+                port = int(getattr(settings, 'EMAIL_PORT', 587))
+                
+                if not from_email or not password or not to_email:
+                    print(f"[EMAIL] Skipping - missing credentials (from={bool(from_email)}, pass={bool(password)}, to={bool(to_email)})")
+                    return
+                
+                body = f"""New contact message from Ingrexa:\n\nFrom: {sanitized_data['name']}\nEmail: {sanitized_data['email']}\n\nMessage:\n{sanitized_data['message']}\n\n---\nSent from Ingrexa Contact Form"""
+                
+                msg = MIMEText(body)
+                msg['Subject'] = f"New Contact Message from {sanitized_data['name']}"
+                msg['From'] = from_email
+                msg['To'] = to_email
+                
+                print(f"[EMAIL] Connecting to {host}:{port}...")
+                with smtplib.SMTP(host, port, timeout=10) as server:
+                    server.ehlo()
+                    server.starttls()
+                    server.ehlo()
+                    server.login(from_email, password)
+                    server.sendmail(from_email, to_email, msg.as_string())
+                
+                print(f"[EMAIL] Sent successfully to {to_email}")
+            except Exception as e:
+                print(f"[EMAIL ERROR] {type(e).__name__}: {str(e)}")
         
-        print(f"[SECURITY] Contact form submitted: {sanitized_data['email']} (email_sent={email_sent})")
+        # Use non-daemon thread so it can survive after response is sent
+        import threading
+        email_thread = threading.Thread(target=send_lightweight_email)
+        email_thread.daemon = False
+        email_thread.start()
+        
+        print(f"[SECURITY] Contact form submitted: {sanitized_data['email']}")
         return Response({
             'success': True,
             'message': 'Message sent successfully!'

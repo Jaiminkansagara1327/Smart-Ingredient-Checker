@@ -113,7 +113,7 @@ function ContactPage() {
                 </div>
 
                 <div className="contact-footer-info">
-                    <p>Prefer email?</p>
+                    <p>For a faster reply, write to us directly —</p>
                     <a href="mailto:se.jaimin91@gmail.com" className="email-link">se.jaimin91@gmail.com</a>
                 </div>
             </div>

@@ -215,48 +215,43 @@ def contact_submit(request):
     if serializer.is_valid():
         serializer.save()
         
-        # Send email using lightweight smtplib in a non-daemon thread
-        # Django's send_mail + SMTP backend causes OOM on Render free tier
-        # because torch/easyocr already consume most of the 512MB RAM
-        def send_lightweight_email():
-            import smtplib
-            from email.mime.text import MIMEText
+        # Send email via Resend HTTP API (Render blocks SMTP ports)
+        def send_email_via_resend():
+            import requests as http_requests
             
             try:
-                from django.conf import settings
+                resend_api_key = os.environ.get('RESEND_API_KEY', '')
+                to_email = os.environ.get('CONTACT_EMAIL_RECIPIENT', 'se.jaimin91@gmail.com')
                 
-                to_email = getattr(settings, 'CONTACT_EMAIL_RECIPIENT', '') or getattr(settings, 'EMAIL_HOST_USER', '')
-                from_email = getattr(settings, 'EMAIL_HOST_USER', '')
-                password = getattr(settings, 'EMAIL_HOST_PASSWORD', '')
-                host = getattr(settings, 'EMAIL_HOST', 'smtp.gmail.com')
-                port = int(getattr(settings, 'EMAIL_PORT', 587))
-                
-                if not from_email or not password or not to_email:
-                    print(f"[EMAIL] Skipping - missing credentials (from={bool(from_email)}, pass={bool(password)}, to={bool(to_email)})")
+                if not resend_api_key:
+                    print("[EMAIL] Skipping - RESEND_API_KEY not set")
                     return
                 
-                body = f"""New contact message from Ingrexa:\n\nFrom: {sanitized_data['name']}\nEmail: {sanitized_data['email']}\n\nMessage:\n{sanitized_data['message']}\n\n---\nSent from Ingrexa Contact Form"""
+                response = http_requests.post(
+                    'https://api.resend.com/emails',
+                    headers={
+                        'Authorization': f'Bearer {resend_api_key}',
+                        'Content-Type': 'application/json'
+                    },
+                    json={
+                        'from': 'Ingrexa Contact <onboarding@resend.dev>',
+                        'to': [to_email],
+                        'subject': f"New Contact Message from {sanitized_data['name']}",
+                        'text': f"New contact message from Ingrexa:\n\nFrom: {sanitized_data['name']}\nEmail: {sanitized_data['email']}\n\nMessage:\n{sanitized_data['message']}\n\n---\nSent from Ingrexa Contact Form"
+                    },
+                    timeout=10
+                )
                 
-                msg = MIMEText(body)
-                msg['Subject'] = f"New Contact Message from {sanitized_data['name']}"
-                msg['From'] = from_email
-                msg['To'] = to_email
-                
-                print(f"[EMAIL] Connecting to {host}:{port}...")
-                with smtplib.SMTP(host, port, timeout=10) as server:
-                    server.ehlo()
-                    server.starttls()
-                    server.ehlo()
-                    server.login(from_email, password)
-                    server.sendmail(from_email, to_email, msg.as_string())
-                
-                print(f"[EMAIL] Sent successfully to {to_email}")
+                if response.status_code == 200:
+                    print(f"[EMAIL] Sent successfully via Resend to {to_email}")
+                else:
+                    print(f"[EMAIL ERROR] Resend API returned {response.status_code}: {response.text}")
             except Exception as e:
                 print(f"[EMAIL ERROR] {type(e).__name__}: {str(e)}")
         
-        # Use non-daemon thread so it can survive after response is sent
+        # Send in non-daemon thread so response returns immediately
         import threading
-        email_thread = threading.Thread(target=send_lightweight_email)
+        email_thread = threading.Thread(target=send_email_via_resend)
         email_thread.daemon = False
         email_thread.start()
         

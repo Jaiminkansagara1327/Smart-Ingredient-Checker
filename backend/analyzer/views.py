@@ -216,19 +216,20 @@ def contact_submit(request):
     if serializer.is_valid():
         serializer.save()
         
-        # Send email via Resend HTTP API (Render blocks SMTP ports)
-        def send_email_via_resend():
-            import requests as http_requests
+        # Send email via Resend HTTP API (synchronously)
+        # Render blocks SMTP ports AND kills background threads
+        import requests as http_requests
+        
+        try:
+            resend_api_key = os.environ.get('RESEND_API_KEY', '')
+            to_email = os.environ.get('CONTACT_EMAIL_RECIPIENT', 'se.jaimin91@gmail.com')
             
-            try:
-                resend_api_key = os.environ.get('RESEND_API_KEY', '')
-                to_email = os.environ.get('CONTACT_EMAIL_RECIPIENT', 'se.jaimin91@gmail.com')
-                
-                if not resend_api_key:
-                    print("[EMAIL] Skipping - RESEND_API_KEY not set")
-                    return
-                
-                response = http_requests.post(
+            print(f"[EMAIL] Starting Resend send to {to_email}, key present: {bool(resend_api_key)}", flush=True)
+            
+            if not resend_api_key:
+                print("[EMAIL] Skipping - RESEND_API_KEY not set", flush=True)
+            else:
+                email_response = http_requests.post(
                     'https://api.resend.com/emails',
                     headers={
                         'Authorization': f'Bearer {resend_api_key}',
@@ -243,20 +244,11 @@ def contact_submit(request):
                     timeout=10
                 )
                 
-                if response.status_code == 200:
-                    print(f"[EMAIL] Sent successfully via Resend to {to_email}")
-                else:
-                    print(f"[EMAIL ERROR] Resend API returned {response.status_code}: {response.text}")
-            except Exception as e:
-                print(f"[EMAIL ERROR] {type(e).__name__}: {str(e)}")
+                print(f"[EMAIL] Resend response: {email_response.status_code} - {email_response.text}", flush=True)
+        except Exception as e:
+            print(f"[EMAIL ERROR] {type(e).__name__}: {str(e)}", flush=True)
         
-        # Send in non-daemon thread so response returns immediately
-        import threading
-        email_thread = threading.Thread(target=send_email_via_resend)
-        email_thread.daemon = False
-        email_thread.start()
-        
-        print(f"[SECURITY] Contact form submitted: {sanitized_data['email']}")
+        print(f"[SECURITY] Contact form submitted: {sanitized_data['email']}", flush=True)
         return Response({
             'success': True,
             'message': 'Message sent successfully!'

@@ -81,7 +81,7 @@ Provide a JSON response with the following structure:
 """
 
         response = self.openai_client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a food safety expert providing honest, comprehensive ingredient analysis. Be direct and specific about health impacts."},
                 {"role": "user", "content": prompt}
@@ -430,11 +430,21 @@ def _detect_ingredients(text: str) -> bool:
     return keyword_matches >= 1 or comma_count >= 2 or newline_count >= 2
 
 
+# Singleton analyzer instance — avoids re-initializing OpenAI client on every request
+_analyzer_instance = None
+
+def _get_analyzer():
+    global _analyzer_instance
+    if _analyzer_instance is None:
+        _analyzer_instance = IngredientAnalyzer()
+    return _analyzer_instance
+
+
 def analyze_product_from_text(text: str) -> Dict[str, Any]:
     """
     Main entry point for analyzing ingredients from text string
     """
-    analyzer = IngredientAnalyzer()
+    analyzer = _get_analyzer()
     
     # Check if text looks like ingredients
     if not _detect_ingredients(text):

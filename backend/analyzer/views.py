@@ -9,6 +9,7 @@ import os
 from .models import ContactMessage
 from .serializers import ContactMessageSerializer
 from .ai_service import analyze_product_from_text
+from .openfoodfacts_service import search_products as off_search, get_product_details as off_get_product
 
 # Custom throttle class for stricter rate limiting
 class AnalysisRateThrottle(AnonRateThrottle):
@@ -260,6 +261,112 @@ def contact_submit(request):
     }, status=status.HTTP_400_BAD_REQUEST)
 
 
+# ========================================
+#  OpenFoodFacts Product Search & Analyze
+# ========================================
+
+class SearchRateThrottle(AnonRateThrottle):
+    rate = '60/hour'  # 60 search requests per hour
+
+
+@api_view(['GET'])
+@throttle_classes([SearchRateThrottle])
+def search_product(request):
+    """
+    Search OpenFoodFacts for products by name.
+    Query params: ?q=<search_term>&page=1
+    """
+    query = request.query_params.get('q', '').strip()
+    page = request.query_params.get('page', '1')
+    
+    if not query:
+        return Response(
+            {'success': False, 'error': 'NO_QUERY', 'message': 'Please enter a search term.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Length limit
+    if len(query) > 200:
+        return Response(
+            {'success': False, 'error': 'QUERY_TOO_LONG', 'message': 'Search query too long.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        page_num = max(1, int(page))
+    except ValueError:
+        page_num = 1
+    
+    print(f"[SEARCH] Searching OpenFoodFacts for: '{query}' (page {page_num})")
+    result = off_search(query, page=page_num, page_size=10)
+    
+    return Response(result, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@throttle_classes([AnalysisRateThrottle])
+def analyze_product(request):
+    """
+    Fetch a product from OpenFoodFacts by barcode and analyze its ingredients.
+    Body: { "barcode": "8901234567890" }
+    Optionally accepts { "ingredients_text": "..." } if already available.
+    """
+    barcode = request.data.get('barcode', '').strip()
+    supplied_ingredients = request.data.get('ingredients_text', '').strip()
+    
+    if not barcode and not supplied_ingredients:
+        return Response(
+            {'success': False, 'error': 'NO_BARCODE', 'message': 'Please provide a product barcode.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        product_info = None
+        ingredients_text = supplied_ingredients
+        
+        # If we have a barcode and no pre-supplied ingredients, fetch from OFF
+        if barcode and not ingredients_text:
+            print(f"[PRODUCT] Fetching product details for barcode: {barcode}")
+            product_result = off_get_product(barcode)
+            
+            if not product_result.get('success'):
+                return Response(product_result, status=status.HTTP_200_OK)
+            
+            ingredients_text = product_result.get('ingredients_text', '')
+            product_info = product_result.get('product', {})
+        
+        if not ingredients_text:
+            return Response({
+                'success': False,
+                'error': 'NO_INGREDIENTS',
+                'message': 'No ingredient list found for this product. Try typing them manually.',
+            }, status=status.HTTP_200_OK)
+        
+        # Analyze using the existing pipeline
+        print(f"[PRODUCT] Analyzing ingredients (length: {len(ingredients_text)})")
+        analysis_result = analyze_product_from_text(ingredients_text)
+        
+        # Enrich with product metadata from OpenFoodFacts
+        analysis_result['input_method'] = 'openfoodfacts'
+        
+        if product_info:
+            analysis_result['product_info'] = product_info
+            # Override generic product name with real one
+            if 'product' in analysis_result:
+                analysis_result['product']['name'] = product_info.get('name', analysis_result['product'].get('name', 'Unknown'))
+                analysis_result['product']['brand'] = product_info.get('brand', 'Unknown')
+        
+        return Response(analysis_result, status=status.HTTP_200_OK)
+    
+    except Exception as e:
+        print(f"[PRODUCT] Analysis error: {type(e).__name__}")
+        print(traceback.format_exc())
+        return Response(
+            {'success': False, 'error': 'ANALYSIS_FAILED', 'message': 'An error occurred during analysis. Please try again.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
 @api_view(['GET'])
 def health_check(request):
     """
@@ -268,6 +375,7 @@ def health_check(request):
     return Response({
         'status': 'healthy',
         'services': {
-            'text_analyzer': True
+            'text_analyzer': True,
+            'product_search': True
         }
     })

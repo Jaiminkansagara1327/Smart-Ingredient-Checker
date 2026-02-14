@@ -145,18 +145,31 @@ def search_products(query: str, page: int = 1, page_size: int = 10) -> Dict[str,
         }
 
 
-def _is_quality_product(name: str, brand: str) -> bool:
+def _is_quality_product(name: str, brand: str, ingredients_text: str = "") -> bool:
     """
-    Check if a product entry looks like a real, quality entry.
-    Filters out junk/spam/test entries from OpenFoodFacts.
+    Check if a product entry looks like a real, quality entry in English.
+    Filters out junk/spam/test entries and non-English products from OpenFoodFacts.
     
-    Returns True if the product looks legitimate.
+    Returns True if the product looks legitimate and is in English.
     """
     import re
     
     # Reject very short names
     if len(name) < 3:
         return False
+    
+    # ---- ENGLISH LANGUAGE CHECK ----
+    # Reject names with non-Latin characters (Chinese, Arabic, Korean, Cyrillic, Thai, etc.)
+    # Allow basic ASCII + common accented chars (é, ñ, ü) that appear in English product names
+    ascii_chars = sum(1 for c in name if ord(c) < 128)
+    if ascii_chars / max(len(name), 1) < 0.90:  # Less than 90% ASCII = non-English
+        return False
+    
+    # Reject ingredients that are mostly non-English
+    if ingredients_text:
+        ing_ascii = sum(1 for c in ingredients_text if ord(c) < 128)
+        if ing_ascii / max(len(ingredients_text), 1) < 0.85:
+            return False
     
     # Reject names that are all uppercase gibberish (e.g. "SDHK GRN SLD")
     words = name.split()
@@ -286,7 +299,7 @@ def _parse_search_results(data: dict) -> List[Dict[str, Any]]:
             continue
         
         # Skip junk/spam/test products with garbage names
-        if not _is_quality_product(product_name, brand):
+        if not _is_quality_product(product_name, brand, ingredients_text):
             continue
         
         # Detect if this is an Indian product:

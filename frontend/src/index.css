@@ -1216,28 +1216,11 @@ html {
     margin: 0;
 }
 
-.footer-made-with {
+.footer-independence {
     font-size: var(--font-size-sm);
-    color: var(--color-text-secondary);
+    color: var(--color-text-tertiary);
     margin: 0;
-}
-
-.footer-made-with .heart {
-    color: var(--color-danger);
-    display: inline-block;
-    animation: heartbeat 1.5s ease-in-out infinite;
-}
-
-@keyframes heartbeat {
-
-    0%,
-    100% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.1);
-    }
+    letter-spacing: 0.01em;
 }
 
 /* Footer Responsive */
@@ -1251,7 +1234,7 @@ html {
     }
 
     .footer-copyright,
-    .footer-made-with {
+    .footer-independence {
         font-size: var(--font-size-xs);
     }
 }

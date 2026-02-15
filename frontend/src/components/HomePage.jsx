@@ -9,8 +9,7 @@ function HomePage({ onNavigate }) {
                         Know What You Eat
                     </h1>
                     <p className="home-subtitle">
-                        Analyze food ingredients instantly with AI-powered insights.
-                        Make informed decisions about your health.
+                        Understand food ingredients and make informed choices about your health.
                     </p>
 
                     <button

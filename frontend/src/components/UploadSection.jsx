@@ -35,6 +35,8 @@ function UploadSection({ onAnalyze }) {
     const searchTimerRef = useRef(null);
     const searchInputRef = useRef(null);
     const dropdownRef = useRef(null);
+    const abortControllerRef = useRef(null);  // Cancel stale API requests
+    const searchQueryRef = useRef('');  // Track current query to ignore stale responses
 
     // Click outside to close dropdown
     useEffect(() => {
@@ -67,19 +69,36 @@ function UploadSection({ onAnalyze }) {
         if (!query || query.trim().length < 2) {
             setSearchResults([]);
             setSearchError(null);
+            setIsSearching(false);
+            setShowDropdown(false);
             return;
         }
+
+        // Cancel any in-flight request
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+        const thisQuery = query.trim();
+        searchQueryRef.current = thisQuery;
 
         setIsSearching(true);
         setSearchError(null);
 
         try {
             const response = await api.get('/api/search-product/', {
-                params: { q: query.trim() }
+                params: { q: thisQuery },
+                signal: controller.signal,
             });
+
+            // Ignore if query changed while waiting (stale response)
+            if (searchQueryRef.current !== thisQuery) return;
 
             if (response.data.success) {
                 setSearchResults(response.data.products || []);
+                setShowDropdown(true);
                 if (response.data.products.length === 0) {
                     setSearchError({
                         type: 'no_results',
@@ -87,20 +106,38 @@ function UploadSection({ onAnalyze }) {
                     });
                 }
             } else {
+                setShowDropdown(true);
                 setSearchError({
                     type: 'error',
                     message: response.data.message || 'Search failed. Please try again.'
                 });
             }
         } catch (error) {
+            // Ignore aborted requests (user typed new query)
+            if (error.name === 'AbortError' || error.name === 'CanceledError') return;
+            // Ignore if query changed
+            if (searchQueryRef.current !== thisQuery) return;
+
             console.error('Search error:', error);
+            setShowDropdown(true);
             setSearchError({
                 type: 'error',
-                message: 'Could not connect to the search service. Please try again.'
+                message: 'Search is taking too long. Please retry.'
             });
         } finally {
-            setIsSearching(false);
+            // Only stop spinner if this is still the active query
+            if (searchQueryRef.current === thisQuery) {
+                setIsSearching(false);
+            }
         }
+    }, []);
+
+    // Cleanup abort controller on unmount
+    useEffect(() => {
+        return () => {
+            if (abortControllerRef.current) abortControllerRef.current.abort();
+            if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        };
     }, []);
 
     // Debounced search
@@ -113,13 +150,15 @@ function UploadSection({ onAnalyze }) {
             clearTimeout(searchTimerRef.current);
         }
 
-        // Show skeleton INSTANTLY when user types 2+ chars
         if (value.trim().length >= 2) {
             setIsSearching(true);
             setShowDropdown(true);
-            setSearchResults([]); // Clear old results so skeletons show
             setSearchError(null);
+            // Don't clear old results — keep showing them while new ones load
+            // Only show skeletons if there are truly no results yet
         } else {
+            // Cancel any pending request
+            if (abortControllerRef.current) abortControllerRef.current.abort();
             setIsSearching(false);
             setShowDropdown(false);
             setSearchResults([]);
@@ -128,7 +167,7 @@ function UploadSection({ onAnalyze }) {
 
         searchTimerRef.current = setTimeout(() => {
             searchProducts(value);
-        }, 300); // Faster debounce
+        }, 300);
     };
 
     const handleSearchSubmit = (e) => {
@@ -292,7 +331,7 @@ function UploadSection({ onAnalyze }) {
             <div className="upload-container">
                 <h1 className="main-title">Discover What's Inside Your Food</h1>
                 <p className="main-subtitle">
-                    Search a product or enter ingredients to get instant analysis
+                    Search a product or enter ingredients to get analysis
                 </p>
 
                 {/* Tab Switcher */}
@@ -505,6 +544,27 @@ function UploadSection({ onAnalyze }) {
                                                         onClick={() => setActiveTab('manual')}
                                                     >
                                                         Type Ingredients Instead →
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {/* API Error / Timeout */}
+                                            {searchError && searchError.type === 'error' && !isSearching && (
+                                                <div className="search-no-results">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '40px', height: '40px', color: 'var(--color-accent-primary)', marginBottom: '8px' }}>
+                                                        <circle cx="12" cy="12" r="10" />
+                                                        <path d="M12 8v4M12 16h.01" />
+                                                    </svg>
+                                                    <p className="no-results-text">{searchError.message}</p>
+                                                    <button
+                                                        className="switch-tab-btn"
+                                                        onClick={() => {
+                                                            setSearchError(null);
+                                                            setIsSearching(true);
+                                                            searchProducts(searchQuery);
+                                                        }}
+                                                    >
+                                                        🔄 Retry Search
                                                     </button>
                                                 </div>
                                             )}

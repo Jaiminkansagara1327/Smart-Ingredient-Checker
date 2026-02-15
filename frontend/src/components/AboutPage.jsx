@@ -25,7 +25,7 @@ function AboutPage() {
                     </p>
 
                     <p className="about-text small">
-                        Analyze ingredient lists instantly to get clear analysis.
+                        Analyze ingredient lists to get clear, honest breakdowns.
                         No more endless Googling.
                     </p>
                 </div>

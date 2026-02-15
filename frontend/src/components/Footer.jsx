@@ -9,8 +9,8 @@ function Footer() {
                 <p className="footer-copyright">
                     © {currentYear} Ingrexa. All rights reserved.
                 </p>
-                <p className="footer-made-with">
-                    Made with <span className="heart">❤️</span> by JK for people
+                <p className="footer-independence">
+                    🛡️ Independent & unbiased — not funded or sponsored by any food company.
                 </p>
             </div>
         </footer>

@@ -3,8 +3,11 @@ OpenFoodFacts API integration service
 Searches for food products globally and retrieves ingredient lists.
 Indian products are prioritized and Indian brands are correctly identified.
 """
+import re
 import requests
+import time
 from typing import Dict, Any, List, Optional
+from functools import lru_cache
 
 
 # OpenFoodFacts API base URLs
@@ -83,11 +86,39 @@ def _is_known_indian_brand(brand_str: str) -> bool:
     return False
 
 
+# --- SEARCH RESULT CACHE ---
+# Cache search results in-memory to avoid hitting OpenFoodFacts on every keystroke.
+# Key: "query|page", Value: (timestamp, result_dict)
+# Entries expire after 10 minutes.
+_search_cache: Dict[str, tuple] = {}
+_CACHE_TTL = 600  # 10 minutes in seconds
+_CACHE_MAX_SIZE = 200  # Max cached queries
+
+
+def _get_cached_search(cache_key: str) -> Optional[Dict]:
+    """Return cached search result if fresh, else None."""
+    if cache_key in _search_cache:
+        timestamp, result = _search_cache[cache_key]
+        if time.time() - timestamp < _CACHE_TTL:
+            return result
+        else:
+            del _search_cache[cache_key]
+    return None
+
+
+def _set_search_cache(cache_key: str, result: Dict):
+    """Store a search result in cache. Evicts oldest if full."""
+    if len(_search_cache) >= _CACHE_MAX_SIZE:
+        # Evict oldest entry
+        oldest_key = min(_search_cache, key=lambda k: _search_cache[k][0])
+        del _search_cache[oldest_key]
+    _search_cache[cache_key] = (time.time(), result)
+
+
 def search_products(query: str, page: int = 1, page_size: int = 10) -> Dict[str, Any]:
     """
     Search OpenFoodFacts for products matching the query.
-    Searches the GLOBAL database (Indian + European + American + all countries)
-    but sorts results so Indian products appear first.
+    Results are cached in-memory for 10 minutes for instant repeat lookups.
     
     Args:
         query: Search term (product name like "Maggi", "Nutella", "Oreo", etc.)
@@ -100,6 +131,13 @@ def search_products(query: str, page: int = 1, page_size: int = 10) -> Dict[str,
     if not query or not query.strip():
         return {"success": False, "error": "Empty search query"}
     
+    # Check cache first
+    cache_key = f"{query.strip().lower()}|{page}"
+    cached = _get_cached_search(cache_key)
+    if cached:
+        print(f"[OFF] Cache hit for '{query}' (page {page})")
+        return cached
+    
     try:
         # Search the GLOBAL database (no country filter)
         params = {
@@ -109,10 +147,10 @@ def search_products(query: str, page: int = 1, page_size: int = 10) -> Dict[str,
             "json": 1,
             "page": page,
             "page_size": 50,  # Fetch more — many will be filtered as junk
-            "fields": "code,product_name,brands,image_front_small_url,ingredients_text,categories,nova_group,nutriscore_grade,countries_tags",
+            "fields": "code,product_name,brands,image_front_small_url,ingredients_text,ingredients_text_en,categories,nova_group,nutriscore_grade,countries_tags",
         }
         
-        response = requests.get(SEARCH_URL, params=params, headers=HEADERS, timeout=10)
+        response = requests.get(SEARCH_URL, params=params, headers=HEADERS, timeout=7)
         response.raise_for_status()
         data = response.json()
         
@@ -124,11 +162,16 @@ def search_products(query: str, page: int = 1, page_size: int = 10) -> Dict[str,
         # Limit to a reasonable number
         products = products[:page_size]
         
-        return {
+        result = {
             "success": True,
             "count": len(products),
             "products": products,
         }
+        
+        # Cache the result for future lookups
+        _set_search_cache(cache_key, result)
+        
+        return result
     
     except requests.Timeout:
         return {
@@ -145,6 +188,33 @@ def search_products(query: str, page: int = 1, page_size: int = 10) -> Dict[str,
         }
 
 
+def _is_english_text(text: str) -> bool:
+    """Check if a text string appears to be in English (mostly ASCII)."""
+    if not text:
+        return False
+    ascii_chars = sum(1 for c in text if ord(c) < 128)
+    return ascii_chars / max(len(text), 1) >= 0.85
+
+
+def _get_english_ingredients(item: dict) -> str:
+    """
+    Extract the best English ingredients text from an OpenFoodFacts item.
+    Prefers ingredients_text_en, falls back to generic only if it looks English.
+    """
+    # Prefer the explicit English field
+    en_text = (item.get("ingredients_text_en") or "").strip()
+    generic_text = (item.get("ingredients_text") or "").strip()
+    
+    if en_text and _is_english_text(en_text):
+        return en_text
+    
+    if generic_text and _is_english_text(generic_text):
+        return generic_text
+    
+    # Both are non-English
+    return ""
+
+
 def _is_quality_product(name: str, brand: str, ingredients_text: str = "") -> bool:
     """
     Check if a product entry looks like a real, quality entry in English.
@@ -152,7 +222,7 @@ def _is_quality_product(name: str, brand: str, ingredients_text: str = "") -> bo
     
     Returns True if the product looks legitimate and is in English.
     """
-    import re
+    
     
     # Reject very short names
     if len(name) < 3:
@@ -160,22 +230,13 @@ def _is_quality_product(name: str, brand: str, ingredients_text: str = "") -> bo
     
     # ---- ENGLISH LANGUAGE CHECK ----
     # Reject names with non-Latin characters (Chinese, Arabic, Korean, Cyrillic, Thai, etc.)
-    # Allow basic ASCII + common accented chars (é, ñ, ü) that appear in English product names
-    ascii_chars = sum(1 for c in name if ord(c) < 128)
-    if ascii_chars / max(len(name), 1) < 0.90:  # Less than 90% ASCII = non-English
+    if not _is_english_text(name):
         return False
-    
-    # Reject ingredients that are mostly non-English
-    if ingredients_text:
-        ing_ascii = sum(1 for c in ingredients_text if ord(c) < 128)
-        if ing_ascii / max(len(ingredients_text), 1) < 0.85:
-            return False
     
     # Reject names that are all uppercase gibberish (e.g. "SDHK GRN SLD")
     words = name.split()
     
     # If the name has too many very short words (abbreviation soup), it's junk
-    # e.g. "Bty crk sdnly grain sld sd dsh kit hrvst" — most words are <4 chars
     if len(words) >= 4:
         short_words = sum(1 for w in words if len(w) <= 3)
         if short_words / len(words) > 0.6:
@@ -188,9 +249,8 @@ def _is_quality_product(name: str, brand: str, ingredients_text: str = "") -> bo
     
     # Reject entries where brand is Unknown AND name looks like gibberish
     if brand.lower() in ("unknown", ""):
-        # If name is very short or has no vowels, it's probably junk
         vowel_count = sum(1 for c in name.lower() if c in 'aeiou')
-        if vowel_count < len(name) * 0.15:  # Less than 15% vowels = gibberish
+        if vowel_count < len(name) * 0.15:
             return False
     
     # Reject test/placeholder entries
@@ -236,18 +296,14 @@ def get_product_details(barcode: str) -> Dict[str, Any]:
         
         product = data.get("product", {})
         
-        # Extract ingredients text — try English first, then generic
-        ingredients_text = (
-            product.get("ingredients_text_en")
-            or product.get("ingredients_text")
-            or ""
-        ).strip()
+        # Extract English ingredients — prefer explicit English field
+        ingredients_text = _get_english_ingredients(product)
         
         if not ingredients_text:
             return {
                 "success": False,
                 "error": "NO_INGREDIENTS",
-                "message": "This product exists in the database but no ingredient list is available. Try typing the ingredients manually.",
+                "message": "English ingredient list is not available for this product. Try typing the ingredients manually.",
             }
         
         return {
@@ -280,38 +336,106 @@ def get_product_details(barcode: str) -> Dict[str, Any]:
         }
 
 
+def _normalize_product_name(name: str) -> str:
+    """
+    Aggressively normalize a product name for deduplication.
+    Catches: spelling variants, quantity suffixes, punctuation differences, case.
+    
+    Examples:
+        "Amul Pasteurized Butter"  -> "amul pasteurized butter"
+        "Amul Pasteurised Butter"  -> "amul pasteurised butter"  (caught by fuzzy match)
+        "Parle-G Biscuits 200g"   -> "parle g biscuits"
+        "PARLE - G"               -> "parle g"
+    """
+    n = name.lower().strip()
+    # Remove quantity/weight suffixes: 500g, 1kg, 200ml, 1.5L, 100 g, etc.
+    n = re.sub(r'\b\d+(\.\d+)?\s*(g|gm|gms|gram|grams|kg|kgs|ml|l|ltr|litre|litres|liter|liters|oz|lb|lbs|cl)\b', '', n, flags=re.IGNORECASE)
+    # Remove all non-alphanumeric characters (hyphens, commas, dots, etc.)
+    n = re.sub(r'[^a-z0-9\s]', '', n)
+    # Collapse multiple spaces
+    n = re.sub(r'\s+', ' ', n).strip()
+    return n
+
+
+def _is_duplicate(new_name: str, existing_names: list) -> int:
+    """
+    Check if new_name is a duplicate of any existing product using fuzzy matching.
+    Returns the index of the duplicate in existing_names, or -1 if not a duplicate.
+    
+    Uses SequenceMatcher for similarity — threshold is 0.80 (80% similar = duplicate).
+    """
+    from difflib import SequenceMatcher
+    
+    for idx, existing in enumerate(existing_names):
+        # Exact match
+        if new_name == existing:
+            return idx
+        # Fuzzy match — 80% similarity catches spelling variants
+        ratio = SequenceMatcher(None, new_name, existing).ratio()
+        if ratio >= 0.80:
+            return idx
+    
+    return -1
+
+
 def _parse_search_results(data: dict) -> List[Dict[str, Any]]:
     """Parse OpenFoodFacts search response into clean product list.
-    Only includes products that have ingredient data (so every result is analyzable).
-    Filters out junk/spam/test entries with garbage names.
+    Only includes products that have English ingredient data.
+    Deduplicates using fuzzy name matching (80% similarity threshold).
     Tags each product with country info for sorting (Indian products first).
-    Uses both countries_tags AND known Indian brand detection for accuracy.
     """
     products = []
+    normalized_names = []  # parallel list of normalized names for fuzzy matching
     
     for item in data.get("products", []):
         product_name = (item.get("product_name") or "").strip()
-        ingredients_text = (item.get("ingredients_text") or "").strip()
         brand = (item.get("brands") or "Unknown").strip()
         
-        # Skip products without a name or without ingredients
-        if not product_name or not ingredients_text:
+        # Skip products without a name
+        if not product_name:
             continue
         
-        # Skip junk/spam/test products with garbage names
+        # Get English ingredients only
+        ingredients_text = _get_english_ingredients(item)
+        if not ingredients_text:
+            continue
+        
+        # Skip junk/spam/test products
         if not _is_quality_product(product_name, brand, ingredients_text):
             continue
         
-        # Detect if this is an Indian product:
-        # 1. Check countries_tags for India
-        # 2. Check if brand is a known Indian brand (catches exports like Haldiram in USA)
+        # --- FUZZY DEDUPLICATION ---
+        norm_name = _normalize_product_name(product_name)
+        if not norm_name:
+            continue
+        
+        dup_idx = _is_duplicate(norm_name, normalized_names)
+        
+        if dup_idx >= 0:
+            # This is a duplicate — keep the better entry
+            existing = products[dup_idx]
+            existing_len = len(existing.get("ingredients_text", ""))
+            new_is_better = (
+                len(ingredients_text) > existing_len
+                or (not existing.get("image_url") and item.get("image_front_small_url"))
+            )
+            if new_is_better:
+                products[dup_idx]["ingredients_text"] = ingredients_text
+                products[dup_idx]["barcode"] = item.get("code", "")
+                if item.get("image_front_small_url"):
+                    products[dup_idx]["image_url"] = item["image_front_small_url"]
+                if brand and brand != "Unknown":
+                    products[dup_idx]["brand"] = brand
+            continue
+        
+        # --- NEW UNIQUE PRODUCT ---
+        # Detect if this is an Indian product
         countries_tags = item.get("countries_tags") or []
         tagged_as_india = any("india" in tag.lower() for tag in countries_tags)
         brand_is_indian = _is_known_indian_brand(brand) or _is_known_indian_brand(product_name)
-        
         is_indian = tagged_as_india or brand_is_indian
         
-        # Determine country label for display
+        # Determine country label
         if is_indian:
             country = "India"
         elif any("united-states" in tag.lower() or "usa" in tag.lower() for tag in countries_tags):
@@ -323,7 +447,6 @@ def _parse_search_results(data: dict) -> List[Dict[str, Any]]:
         elif any("germany" in tag.lower() for tag in countries_tags):
             country = "Germany"
         elif countries_tags:
-            # Extract country name from tag like "en:spain" -> "Spain"
             raw = countries_tags[0].split(":")[-1].replace("-", " ").title()
             country = raw
         else:
@@ -342,6 +465,6 @@ def _parse_search_results(data: dict) -> List[Dict[str, Any]]:
             "is_indian": is_indian,
             "country": country,
         })
+        normalized_names.append(norm_name)
     
     return products
-

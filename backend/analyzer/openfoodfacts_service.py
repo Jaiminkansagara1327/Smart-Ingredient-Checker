@@ -19,6 +19,10 @@ HEADERS = {
     "User-Agent": "Ingrexa/1.0 (https://ingrexa.com; contact@ingrexa.com)"
 }
 
+# Persistent HTTP session — reuses TCP connections (saves ~200-500ms per request)
+_session = requests.Session()
+_session.headers.update(HEADERS)
+
 # =====================================================
 # Known Indian brands — used to correctly identify
 # Indian products even when sold/scanned abroad.
@@ -91,8 +95,8 @@ def _is_known_indian_brand(brand_str: str) -> bool:
 # Key: "query|page", Value: (timestamp, result_dict)
 # Entries expire after 10 minutes.
 _search_cache: Dict[str, tuple] = {}
-_CACHE_TTL = 600  # 10 minutes in seconds
-_CACHE_MAX_SIZE = 200  # Max cached queries
+_CACHE_TTL = 1800  # 30 minutes — longer cache for faster repeat searches
+_CACHE_MAX_SIZE = 500  # Max cached queries
 
 
 def _get_cached_search(cache_key: str) -> Optional[Dict]:
@@ -146,15 +150,16 @@ def search_products(query: str, page: int = 1, page_size: int = 10) -> Dict[str,
             "action": "process",
             "json": 1,
             "page": page,
-            "page_size": 50,  # Fetch more — many will be filtered as junk
-            "fields": "code,product_name,brands,image_front_small_url,ingredients_text,ingredients_text_en,categories,nova_group,nutriscore_grade,countries_tags",
+            "page_size": 20,  # Optimized for speed — 20 results is enough for instant dropdown
+            "fields": "code,product_name,brands,image_front_small_url,categories,nova_group,nutriscore_grade,countries_tags",
         }
         
-        response = requests.get(SEARCH_URL, params=params, headers=HEADERS, timeout=7)
+        response = _session.get(SEARCH_URL, params=params, timeout=8)
         response.raise_for_status()
         data = response.json()
         
-        products = _parse_search_results(data)
+        # Parse results (lenient mode — don't require ingredients text for search)
+        products = _parse_search_results(data, require_ingredients=False)
         
         # Sort: Indian products first, then the rest
         products.sort(key=lambda p: (0 if p.get("is_indian") else 1))
@@ -283,7 +288,7 @@ def get_product_details(barcode: str) -> Dict[str, Any]:
             "fields": "code,product_name,brands,image_front_small_url,image_front_url,ingredients_text,ingredients_text_en,categories,nova_group,nutriscore_grade,countries_tags,quantity"
         }
         
-        response = requests.get(url, params=params, headers=HEADERS, timeout=10)
+        response = _session.get(url, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
         
@@ -378,7 +383,7 @@ def _is_duplicate(new_name: str, existing_names: list) -> int:
     return -1
 
 
-def _parse_search_results(data: dict) -> List[Dict[str, Any]]:
+def _parse_search_results(data: dict, require_ingredients: bool = True) -> List[Dict[str, Any]]:
     """Parse OpenFoodFacts search response into clean product list.
     Only includes products that have English ingredient data.
     Deduplicates using fuzzy name matching (80% similarity threshold).
@@ -395,12 +400,12 @@ def _parse_search_results(data: dict) -> List[Dict[str, Any]]:
         if not product_name:
             continue
         
-        # Get English ingredients only
+        # Get English ingredients only (if present)
         ingredients_text = _get_english_ingredients(item)
-        if not ingredients_text:
+        if require_ingredients and not ingredients_text:
             continue
         
-        # Skip junk/spam/test products
+        # Skip junk/spam/test products (lenient check if ingredients missing)
         if not _is_quality_product(product_name, brand, ingredients_text):
             continue
         
@@ -468,3 +473,123 @@ def _parse_search_results(data: dict) -> List[Dict[str, Any]]:
         normalized_names.append(norm_name)
     
     return products
+
+
+# =====================================================
+# HEALTHIER ALTERNATIVES
+# =====================================================
+NUTRISCORE_ORDER = ['a', 'b', 'c', 'd', 'e']
+
+
+def find_healthier_alternatives(
+    category: str,
+    current_nutriscore: str = '',
+    current_product_name: str = '',
+    limit: int = 4
+) -> Dict[str, Any]:
+    """
+    Find healthier alternatives in the same category.
+    Searches OpenFoodFacts for products with a better Nutri-Score.
+    """
+    if not category:
+        return {"success": False, "error": "No category provided", "alternatives": []}
+    
+    # Check cache
+    cache_key = f"alt|{category.lower().strip()}|{current_nutriscore}"
+    cached = _get_cached_search(cache_key)
+    if cached:
+        print(f"[OFF] Alternatives cache hit for '{category}'")
+        return cached
+    
+    # Use the first category tag (most specific)
+    primary_category = category.split(',')[0].strip()
+    
+    # Determine what nutriscore grades are "better"
+    current_grade = current_nutriscore.lower().strip() if current_nutriscore else 'e'
+    if current_grade not in NUTRISCORE_ORDER:
+        current_grade = 'e'
+    
+    current_idx = NUTRISCORE_ORDER.index(current_grade)
+    if current_idx == 0:
+        result = {"success": True, "alternatives": [], "message": "Already the best Nutri-Score!"}
+        _set_search_cache(cache_key, result)
+        return result
+    
+    try:
+        params = {
+            "search_terms": primary_category,
+            "search_simple": 1,
+            "action": "process",
+            "json": 1,
+            "page": 1,
+            "page_size": 20,  # Reduced — we only need 4 alternatives
+            "sort_by": "nutriscore_score",
+            "fields": "code,product_name,brands,image_front_small_url,nutriscore_grade,nova_group,categories,countries_tags",
+        }
+        
+        response = _session.get(SEARCH_URL, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        
+        alternatives = []
+        seen_names = set()
+        current_name_lower = current_product_name.lower().strip() if current_product_name else ''
+        
+        for item in data.get("products", []):
+            product_name = (item.get("product_name") or "").strip()
+            brand = (item.get("brands") or "Unknown").strip()
+            grade = (item.get("nutriscore_grade") or "").lower()
+            
+            if not product_name or not grade:
+                continue
+            if current_name_lower and product_name.lower().strip() == current_name_lower:
+                continue
+            if grade not in NUTRISCORE_ORDER:
+                continue
+            if NUTRISCORE_ORDER.index(grade) >= current_idx:
+                continue
+            if not _is_english_text(product_name):
+                continue
+            
+            norm = _normalize_product_name(product_name)
+            if norm in seen_names:
+                continue
+            seen_names.add(norm)
+            
+            countries_tags = item.get("countries_tags") or []
+            is_indian = any("india" in t.lower() for t in countries_tags) or _is_known_indian_brand(brand)
+            
+            alternatives.append({
+                "barcode": item.get("code", ""),
+                "name": product_name,
+                "brand": brand,
+                "image_url": item.get("image_front_small_url", ""),
+                "nutriscore_grade": grade,
+                "nova_group": item.get("nova_group"),
+                "has_ingredients": True,  # Assume present for display purposes
+                "ingredients_text": "",   # Don't need text for suggestion card
+                "is_indian": is_indian,
+            })
+            
+            if len(alternatives) >= limit:
+                break
+        
+        alternatives.sort(key=lambda p: (
+            0 if p.get("is_indian") else 1,
+            NUTRISCORE_ORDER.index(p.get("nutriscore_grade", "e"))
+        ))
+        
+        result = {
+            "success": True,
+            "count": len(alternatives),
+            "alternatives": alternatives,
+            "searched_category": primary_category,
+        }
+        _set_search_cache(cache_key, result)
+        return result
+    
+    except requests.Timeout:
+        return {"success": False, "error": "TIMEOUT", "alternatives": []}
+    except requests.RequestException as e:
+        print(f"[OFF] Alternatives error: {type(e).__name__}: {e}")
+        return {"success": False, "error": str(e), "alternatives": []}

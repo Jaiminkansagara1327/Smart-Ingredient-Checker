@@ -9,7 +9,7 @@ import os
 from .models import ContactMessage
 from .serializers import ContactMessageSerializer
 from .ai_service import analyze_product_from_text
-from .openfoodfacts_service import search_products as off_search, get_product_details as off_get_product
+from .openfoodfacts_service import search_products as off_search, get_product_details as off_get_product, find_healthier_alternatives as off_find_alternatives
 
 # Custom throttle class for stricter rate limiting
 class AnalysisRateThrottle(AnonRateThrottle):
@@ -145,6 +145,7 @@ def analyze_text(request):
         
         # Add metadata about manual entry
         analysis_result['input_method'] = 'manual'
+        analysis_result['raw_ingredients_text'] = sanitized_text.strip()
         
         # Return successful analysis
         return Response(analysis_result, status=status.HTTP_200_OK)
@@ -348,6 +349,7 @@ def analyze_product(request):
         
         # Enrich with product metadata from OpenFoodFacts
         analysis_result['input_method'] = 'openfoodfacts'
+        analysis_result['raw_ingredients_text'] = ingredients_text
         
         if product_info:
             analysis_result['product_info'] = product_info
@@ -379,3 +381,26 @@ def health_check(request):
             'product_search': True
         }
     })
+
+
+@api_view(['GET'])
+@throttle_classes([SearchRateThrottle])
+def get_alternatives(request):
+    """
+    Find healthier alternatives for a product.
+    Query params: ?category=<category>&nutriscore=<grade>&name=<product_name>
+    """
+    category = request.query_params.get('category', '').strip()
+    nutriscore = request.query_params.get('nutriscore', '').strip()
+    product_name = request.query_params.get('name', '').strip()
+    
+    if not category:
+        return Response(
+            {'success': False, 'error': 'NO_CATEGORY', 'message': 'Category is required.', 'alternatives': []},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    print(f"[ALTERNATIVES] Finding alternatives for category='{category}', nutriscore='{nutriscore}'")
+    result = off_find_alternatives(category, nutriscore, product_name)
+    
+    return Response(result, status=status.HTTP_200_OK)

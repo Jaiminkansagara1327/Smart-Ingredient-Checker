@@ -10,6 +10,44 @@ const ANALYSIS_MESSAGES = [
     { icon: '✅', text: 'Preparing your report...' },
 ];
 
+// =========== FRONTEND SEARCH CACHE ===========
+// In-memory cache for instant repeat lookups (survives within session)
+const _searchCache = new Map();
+const SEARCH_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const SEARCH_CACHE_MAX = 100;
+
+function getCachedSearch(query) {
+    const key = query.trim().toLowerCase();
+    const entry = _searchCache.get(key);
+    if (entry && Date.now() - entry.ts < SEARCH_CACHE_TTL) return entry.data;
+    if (entry) _searchCache.delete(key);
+    return null;
+}
+
+function setCachedSearch(query, data) {
+    const key = query.trim().toLowerCase();
+    if (_searchCache.size >= SEARCH_CACHE_MAX) {
+        // Evict oldest
+        const firstKey = _searchCache.keys().next().value;
+        _searchCache.delete(firstKey);
+    }
+    _searchCache.set(key, { ts: Date.now(), data });
+}
+
+// =========== ALTERNATIVES PREFETCH CACHE ===========
+// Prefetch alternatives during analysis so they load instantly on results page
+const _altCache = new Map();
+
+function getPrefetchedAlternatives(categories, nutriscore, name) {
+    const key = `${categories}|${nutriscore}|${name}`;
+    return _altCache.get(key) || null;
+}
+
+function setPrefetchedAlternatives(categories, nutriscore, name, data) {
+    const key = `${categories}|${nutriscore}|${name}`;
+    _altCache.set(key, data);
+}
+
 function UploadSection({ onAnalyze }) {
     // Tab state: 'search' or 'manual'
     const [activeTab, setActiveTab] = useState('search');
@@ -84,13 +122,30 @@ function UploadSection({ onAnalyze }) {
         const thisQuery = query.trim();
         searchQueryRef.current = thisQuery;
 
-        setIsSearching(true);
         setSearchError(null);
+
+        // ⚡ Check frontend cache FIRST — instant results
+        const cached = getCachedSearch(thisQuery);
+        if (cached) {
+            setSearchResults(cached.products || []);
+            setShowDropdown(true);
+            setIsSearching(false);
+            if ((cached.products || []).length === 0) {
+                setSearchError({
+                    type: 'no_results',
+                    message: `No products found for "${query}". Try a different name or use the "Type Ingredients" tab.`
+                });
+            }
+            return;
+        }
+
+        setIsSearching(true);
 
         try {
             const response = await api.get('/api/search-product/', {
                 params: { q: thisQuery },
                 signal: controller.signal,
+                timeout: 15000, // Generous timeout for slow connections
             });
 
             // Ignore if query changed while waiting (stale response)
@@ -99,6 +154,8 @@ function UploadSection({ onAnalyze }) {
             if (response.data.success) {
                 setSearchResults(response.data.products || []);
                 setShowDropdown(true);
+                // ⚡ Cache the result for instant future lookups
+                setCachedSearch(thisQuery, response.data);
                 if (response.data.products.length === 0) {
                     setSearchError({
                         type: 'no_results',
@@ -167,7 +224,7 @@ function UploadSection({ onAnalyze }) {
 
         searchTimerRef.current = setTimeout(() => {
             searchProducts(value);
-        }, 300);
+        }, 150);  // ⚡ Reduced from 300ms — snappier search
     };
 
     const handleSearchSubmit = (e) => {
@@ -211,6 +268,39 @@ function UploadSection({ onAnalyze }) {
             }
 
             setValidationError(null);
+            // Attach product metadata for alternatives & history
+            const meta = {
+                name: product.name || '',
+                brand: product.brand || '',
+                image_url: product.image_url || '',
+                categories: product.categories || '',
+                nutriscore_grade: product.nutriscore_grade || '',
+                barcode: product.barcode || '',
+            };
+            response.data._product_meta = meta;
+
+            // ⚡ Prefetch alternatives in background (non-blocking)
+            // So they're ready instantly when ResultsSection mounts
+            if (meta.categories) {
+                api.get('/api/alternatives/', {
+                    params: {
+                        category: meta.categories,
+                        nutriscore: meta.nutriscore_grade || '',
+                        name: meta.name || '',
+                    },
+                    timeout: 12000,
+                })
+                    .then(res => {
+                        if (res.data.success && res.data.alternatives) {
+                            setPrefetchedAlternatives(
+                                meta.categories, meta.nutriscore_grade, meta.name,
+                                res.data.alternatives
+                            );
+                        }
+                    })
+                    .catch(() => { }); // Silent — ResultsSection will retry if needed
+            }
+
             onAnalyze(response.data, null);
         } catch (error) {
             console.error('Product analysis error:', error);
@@ -441,6 +531,26 @@ function UploadSection({ onAnalyze }) {
                                                 autoComplete="off"
                                                 id="product-search-input"
                                             />
+
+                                            {/* Clear Button */}
+                                            {searchQuery && (
+                                                <button
+                                                    type="button"
+                                                    className="search-clear-btn"
+                                                    onClick={() => {
+                                                        setSearchQuery('');
+                                                        setSearchResults([]);
+                                                        setShowDropdown(false);
+                                                        setSearchError(null);
+                                                        document.getElementById('product-search-input').focus();
+                                                    }}
+                                                    aria-label="Clear search"
+                                                    title="Clear search"
+                                                >
+                                                    ×
+                                                </button>
+                                            )}
+
                                             {isSearching && <span className="search-spinner"></span>}
                                         </div>
                                     </form>
@@ -572,7 +682,7 @@ function UploadSection({ onAnalyze }) {
                                     )}
                                 </div>
 
-                                {/* Empty state — suggestion chips */}
+                                {/* Empty state — suggestion chips + scan history */}
                                 {!searchQuery && searchResults.length === 0 && !isSearching && (
                                     <div className="search-empty-state">
                                         <div className="search-suggestions">
@@ -594,6 +704,35 @@ function UploadSection({ onAnalyze }) {
                                                 ))}
                                             </div>
                                         </div>
+
+                                        {/* Recent scans from localStorage */}
+                                        {(() => {
+                                            try {
+                                                const history = JSON.parse(localStorage.getItem('ingrexa_scan_history') || '[]');
+                                                if (history.length === 0) return null;
+                                                return (
+                                                    <div className="recent-scans-section">
+                                                        <p className="suggestions-label">🕐 Recent scans:</p>
+                                                        <div className="suggestion-chips">
+                                                            {history.slice(0, 5).map((item, idx) => (
+                                                                <button
+                                                                    key={idx}
+                                                                    className="suggestion-chip recent-chip"
+                                                                    onClick={() => {
+                                                                        setSearchQuery(item.name);
+                                                                        setIsSearching(true);
+                                                                        setShowDropdown(true);
+                                                                        searchProducts(item.name);
+                                                                    }}
+                                                                >
+                                                                    {item.name}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            } catch { return null; }
+                                        })()}
                                     </div>
                                 )}
                             </>
@@ -647,4 +786,5 @@ function UploadSection({ onAnalyze }) {
     );
 }
 
+export { getPrefetchedAlternatives };
 export default UploadSection;

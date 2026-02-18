@@ -106,6 +106,106 @@ function NutriscoreBadge({ grade, size = 'normal' }) {
     );
 }
 
+// --- Serving Size Definitions ---
+const SERVING_OPTIONS = [
+    { label: '100g', grams: 100 },
+    { label: '50g', grams: 50 },
+    { label: '1 Bowl', grams: 200 },
+    { label: '1 Serving', grams: 30 },
+];
+
+// --- Nutrient Definitions ---
+const NUTRIENT_DEFS = [
+    { key: 'energy_kcal', label: 'Calories', unit: 'kcal' },
+    { key: 'proteins', label: 'Protein', unit: 'g' },
+    { key: 'fat', label: 'Total Fat', unit: 'g' },
+    { key: 'saturated_fat', label: 'Saturated Fat', unit: 'g' },
+    { key: 'carbohydrates', label: 'Carbs', unit: 'g' },
+    { key: 'sugars', label: 'Sugar', unit: 'g' },
+    { key: 'fiber', label: 'Fiber', unit: 'g' },
+    { key: 'salt', label: 'Salt', unit: 'g' },
+];
+
+// --- Nutrition Panel ---
+function NutritionPanel({ nutriments }) {
+    const [selectedServing, setSelectedServing] = useState(0);
+    const [customGrams, setCustomGrams] = useState('');
+    const [isCustom, setIsCustom] = useState(false);
+
+    if (!nutriments) {
+        return (
+            <div className="results-card nutrition-panel">
+                <h3 className="results-section-title">Nutrition Facts</h3>
+                <p className="nutrition-unavailable">
+                    Nutrition data is not available for this product.
+                </p>
+            </div>
+        );
+    }
+
+    const grams = isCustom
+        ? (parseFloat(customGrams) || 0)
+        : SERVING_OPTIONS[selectedServing].grams;
+    const multiplier = grams / 100;
+
+    return (
+        <div className="results-card nutrition-panel">
+            <h3 className="results-section-title">Nutrition Facts</h3>
+
+            {/* Serving Size Selector */}
+            <div className="serving-selector">
+                {SERVING_OPTIONS.map((option, idx) => (
+                    <button
+                        key={option.label}
+                        className={`serving-btn ${!isCustom && idx === selectedServing ? 'active' : ''}`}
+                        onClick={() => { setSelectedServing(idx); setIsCustom(false); }}
+                    >
+                        {option.label}
+                    </button>
+                ))}
+                <div className={`serving-btn serving-btn-custom ${isCustom ? 'active' : ''}`} onClick={() => setIsCustom(true)}>
+                    <input
+                        type="number"
+                        className="serving-custom-input"
+                        placeholder="Custom"
+                        min="1"
+                        max="5000"
+                        value={customGrams}
+                        onFocus={() => setIsCustom(true)}
+                        onChange={(e) => {
+                            setCustomGrams(e.target.value);
+                            setIsCustom(true);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                    <span className="serving-custom-unit">g</span>
+                </div>
+            </div>
+
+            {/* Nutrient Grid */}
+            <div className="nutrition-grid">
+                {NUTRIENT_DEFS.map((nutrient) => {
+                    const rawVal = nutriments[nutrient.key];
+                    const value = rawVal != null
+                        ? (rawVal * multiplier).toFixed(nutrient.key === 'energy_kcal' ? 0 : 1)
+                        : '–';
+                    return (
+                        <div key={nutrient.key} className="nutrient-card">
+                            <span className="nutrient-value">
+                                {value}
+                                {rawVal != null && <span className="nutrient-unit"> {nutrient.unit}</span>}
+                            </span>
+                            <span className="nutrient-label">{nutrient.label}</span>
+                        </div>
+                    );
+                })}
+            </div>
+
+            <p className="nutrition-disclaimer">Values may vary from product packaging.</p>
+        </div>
+    );
+}
+
 // --- Scan History (localStorage) ---
 const HISTORY_KEY = 'ingrexa_scan_history';
 const MAX_HISTORY = 10;
@@ -264,6 +364,9 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                         ))}
                     </div>
                 </div>
+
+                {/* SECTION 3.5: Nutrition Facts */}
+                <NutritionPanel nutriments={meta.nutriments} />
 
                 {/* SECTION 4: Ingredient Breakdown (with color highlighting) */}
                 <div className="results-card">

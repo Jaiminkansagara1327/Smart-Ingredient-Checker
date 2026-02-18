@@ -285,7 +285,7 @@ def get_product_details(barcode: str) -> Dict[str, Any]:
     try:
         url = f"{PRODUCT_URL}/{barcode.strip()}"
         params = {
-            "fields": "code,product_name,brands,image_front_small_url,image_front_url,ingredients_text,ingredients_text_en,categories,nova_group,nutriscore_grade,countries_tags,quantity"
+            "fields": "code,product_name,brands,image_front_small_url,image_front_url,ingredients_text,ingredients_text_en,categories,nova_group,nutriscore_grade,countries_tags,quantity,nutriments"
         }
         
         response = _session.get(url, params=params, timeout=10)
@@ -311,6 +311,24 @@ def get_product_details(barcode: str) -> Dict[str, Any]:
                 "message": "English ingredient list is not available for this product. Try typing the ingredients manually.",
             }
         
+        # Extract per-100g nutrition data from OpenFoodFacts
+        raw_nutriments = product.get("nutriments", {})
+        nutriments = None
+        if raw_nutriments:
+            nutriments = {
+                "energy_kcal": raw_nutriments.get("energy-kcal_100g"),
+                "proteins": raw_nutriments.get("proteins_100g"),
+                "fat": raw_nutriments.get("fat_100g"),
+                "saturated_fat": raw_nutriments.get("saturated-fat_100g"),
+                "carbohydrates": raw_nutriments.get("carbohydrates_100g"),
+                "sugars": raw_nutriments.get("sugars_100g"),
+                "salt": raw_nutriments.get("salt_100g"),
+                "fiber": raw_nutriments.get("fiber_100g"),
+            }
+            # Only include if at least one value exists
+            if not any(v is not None for v in nutriments.values()):
+                nutriments = None
+        
         return {
             "success": True,
             "product": {
@@ -322,6 +340,7 @@ def get_product_details(barcode: str) -> Dict[str, Any]:
                 "quantity": product.get("quantity", ""),
                 "nova_group": product.get("nova_group"),
                 "nutriscore_grade": product.get("nutriscore_grade"),
+                "nutriments": nutriments,
             },
             "ingredients_text": ingredients_text,
         }

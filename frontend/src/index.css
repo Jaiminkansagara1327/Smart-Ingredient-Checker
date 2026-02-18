@@ -611,6 +611,223 @@ body::before {
     flex-shrink: 0;
 }
 
+/* ===================================
+   Nutrition Panel
+   =================================== */
+.nutrition-panel {
+    position: relative;
+    overflow: hidden;
+}
+
+.nutrition-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #38b2ac, #4299e1, #9f7aea);
+    border-radius: 3px 3px 0 0;
+}
+
+.nutrition-unavailable {
+    text-align: center;
+    color: var(--color-text-tertiary);
+    font-style: italic;
+    padding: var(--spacing-xl) 0;
+    font-size: var(--font-size-sm);
+}
+
+/* Serving Size Selector */
+.serving-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: var(--spacing-xl);
+    padding: 4px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    border: 1px solid var(--color-border);
+}
+
+.serving-btn {
+    flex: 1;
+    min-width: 70px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    letter-spacing: 0.02em;
+}
+
+.serving-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-text-primary);
+}
+
+.serving-btn.active {
+    background: linear-gradient(135deg, #38b2ac, #4299e1);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(56, 178, 172, 0.35);
+    transform: translateY(-1px);
+}
+
+/* Custom Serving Pill */
+.serving-btn-custom {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    cursor: pointer;
+    padding: 10px 14px;
+}
+
+.serving-custom-input {
+    width: 48px;
+    padding: 0;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    background: transparent;
+    color: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.serving-custom-input:focus {
+    border: none;
+    outline: none;
+    box-shadow: none;
+}
+
+.serving-custom-input::placeholder {
+    color: var(--color-text-tertiary);
+    font-weight: 500;
+}
+
+.serving-btn-custom.active .serving-custom-input,
+.serving-btn-custom.active .serving-custom-input::placeholder {
+    color: #fff;
+}
+
+.serving-custom-input::-webkit-outer-spin-button,
+.serving-custom-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.serving-custom-unit {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-text-tertiary);
+}
+
+.serving-btn-custom.active .serving-custom-unit {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Nutrition Disclaimer */
+.nutrition-disclaimer {
+    margin-top: var(--spacing-md);
+    font-size: 0.62rem;
+    color: var(--color-text-tertiary);
+    text-align: right;
+    opacity: 0.5;
+}
+
+/* Nutrient Grid */
+.nutrition-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+/* Nutrient Card */
+.nutrient-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 18px 10px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    text-align: center;
+    transition: all 0.25s ease;
+    backdrop-filter: blur(8px);
+}
+
+.nutrient-card:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(56, 178, 172, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+
+.nutrient-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    line-height: 1.2;
+    margin-bottom: 4px;
+}
+
+.nutrient-unit {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-text-tertiary);
+}
+
+.nutrient-label {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .nutrition-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .serving-btn {
+        min-width: 60px;
+        padding: 8px 12px;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .nutrition-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .nutrient-card {
+        padding: 14px 8px 10px;
+    }
+
+    .nutrient-icon {
+        font-size: 1.3rem;
+    }
+
+    .nutrient-value {
+        font-size: 1.1rem;
+    }
+}
+
 /* --- Ingredient Highlighting --- */
 .ingredient-legend {
     display: flex;

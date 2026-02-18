@@ -269,6 +269,7 @@ function UploadSection({ onAnalyze }) {
 
             setValidationError(null);
             // Attach product metadata for alternatives & history
+            const productInfo = response.data.product_info || {};
             const meta = {
                 name: product.name || '',
                 brand: product.brand || '',
@@ -276,6 +277,7 @@ function UploadSection({ onAnalyze }) {
                 categories: product.categories || '',
                 nutriscore_grade: product.nutriscore_grade || '',
                 barcode: product.barcode || '',
+                nutriments: productInfo.nutriments || product.nutriments || null,
             };
             response.data._product_meta = meta;
 

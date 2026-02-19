@@ -4,6 +4,8 @@ Searches for food products globally and retrieves ingredient lists.
 Indian products are prioritized and Indian brands are correctly identified.
 """
 import re
+import json
+import os
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -131,10 +133,131 @@ def _set_search_cache(cache_key: str, result: Dict):
     _search_cache[cache_key] = (time.time(), result)
 
 
+# =====================================================
+# LOCAL PRODUCT DATABASE — instant search results
+# Pre-built JSON file with popular products.
+# Loaded once at startup, searched in-memory (<1ms).
+# =====================================================
+_LOCAL_DB_PATH = os.path.join(os.path.dirname(__file__), "local_products.json")
+_local_products: List[Dict] = []
+
+def _load_local_db():
+    """Load pre-built local product database on startup."""
+    global _local_products
+    if not os.path.exists(_LOCAL_DB_PATH):
+        print("[LOCAL DB] No local_products.json found — skipping local search")
+        return
+    try:
+        with open(_LOCAL_DB_PATH, "r", encoding="utf-8") as f:
+            db = json.load(f)
+        _local_products = db.get("products", [])
+        print(f"[LOCAL DB] Loaded {len(_local_products)} products from local database")
+    except Exception as e:
+        print(f"[LOCAL DB] Failed to load: {e}")
+        _local_products = []
+
+# Load on module import
+_load_local_db()
+
+
+def _search_local_db(query: str, limit: int = 10) -> List[Dict]:
+    """
+    Search the local product database. Uses simple case-insensitive matching.
+    Returns products sorted by relevance (exact name match > brand match > partial).
+    Instant — no network calls.
+    """
+    if not _local_products or not query:
+        return []
+    
+    q = query.lower().strip()
+    q_words = q.split()
+    results = []
+    
+    for product in _local_products:
+        name_lower = product.get("name", "").lower()
+        brand_lower = product.get("brand", "").lower()
+        combined = f"{name_lower} {brand_lower}"
+        
+        # Score: higher = better match
+        score = 0
+        
+        # Exact name match
+        if q == name_lower:
+            score = 100
+        # Name starts with query
+        elif name_lower.startswith(q):
+            score = 80
+        # All query words appear in name+brand
+        elif all(w in combined for w in q_words):
+            score = 60
+        # Any query word in name
+        elif any(w in name_lower for w in q_words):
+            score = 40
+        # Any query word in brand
+        elif any(w in brand_lower for w in q_words):
+            score = 20
+        else:
+            continue
+        
+        results.append((score, product))
+    
+    # Sort by score (descending)
+    results.sort(key=lambda x: -x[0])
+    return [r[1] for r in results[:limit]]
+
+
+def _format_local_product(product: Dict) -> Dict:
+    """Convert a local DB product to the same format as API search results."""
+    # Detect country
+    countries_tags = product.get("countries_tags", [])
+    tagged_as_india = any("india" in tag.lower() for tag in countries_tags)
+    brand_is_indian = _is_known_indian_brand(product.get("brand", ""))
+    is_indian = tagged_as_india or brand_is_indian
+    
+    if is_indian:
+        country = "India"
+    elif any("united-states" in t.lower() or "usa" in t.lower() for t in countries_tags):
+        country = "USA"
+    elif any("united-kingdom" in t.lower() for t in countries_tags):
+        country = "UK"
+    elif countries_tags:
+        country = countries_tags[0].split(":")[-1].replace("-", " ").title()
+    else:
+        country = ""
+    
+    # Build nutriments from raw data
+    nutriments = None
+    if product.get("nutriments_raw"):
+        # Build a fake product dict for _extract_nutriments
+        fake_product = {
+            "nutriments": product["nutriments_raw"],
+            "serving_size": product.get("serving_size", ""),
+            "quantity": product.get("quantity", ""),
+            "categories": product.get("categories", ""),
+        }
+        nutriments = _extract_nutriments(fake_product)
+    
+    return {
+        "barcode": product.get("barcode", ""),
+        "name": product.get("name", ""),
+        "brand": product.get("brand", "Unknown"),
+        "image_url": product.get("image_url", ""),
+        "has_ingredients": bool(product.get("ingredients_text")),
+        "ingredients_text": product.get("ingredients_text", ""),
+        "categories": product.get("categories", ""),
+        "nova_group": product.get("nova_group"),
+        "nutriscore_grade": product.get("nutriscore_grade"),
+        "nutriments": nutriments,
+        "is_indian": is_indian,
+        "country": country,
+        "_source": "local",
+    }
+
+
 def search_products(query: str, page: int = 1, page_size: int = 10) -> Dict[str, Any]:
     """
-    Search OpenFoodFacts for products matching the query.
-    Results are cached in-memory for 10 minutes for instant repeat lookups.
+    Search for products. Checks local DB first for instant results,
+    then falls back to OpenFoodFacts API.
     
     Args:
         query: Search term (product name like "Maggi", "Nutella", "Oreo", etc.)
@@ -147,22 +270,44 @@ def search_products(query: str, page: int = 1, page_size: int = 10) -> Dict[str,
     if not query or not query.strip():
         return {"success": False, "error": "Empty search query"}
     
-    # Check cache first
+    # Check in-memory cache first
     cache_key = f"{query.strip().lower()}|{page}"
     cached = _get_cached_search(cache_key)
     if cached:
         print(f"[OFF] Cache hit for '{query}' (page {page})")
         return cached
     
+    # --- STEP 1: Search local database (instant) ---
+    local_results = []
+    if page == 1:  # Only use local DB for page 1
+        local_matches = _search_local_db(query, limit=page_size)
+        local_results = [_format_local_product(p) for p in local_matches]
+        if local_results:
+            print(f"[LOCAL DB] Found {len(local_results)} local results for '{query}'")
+    
+    # If we have enough local results, return them immediately
+    # and skip the slow API call
+    if len(local_results) >= 5:
+        local_results.sort(key=lambda p: (0 if p.get("is_indian") else 1))
+        result = {
+            "success": True,
+            "count": len(local_results),
+            "products": local_results[:page_size],
+            "source": "local",
+        }
+        _set_search_cache(cache_key, result)
+        return result
+    
+    # --- STEP 2: Search OpenFoodFacts API (slow fallback) ---
+    print(f"[SEARCH] Searching OpenFoodFacts for: '{query}' (page {page})")
     try:
-        # Search the GLOBAL database (no country filter)
         params = {
             "search_terms": query.strip(),
             "search_simple": 1,
             "action": "process",
             "json": 1,
             "page": page,
-            "page_size": 20,  # Optimized for speed — 20 results is enough for instant dropdown
+            "page_size": 20,
             "fields": "code,product_name,brands,image_front_small_url,categories,nova_group,nutriscore_grade,countries_tags,ingredients_text,ingredients_text_en,nutriments,serving_size,quantity",
         }
         
@@ -170,34 +315,57 @@ def search_products(query: str, page: int = 1, page_size: int = 10) -> Dict[str,
         response.raise_for_status()
         data = response.json()
         
-        # Parse results (lenient mode — don't require ingredients text for search)
-        products = _parse_search_results(data, require_ingredients=False)
+        # Parse results
+        api_products = _parse_search_results(data, require_ingredients=False)
         
-        # Sort: Indian products first, then the rest
-        products.sort(key=lambda p: (0 if p.get("is_indian") else 1))
+        # Merge: local results first, then API results (deduplicate by barcode)
+        seen_barcodes = {p["barcode"] for p in local_results if p.get("barcode")}
+        merged = list(local_results)
+        for p in api_products:
+            if p.get("barcode") and p["barcode"] not in seen_barcodes:
+                merged.append(p)
+                seen_barcodes.add(p["barcode"])
         
-        # Limit to a reasonable number
-        products = products[:page_size]
+        # Sort: Indian products first
+        merged.sort(key=lambda p: (0 if p.get("is_indian") else 1))
+        merged = merged[:page_size]
         
         result = {
             "success": True,
-            "count": len(products),
-            "products": products,
+            "count": len(merged),
+            "products": merged,
         }
         
-        # Cache the result for future lookups
         _set_search_cache(cache_key, result)
-        
         return result
     
     except requests.Timeout:
+        # If API times out but we have local results, return those
+        if local_results:
+            print(f"[SEARCH] API timeout, returning {len(local_results)} local results")
+            result = {
+                "success": True,
+                "count": len(local_results),
+                "products": local_results[:page_size],
+                "source": "local_fallback",
+            }
+            return result
         return {
             "success": False,
             "error": "SEARCH_TIMEOUT",
-            "message": "OpenFoodFacts search timed out. Please try again.",
+            "message": "Search timed out. Please try again.",
         }
     except requests.RequestException as e:
         print(f"[OFF] Search error: {type(e).__name__}: {e}")
+        # If API fails but we have local results, return those
+        if local_results:
+            print(f"[SEARCH] API error, returning {len(local_results)} local results")
+            return {
+                "success": True,
+                "count": len(local_results),
+                "products": local_results[:page_size],
+                "source": "local_fallback",
+            }
         return {
             "success": False,
             "error": "SEARCH_FAILED",

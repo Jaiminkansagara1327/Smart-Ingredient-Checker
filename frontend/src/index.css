@@ -632,10 +632,36 @@ body::before {
 
 .nutrition-unavailable {
     text-align: center;
+    padding: var(--spacing-xl) var(--spacing-lg);
+}
+
+.nutrition-unavailable-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    margin-bottom: 6px;
+}
+
+.nutrition-unavailable-desc {
+    font-size: 0.8rem;
     color: var(--color-text-tertiary);
-    font-style: italic;
-    padding: var(--spacing-xl) 0;
-    font-size: var(--font-size-sm);
+    line-height: 1.5;
+    max-width: 360px;
+    margin: 0 auto;
+}
+
+.nutrition-partial-warning {
+    font-size: 0.75rem;
+    color: var(--color-text-tertiary);
+    margin-bottom: var(--spacing-md);
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border-left: 2px solid var(--color-text-tertiary);
+    border-radius: 0 6px 6px 0;
+}
+
+.nutrient-card-na {
+    opacity: 0.4;
 }
 
 /* Serving Size Selector */

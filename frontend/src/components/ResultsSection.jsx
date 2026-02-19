@@ -136,12 +136,18 @@ function NutritionPanel({ nutriments }) {
         return (
             <div className="results-card nutrition-panel">
                 <h3 className="results-section-title">Nutrition Facts</h3>
-                <p className="nutrition-unavailable">
-                    Nutrition data is not available for this product.
-                </p>
+                <div className="nutrition-unavailable">
+                    <p className="nutrition-unavailable-title">Nutrition data unavailable</p>
+                    <p className="nutrition-unavailable-desc">
+                        This product does not have nutrition information in our database. Please refer to the product packaging for nutritional values.
+                    </p>
+                </div>
             </div>
         );
     }
+
+    // Count how many nutrients have actual data
+    const availableCount = NUTRIENT_DEFS.filter(n => nutriments[n.key] != null).length;
 
     const grams = isCustom
         ? (parseFloat(customGrams) || 0)
@@ -182,18 +188,25 @@ function NutritionPanel({ nutriments }) {
                 </div>
             </div>
 
+            {availableCount < 3 && (
+                <p className="nutrition-partial-warning">
+                    Some nutrition values are not available for this product.
+                </p>
+            )}
+
             {/* Nutrient Grid */}
             <div className="nutrition-grid">
                 {NUTRIENT_DEFS.map((nutrient) => {
                     const rawVal = nutriments[nutrient.key];
-                    const value = rawVal != null
+                    const hasValue = rawVal != null;
+                    const value = hasValue
                         ? (rawVal * multiplier).toFixed(nutrient.key === 'energy_kcal' ? 0 : 1)
-                        : '–';
+                        : 'N/A';
                     return (
-                        <div key={nutrient.key} className="nutrient-card">
+                        <div key={nutrient.key} className={`nutrient-card ${!hasValue ? 'nutrient-card-na' : ''}`}>
                             <span className="nutrient-value">
                                 {value}
-                                {rawVal != null && <span className="nutrient-unit"> {nutrient.unit}</span>}
+                                {hasValue && <span className="nutrient-unit"> {nutrient.unit}</span>}
                             </span>
                             <span className="nutrient-label">{nutrient.label}</span>
                         </div>
@@ -301,7 +314,7 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                     <h3 className="results-section-title">Product Overview</h3>
 
                     {/* Product identity row */}
-                    {meta.name && (
+                    {meta.name ? (
                         <div className="product-identity-row">
                             {meta.image_url && (
                                 <img src={meta.image_url} alt={meta.name} className="product-identity-img" />
@@ -312,6 +325,10 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                             </div>
                             {meta.nutriscore_grade && <NutriscoreBadge grade={meta.nutriscore_grade} />}
                         </div>
+                    ) : (
+                        <p style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-sm)', marginBottom: 'var(--spacing-md)' }}>
+                            Analyzed from manually entered ingredients
+                        </p>
                     )}
 
                     <div style={{
@@ -359,7 +376,7 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                         ].map((signal, idx) => (
                             <div key={idx} className="overview-stat-card" style={{ border: '1px solid var(--color-border)' }}>
                                 <p className="overview-stat-label">{signal.label}</p>
-                                <p className="overview-stat-value">{signal.value}</p>
+                                <p className="overview-stat-value">{renderOverviewValue(signal.value)}</p>
                             </div>
                         ))}
                     </div>
@@ -471,21 +488,23 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                 )}
 
                 {/* SECTION 7: Transparency Note */}
-                <div style={{
-                    textAlign: 'center',
-                    padding: 'var(--spacing-lg)',
-                    borderTop: '1px solid var(--color-border)',
-                    marginTop: 'var(--spacing-xl)'
-                }}>
-                    <p style={{
-                        fontSize: 'var(--font-size-sm)',
-                        color: 'var(--color-text-tertiary)',
-                        fontStyle: 'italic',
-                        lineHeight: '1.5'
+                {data.transparency_note && (
+                    <div style={{
+                        textAlign: 'center',
+                        padding: 'var(--spacing-lg)',
+                        borderTop: '1px solid var(--color-border)',
+                        marginTop: 'var(--spacing-xl)'
                     }}>
-                        {data.transparency_note}
-                    </p>
-                </div>
+                        <p style={{
+                            fontSize: 'var(--font-size-sm)',
+                            color: 'var(--color-text-tertiary)',
+                            fontStyle: 'italic',
+                            lineHeight: '1.5'
+                        }}>
+                            {data.transparency_note}
+                        </p>
+                    </div>
+                )}
 
                 {/* Action Button */}
                 <div style={{

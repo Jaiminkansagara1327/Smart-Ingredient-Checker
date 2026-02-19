@@ -106,17 +106,18 @@ function NutriscoreBadge({ grade, size = 'normal' }) {
     );
 }
 
-// --- Serving Size Definitions ---
-const SERVING_OPTIONS_SOLID = [
-    { label: '1 Serving', grams: 30 },
-    { label: '50g', grams: 50 },
-    { label: '1 Bowl', grams: 200 },
-];
-const SERVING_OPTIONS_LIQUID = [
-    { label: '1 Glass', grams: 250 },
-    { label: '1 Can', grams: 330 },
-    { label: '500ml', grams: 500 },
-];
+// --- Parse serving size string into a number ---
+function parseServingGrams(servingStr) {
+    if (!servingStr) return null;
+    // Match patterns like "10g", "10gm", "30 g", "250ml", "250 ml", "1 can (330 ml)"
+    const match = servingStr.match(/(\d+\.?\d*)\s*(g|gm|ml|cl|l)\b/i);
+    if (!match) return null;
+    const val = parseFloat(match[1]);
+    const unit = match[2].toLowerCase();
+    if (unit === 'cl') return val * 10; // 1cl = 10ml
+    if (unit === 'l') return val * 1000;
+    return val;
+}
 
 // --- Nutrition Panel (Packaging-style table) ---
 function NutritionPanel({ nutriments }) {
@@ -142,17 +143,32 @@ function NutritionPanel({ nutriments }) {
     const servingSize = nutriments.serving_size || '';
     const isLiquid = nutriments.is_liquid || false;
     const baseUnit = isLiquid ? 'ml' : 'g';
-    const servingOptions = isLiquid ? SERVING_OPTIONS_LIQUID : SERVING_OPTIONS_SOLID;
+
+    // Parse the actual serving size from the product
+    const actualServing = parseServingGrams(servingSize);
+
+    // Build serving options dynamically based on product type and actual serving size
+    const servingOptions = [];
+    if (actualServing && actualServing !== 100) {
+        servingOptions.push({ label: `1 Serving (${actualServing}${baseUnit})`, grams: actualServing });
+    }
+    if (isLiquid) {
+        servingOptions.push({ label: '1 Glass (250ml)', grams: 250 });
+        servingOptions.push({ label: '1 Can (330ml)', grams: 330 });
+    } else {
+        servingOptions.push({ label: '50g', grams: 50 });
+        servingOptions.push({ label: '1 Bowl (200g)', grams: 200 });
+    }
 
     const amount = isCustom
         ? (parseFloat(customGrams) || 0)
-        : servingOptions[selectedServing].grams;
+        : servingOptions[selectedServing]?.grams || 100;
     const multiplier = amount / 100;
     const isBaseServing = !isCustom && amount === 100;
 
     const servingLabel = isCustom
         ? (customGrams ? `Per ${customGrams}${baseUnit}` : 'Per —')
-        : `Per ${servingOptions[selectedServing].label}`;
+        : `Per ${servingOptions[selectedServing]?.label || '100' + baseUnit}`;
 
     // Format value based on unit type
     const formatVal = (val, unit) => {

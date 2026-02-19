@@ -33,7 +33,6 @@ db.sqlite3-journal
 /media
 /staticfiles
 local_settings.py
-local_products.json
 
 # Node
 node_modules/

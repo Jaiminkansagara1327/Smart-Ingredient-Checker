@@ -306,11 +306,20 @@ function UploadSection({ onAnalyze }) {
             onAnalyze(response.data, null);
         } catch (error) {
             console.error('Product analysis error:', error);
-            setValidationError({
-                title: 'Analysis Failed',
-                message: 'Could not analyze this product. Please try again.',
-                suggestion: 'You can also try typing the ingredients manually.'
-            });
+            const status = error?.response?.status;
+            if (status === 429) {
+                setValidationError({
+                    title: 'Too Many Requests',
+                    message: 'You\'ve made too many analysis requests. Please wait a minute and try again.',
+                    suggestion: ''
+                });
+            } else {
+                setValidationError({
+                    title: 'Analysis Failed',
+                    message: 'Could not analyze this product. Please try again.',
+                    suggestion: 'You can also try typing the ingredients manually.'
+                });
+            }
             setSelectedProduct(null);
         } finally {
             setIsAnalyzingProduct(false);

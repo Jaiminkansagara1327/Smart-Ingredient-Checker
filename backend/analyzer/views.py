@@ -13,7 +13,7 @@ from .openfoodfacts_service import search_products as off_search, get_product_de
 
 # Custom throttle class for stricter rate limiting
 class AnalysisRateThrottle(AnonRateThrottle):
-    rate = '50/hour'  # 50 analysis requests per hour
+    rate = '200/hour'  # 200 analysis requests per hour
 
 @api_view(['POST'])
 @throttle_classes([AnalysisRateThrottle])

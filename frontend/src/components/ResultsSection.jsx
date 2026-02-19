@@ -107,32 +107,24 @@ function NutriscoreBadge({ grade, size = 'normal' }) {
 }
 
 // --- Serving Size Definitions ---
-const SERVING_OPTIONS = [
-    { label: '100g', grams: 100 },
+const SERVING_OPTIONS_SOLID = [
+    { label: '1 Serving', grams: 30 },
     { label: '50g', grams: 50 },
     { label: '1 Bowl', grams: 200 },
-    { label: '1 Serving', grams: 30 },
+];
+const SERVING_OPTIONS_LIQUID = [
+    { label: '1 Glass', grams: 250 },
+    { label: '1 Can', grams: 330 },
+    { label: '500ml', grams: 500 },
 ];
 
-// --- Nutrient Definitions ---
-const NUTRIENT_DEFS = [
-    { key: 'energy_kcal', label: 'Calories', unit: 'kcal' },
-    { key: 'proteins', label: 'Protein', unit: 'g' },
-    { key: 'fat', label: 'Total Fat', unit: 'g' },
-    { key: 'saturated_fat', label: 'Saturated Fat', unit: 'g' },
-    { key: 'carbohydrates', label: 'Carbs', unit: 'g' },
-    { key: 'sugars', label: 'Sugar', unit: 'g' },
-    { key: 'fiber', label: 'Fiber', unit: 'g' },
-    { key: 'salt', label: 'Salt', unit: 'g' },
-];
-
-// --- Nutrition Panel ---
+// --- Nutrition Panel (Packaging-style table) ---
 function NutritionPanel({ nutriments }) {
     const [selectedServing, setSelectedServing] = useState(0);
     const [customGrams, setCustomGrams] = useState('');
     const [isCustom, setIsCustom] = useState(false);
 
-    if (!nutriments) {
+    if (!nutriments || !nutriments.rows || nutriments.rows.length === 0) {
         return (
             <div className="results-card nutrition-panel">
                 <h3 className="results-section-title">Nutrition Facts</h3>
@@ -146,21 +138,40 @@ function NutritionPanel({ nutriments }) {
         );
     }
 
-    // Count how many nutrients have actual data
-    const availableCount = NUTRIENT_DEFS.filter(n => nutriments[n.key] != null).length;
+    const rows = nutriments.rows;
+    const servingSize = nutriments.serving_size || '';
+    const isLiquid = nutriments.is_liquid || false;
+    const baseUnit = isLiquid ? 'ml' : 'g';
+    const servingOptions = isLiquid ? SERVING_OPTIONS_LIQUID : SERVING_OPTIONS_SOLID;
 
-    const grams = isCustom
+    const amount = isCustom
         ? (parseFloat(customGrams) || 0)
-        : SERVING_OPTIONS[selectedServing].grams;
-    const multiplier = grams / 100;
+        : servingOptions[selectedServing].grams;
+    const multiplier = amount / 100;
+    const isBaseServing = !isCustom && amount === 100;
+
+    const servingLabel = isCustom
+        ? (customGrams ? `Per ${customGrams}${baseUnit}` : 'Per —')
+        : `Per ${servingOptions[selectedServing].label}`;
+
+    // Format value based on unit type
+    const formatVal = (val, unit) => {
+        if (unit === 'kcal' || unit === 'kJ') return Math.round(val);
+        if (val < 0.1 && val > 0) return '<0.1';
+        return val.toFixed(1);
+    };
 
     return (
         <div className="results-card nutrition-panel">
             <h3 className="results-section-title">Nutrition Facts</h3>
 
+            {servingSize && (
+                <p className="nutrition-serving-size">Serving size: {servingSize}</p>
+            )}
+
             {/* Serving Size Selector */}
             <div className="serving-selector">
-                {SERVING_OPTIONS.map((option, idx) => (
+                {servingOptions.map((option, idx) => (
                     <button
                         key={option.label}
                         className={`serving-btn ${!isCustom && idx === selectedServing ? 'active' : ''}`}
@@ -184,34 +195,39 @@ function NutritionPanel({ nutriments }) {
                         }}
                         onClick={(e) => e.stopPropagation()}
                     />
-                    <span className="serving-custom-unit">g</span>
+                    <span className="serving-custom-unit">{baseUnit}</span>
                 </div>
             </div>
 
-            {availableCount < 3 && (
-                <p className="nutrition-partial-warning">
-                    Some nutrition values are not available for this product.
-                </p>
-            )}
-
-            {/* Nutrient Grid */}
-            <div className="nutrition-grid">
-                {NUTRIENT_DEFS.map((nutrient) => {
-                    const rawVal = nutriments[nutrient.key];
-                    const hasValue = rawVal != null;
-                    const value = hasValue
-                        ? (rawVal * multiplier).toFixed(nutrient.key === 'energy_kcal' ? 0 : 1)
-                        : 'N/A';
-                    return (
-                        <div key={nutrient.key} className={`nutrient-card ${!hasValue ? 'nutrient-card-na' : ''}`}>
-                            <span className="nutrient-value">
-                                {value}
-                                {hasValue && <span className="nutrient-unit"> {nutrient.unit}</span>}
-                            </span>
-                            <span className="nutrient-label">{nutrient.label}</span>
-                        </div>
-                    );
-                })}
+            {/* Nutrition Table */}
+            <div className="nutrition-table-wrapper">
+                <table className="nutrition-table">
+                    <thead>
+                        <tr>
+                            <th className="nt-label-col">Nutrient</th>
+                            <th className="nt-val-col">Per 100{baseUnit}</th>
+                            {!isBaseServing && (
+                                <th className="nt-val-col nt-serving-col">{servingLabel}</th>
+                            )}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((row, idx) => (
+                            <tr key={idx}>
+                                <td className="nt-label">{row.label}</td>
+                                <td className="nt-value">{formatVal(row.value, row.unit)} {row.unit}</td>
+                                {!isBaseServing && (
+                                    <td className="nt-value nt-serving-val">
+                                        {amount > 0
+                                            ? `${formatVal(row.value * multiplier, row.unit)} ${row.unit}`
+                                            : '—'
+                                        }
+                                    </td>
+                                )}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
 
             <p className="nutrition-disclaimer">Values may vary from product packaging.</p>

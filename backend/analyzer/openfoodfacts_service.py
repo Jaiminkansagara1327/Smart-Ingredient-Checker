@@ -5,6 +5,8 @@ Indian products are prioritized and Indian brands are correctly identified.
 """
 import re
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import time
 from typing import Dict, Any, List, Optional
 from functools import lru_cache
@@ -19,9 +21,19 @@ HEADERS = {
     "User-Agent": "Ingrexa/1.0 (https://ingrexa.com; contact@ingrexa.com)"
 }
 
-# Persistent HTTP session — reuses TCP connections (saves ~200-500ms per request)
+# Persistent HTTP session with automatic retries
+# Handles stale connections and intermittent network issues
+_retry_strategy = Retry(
+    total=2,
+    backoff_factor=0.5,
+    status_forcelist=[500, 502, 503, 504],
+    allowed_methods=["GET"],
+)
+_adapter = HTTPAdapter(max_retries=_retry_strategy, pool_maxsize=5)
 _session = requests.Session()
 _session.headers.update(HEADERS)
+_session.mount("https://", _adapter)
+_session.mount("http://", _adapter)
 
 # =====================================================
 # Known Indian brands — used to correctly identify
@@ -151,10 +163,10 @@ def search_products(query: str, page: int = 1, page_size: int = 10) -> Dict[str,
             "json": 1,
             "page": page,
             "page_size": 20,  # Optimized for speed — 20 results is enough for instant dropdown
-            "fields": "code,product_name,brands,image_front_small_url,categories,nova_group,nutriscore_grade,countries_tags",
+            "fields": "code,product_name,brands,image_front_small_url,categories,nova_group,nutriscore_grade,countries_tags,ingredients_text,ingredients_text_en,nutriments,serving_size,quantity",
         }
         
-        response = _session.get(SEARCH_URL, params=params, timeout=8)
+        response = _session.get(SEARCH_URL, params=params, timeout=15)
         response.raise_for_status()
         data = response.json()
         
@@ -218,6 +230,88 @@ def _get_english_ingredients(item: dict) -> str:
     
     # Both are non-English
     return ""
+
+
+# --- Nutriment Extraction ---
+# Ordered mapping: (OpenFoodFacts key suffix, display label, unit)
+_NUTRIENT_MAP = [
+    ("energy-kcal",    "Energy",             "kcal"),
+    ("energy-kj",      "Energy",             "kJ"),
+    ("proteins",       "Protein",            "g"),
+    ("carbohydrates",  "Carbohydrates",      "g"),
+    ("sugars",         "Total Sugars",       "g"),
+    ("added-sugars",   "Added Sugars",       "g"),
+    ("fat",            "Total Fat",          "g"),
+    ("saturated-fat",  "Saturated Fat",      "g"),
+    ("trans-fat",      "Trans Fat",          "g"),
+    ("monounsaturated-fat", "Monounsaturated Fat", "g"),
+    ("polyunsaturated-fat", "Polyunsaturated Fat", "g"),
+    ("cholesterol",    "Cholesterol",        "mg"),
+    ("fiber",          "Dietary Fiber",      "g"),
+    ("salt",           "Salt",               "g"),
+    ("sodium",         "Sodium",             "mg"),
+    ("calcium",        "Calcium",            "mg"),
+    ("iron",           "Iron",               "mg"),
+    ("potassium",      "Potassium",          "mg"),
+    ("vitamin-a",      "Vitamin A",          "µg"),
+    ("vitamin-c",      "Vitamin C",          "mg"),
+    ("vitamin-d",      "Vitamin D",          "µg"),
+]
+
+
+def _extract_nutriments(product: dict) -> Optional[Dict]:
+    """
+    Extract per-100g nutrition data from an OpenFoodFacts product.
+    Only includes nutrients that have actual values — dynamic, not hardcoded.
+    Returns None if no nutritional data exists.
+    """
+    raw = product.get("nutriments", {})
+    if not raw:
+        return None
+    
+    rows = []
+    seen_labels = set()
+    for off_key, label, unit in _NUTRIENT_MAP:
+        val = raw.get(f"{off_key}_100g")
+        if val is not None:
+            if label in seen_labels:
+                continue
+            seen_labels.add(label)
+            rows.append({"label": label, "value": round(val, 2), "unit": unit})
+    
+    if not rows:
+        return None
+    
+    return {
+        "rows": rows,
+        "serving_size": product.get("serving_size", ""),
+        "is_liquid": _is_liquid_product(product),
+    }
+
+
+def _is_liquid_product(product: dict) -> bool:
+    """Detect if a product is a liquid based on quantity, serving_size, or categories."""
+    indicators = [
+        product.get("quantity", ""),
+        product.get("serving_size", ""),
+    ]
+    for text in indicators:
+        if text and re.search(r'\d+\s*(ml|cl|l|fl\.?\s*oz)\b', text.lower()):
+            return True
+    
+    # Check categories — split into individual items for exact matching
+    raw_categories = (product.get("categories") or "").lower()
+    category_items = [c.strip() for c in raw_categories.split(",")]
+    liquid_cats = {
+        "beverages", "drinks", "juices", "sodas", "waters",
+        "soft drinks", "energy drinks", "fruit juices", "dairy drinks",
+        "carbonated drinks", "iced teas", "smoothies",
+    }
+    for item in category_items:
+        if item in liquid_cats:
+            return True
+    
+    return False
 
 
 def _is_quality_product(name: str, brand: str, ingredients_text: str = "") -> bool:
@@ -285,10 +379,10 @@ def get_product_details(barcode: str) -> Dict[str, Any]:
     try:
         url = f"{PRODUCT_URL}/{barcode.strip()}"
         params = {
-            "fields": "code,product_name,brands,image_front_small_url,image_front_url,ingredients_text,ingredients_text_en,categories,nova_group,nutriscore_grade,countries_tags,quantity,nutriments"
+            "fields": "code,product_name,brands,image_front_small_url,image_front_url,ingredients_text,ingredients_text_en,categories,nova_group,nutriscore_grade,countries_tags,quantity,nutriments,serving_size"
         }
         
-        response = _session.get(url, params=params, timeout=10)
+        response = _session.get(url, params=params, timeout=20)
         response.raise_for_status()
         data = response.json()
         
@@ -311,23 +405,7 @@ def get_product_details(barcode: str) -> Dict[str, Any]:
                 "message": "English ingredient list is not available for this product. Try typing the ingredients manually.",
             }
         
-        # Extract per-100g nutrition data from OpenFoodFacts
-        raw_nutriments = product.get("nutriments", {})
-        nutriments = None
-        if raw_nutriments:
-            nutriments = {
-                "energy_kcal": raw_nutriments.get("energy-kcal_100g"),
-                "proteins": raw_nutriments.get("proteins_100g"),
-                "fat": raw_nutriments.get("fat_100g"),
-                "saturated_fat": raw_nutriments.get("saturated-fat_100g"),
-                "carbohydrates": raw_nutriments.get("carbohydrates_100g"),
-                "sugars": raw_nutriments.get("sugars_100g"),
-                "salt": raw_nutriments.get("salt_100g"),
-                "fiber": raw_nutriments.get("fiber_100g"),
-            }
-            # Only include if at least one value exists
-            if not any(v is not None for v in nutriments.values()):
-                nutriments = None
+        nutriments = _extract_nutriments(product)
         
         return {
             "success": True,
@@ -346,13 +424,14 @@ def get_product_details(barcode: str) -> Dict[str, Any]:
         }
     
     except requests.Timeout:
+        print(f"[OFF] Product fetch TIMEOUT for barcode: {barcode}")
         return {
             "success": False,
             "error": "FETCH_TIMEOUT",
-            "message": "Could not fetch product details. Please try again.",
+            "message": "Product data is taking too long to load. Please try again.",
         }
     except requests.RequestException as e:
-        print(f"[OFF] Product fetch error: {type(e).__name__}: {e}")
+        print(f"[OFF] Product fetch error for barcode {barcode}: {type(e).__name__}: {e}")
         return {
             "success": False,
             "error": "FETCH_FAILED",
@@ -486,6 +565,7 @@ def _parse_search_results(data: dict, require_ingredients: bool = True) -> List[
             "categories": (item.get("categories") or "").strip(),
             "nova_group": item.get("nova_group"),
             "nutriscore_grade": item.get("nutriscore_grade"),
+            "nutriments": _extract_nutriments(item),
             "is_indian": is_indian,
             "country": country,
         })

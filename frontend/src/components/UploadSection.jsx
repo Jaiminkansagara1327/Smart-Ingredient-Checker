@@ -498,8 +498,10 @@ function UploadSection({ onAnalyze }) {
                                             <span className="analysis-preview-brand">{selectedProduct.brand}</span>
                                         </div>
                                     </div>
-                                    <div className="analysis-progress-bar">
-                                        <div className="analysis-progress-fill"></div>
+                                    <div className="analysis-dots-loader">
+                                        <span className="analysis-dot"></span>
+                                        <span className="analysis-dot"></span>
+                                        <span className="analysis-dot"></span>
                                     </div>
                                     <div className="analysis-loading-message" key={loadingMsgIndex}>
                                         <span className="analysis-msg-icon">{ANALYSIS_MESSAGES[loadingMsgIndex].icon}</span>
@@ -749,8 +751,10 @@ function UploadSection({ onAnalyze }) {
                         {isLoading ? (
                             <div className="analysis-overlay">
                                 <div className="analysis-overlay-content">
-                                    <div className="analysis-progress-bar">
-                                        <div className="analysis-progress-fill"></div>
+                                    <div className="analysis-dots-loader">
+                                        <span className="analysis-dot"></span>
+                                        <span className="analysis-dot"></span>
+                                        <span className="analysis-dot"></span>
                                     </div>
                                     <div className="analysis-loading-message" key={loadingMsgIndex}>
                                         <span className="analysis-msg-icon">{ANALYSIS_MESSAGES[loadingMsgIndex].icon}</span>

@@ -249,12 +249,12 @@ def _fetch_search(query, session):
     }
     for attempt in range(3):
         try:
-            r = session.get(SEARCH_URL, params=params, headers=HEADERS, timeout=30)
+            r = session.get(SEARCH_URL, params=params, headers=HEADERS, timeout=15)
             r.raise_for_status()
             return r.json().get("products", [])
         except Exception as e:
             if attempt < 2:
-                time.sleep(3)
+                time.sleep(2)
                 continue
             print(f"⚠ Failed: {type(e).__name__}")
             return []
@@ -350,9 +350,8 @@ def build():
             failed += 1
             print(f"→ SKIPPED (API error)")
         
-        # Save progress every 5 queries
-        if i % 5 == 0 or i == total:
-            _save_db(all_products, fetched_queries)
+        # Save progress after every query
+        _save_db(all_products, fetched_queries)
         
         time.sleep(2)
     

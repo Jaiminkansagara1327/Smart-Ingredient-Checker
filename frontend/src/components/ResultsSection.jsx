@@ -253,7 +253,7 @@ function NutritionPanel({ nutriments }) {
 
 // --- Scan History (localStorage) ---
 const HISTORY_KEY = 'ingrexa_scan_history';
-const MAX_HISTORY = 10;
+const MAX_HISTORY = 1000; // Effectively unlimited for local storage
 
 function getScanHistory() {
     try {
@@ -277,7 +277,7 @@ function addToScanHistory(product) {
         nutriscore_grade: product.nutriscore_grade || '',
         scannedAt: new Date().toISOString(),
     });
-    // Limit
+    // Limit to a large number to prevent local storage overflow
     localStorage.setItem(HISTORY_KEY, JSON.stringify(filtered.slice(0, MAX_HISTORY)));
 }
 

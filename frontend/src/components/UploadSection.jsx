@@ -60,6 +60,7 @@ function UploadSection({ onAnalyze }) {
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [isAnalyzingProduct, setIsAnalyzingProduct] = useState(false);
     const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
 
     // Manual text state
     const [manualText, setManualText] = useState('');
@@ -725,12 +726,19 @@ function UploadSection({ onAnalyze }) {
                                                 if (history.length === 0) return null;
                                                 return (
                                                     <div className="recent-scans-section">
-                                                        <p className="suggestions-label">🕐 Recent scans:</p>
-                                                        <div className="suggestion-chips">
-                                                            {history.slice(0, 5).map((item, idx) => (
+                                                        <div className="recent-scans-header">
+                                                            <p className="suggestions-label" style={{ margin: 0 }}>🕐 Recent scans</p>
+                                                            {history.length > 4 && (
+                                                                <button onClick={() => setShowHistoryModal(true)} className="view-history-btn">
+                                                                    View All
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        <div className="recent-scans-grid">
+                                                            {history.slice(0, 4).map((item, idx) => (
                                                                 <button
                                                                     key={idx}
-                                                                    className="suggestion-chip recent-chip"
+                                                                    className="recent-scan-card"
                                                                     onClick={() => {
                                                                         setSearchQuery(item.name);
                                                                         setIsSearching(true);
@@ -738,7 +746,22 @@ function UploadSection({ onAnalyze }) {
                                                                         searchProducts(item.name);
                                                                     }}
                                                                 >
-                                                                    {item.name}
+                                                                    <div className="recent-scan-img-wrap">
+                                                                        {item.image_url ? (
+                                                                            <img src={item.image_url} alt="" className="recent-scan-img" />
+                                                                        ) : (
+                                                                            <div className="recent-scan-placeholder">📦</div>
+                                                                        )}
+                                                                        {item.nutriscore_grade && item.nutriscore_grade !== 'unknown' && item.nutriscore_grade !== 'not-applicable' && (
+                                                                            <span className={`recent-scan-badge badge-${item.nutriscore_grade.toLowerCase()}`}>
+                                                                                {item.nutriscore_grade.toUpperCase()}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="recent-scan-info">
+                                                                        <span className="recent-scan-name">{item.name}</span>
+                                                                        {item.brand && <span className="recent-scan-brand">{item.brand}</span>}
+                                                                    </div>
                                                                 </button>
                                                             ))}
                                                         </div>
@@ -797,7 +820,73 @@ function UploadSection({ onAnalyze }) {
                     </div>
                 )}
             </div>
-        </section>
+
+            {/* History Modal Overlay */}
+            {showHistoryModal && (
+                <div className="history-modal-overlay" onClick={() => setShowHistoryModal(false)}>
+                    <div className="history-modal-content" onClick={e => e.stopPropagation()}>
+                        <div className="history-modal-header">
+                            <div>
+                                <h1 className="history-title">Your Scan History</h1>
+                                <p className="history-subtitle">Find your previously analyzed products</p>
+                            </div>
+                            <button className="history-modal-close" onClick={() => setShowHistoryModal(false)} aria-label="Close history">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="history-modal-body">
+                            {(() => {
+                                const history = JSON.parse(localStorage.getItem('ingrexa_scan_history') || '[]');
+                                return history.map((item, idx) => (
+                                    <button
+                                        key={idx}
+                                        className="history-list-item"
+                                        onClick={() => {
+                                            setShowHistoryModal(false);
+                                            setSearchQuery(item.name);
+                                            setIsSearching(true);
+                                            setShowDropdown(true);
+                                            searchProducts(item.name);
+                                        }}
+                                    >
+                                        <div className="history-item-img-wrap">
+                                            {item.image_url ? (
+                                                <img src={item.image_url} alt="" className="history-item-img" />
+                                            ) : (
+                                                <div className="history-item-placeholder">📦</div>
+                                            )}
+                                            {item.nutriscore_grade && item.nutriscore_grade !== 'unknown' && item.nutriscore_grade !== 'not-applicable' && (
+                                                <span className={`history-item-badge badge-${item.nutriscore_grade.toLowerCase()}`}>
+                                                    {item.nutriscore_grade.toUpperCase()}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="history-item-info">
+                                            <span className="history-item-name">{item.name}</span>
+                                            {item.brand && <span className="history-item-brand">{item.brand}</span>}
+                                            {item.scannedAt && (
+                                                <span className="history-item-date">
+                                                    {new Date(item.scannedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="history-item-arrow">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M5 12h14M12 5l7 7-7 7" />
+                                            </svg>
+                                        </div>
+                                    </button>
+                                ));
+                            })()}
+                        </div>
+                    </div>
+                </div>
+            )
+            }
+        </section >
     );
 }
 

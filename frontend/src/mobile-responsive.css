@@ -150,6 +150,19 @@
         font-size: 0.9375rem;
     }
 
+    /* Health Score Dial Mobile */
+    .health-score-container {
+        flex-direction: column;
+        align-items: flex-start;
+        position: relative;
+    }
+
+    .hs-info-btn {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+    }
+
     /* Ingredients Grid */
     .ingredients-grid {
         grid-template-columns: 1fr;
@@ -257,6 +270,7 @@
 
 /* Touch Device Enhancements (Universal) */
 @media (hover: none) and (pointer: coarse) {
+
     /* Larger touch targets */
     .nav-link,
     .tab-button,

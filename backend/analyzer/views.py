@@ -267,7 +267,7 @@ def contact_submit(request):
 # ========================================
 
 class SearchRateThrottle(AnonRateThrottle):
-    rate = '60/hour'  # 60 search requests per hour
+    rate = '3000/hour'  # 3000 search requests per hour to support instant autocomplete
 
 
 @api_view(['GET'])

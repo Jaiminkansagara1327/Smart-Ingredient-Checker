@@ -285,9 +285,9 @@ def search_products(query: str, page: int = 1, page_size: int = 10) -> Dict[str,
         if local_results:
             print(f"[LOCAL DB] Found {len(local_results)} local results for '{query}'")
     
-    # If we have enough local results, return them immediately
-    # and skip the slow API call
-    if len(local_results) >= 5:
+    # If we have ANY local results, return them immediately
+    # and skip the slow API call to keep search feeling "instant"
+    if len(local_results) > 0:
         local_results.sort(key=lambda p: (0 if p.get("is_indian") else 1))
         result = {
             "success": True,
@@ -299,6 +299,17 @@ def search_products(query: str, page: int = 1, page_size: int = 10) -> Dict[str,
         return result
     
     # --- STEP 2: Search OpenFoodFacts API (slow fallback) ---
+    # Only fallback to OpenFoodFacts for longer, more specific queries 
+    # to avoid 3-5 second delays on autocomplete keystrokes (like typing 2-3 chars)
+    if len(query.strip()) < 4 and page == 1:
+        print(f"[SEARCH] Skipping slow OFF API fallback for short autocomplete query: '{query}'")
+        return {
+            "success": True,
+            "count": 0,
+            "products": [],
+            "source": "local",
+        }
+    
     print(f"[SEARCH] Searching OpenFoodFacts for: '{query}' (page {page})")
     try:
         params = {

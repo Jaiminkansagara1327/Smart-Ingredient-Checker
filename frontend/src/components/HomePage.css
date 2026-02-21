@@ -1,20 +1,21 @@
 .home-wrap-premium {
     width: 100%;
     background-color: var(--color-bg-primary);
-    overflow-x: hidden;
     position: relative;
     font-family: var(--font-family);
 }
 
 /* ---------------- HERO SECTION ---------------- */
 .hero-section-premium {
-    height: 100vh;
+    min-height: calc(100vh - 90px);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     text-align: center;
-    padding: 0 5%;
+    padding: 0 5% 5rem 5%;
+    /* Slight bottom padding to perfectly center visually */
+    box-sizing: border-box;
 }
 
 .hero-content {
@@ -25,11 +26,11 @@
 .hero-title-massive {
     display: flex;
     flex-direction: column;
-    font-size: clamp(4.5rem, 12vw, 10rem);
+    font-size: clamp(3rem, 10vw, 9rem);
     font-weight: 800;
-    line-height: 0.9;
+    line-height: 0.95;
     letter-spacing: -0.05em;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
     color: var(--color-text-primary);
     text-align: left;
 }
@@ -54,15 +55,16 @@
 }
 
 .hero-subtitle-clean {
-    font-size: clamp(1.2rem, 3vw, 1.8rem);
+    font-size: clamp(1.1rem, 2.5vw, 1.5rem);
     color: var(--color-text-secondary);
     font-weight: 400;
-    max-width: 600px;
+    max-width: 550px;
     margin-top: 1rem;
-    margin-bottom: 4rem;
+    margin-bottom: 3.5rem;
     text-align: left;
     opacity: 0;
     animation: slideUpFade 1s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards;
+    line-height: 1.5;
 }
 
 .hero-cta-wrapper {
@@ -293,15 +295,44 @@
     .hero-title-massive {
         text-align: center;
         align-items: center;
+        font-size: clamp(3rem, 11vw, 5.5rem);
     }
 
     .hero-subtitle-clean {
         text-align: center;
         margin-left: auto;
         margin-right: auto;
+        padding: 0 1rem;
     }
 
     .hero-cta-wrapper {
         justify-content: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .features-flow-section {
+        gap: 6rem;
+        padding: 5rem 5%;
+    }
+
+    .about-embedded-section {
+        padding: 6rem 5%;
+    }
+
+    .hero-section-premium {
+        min-height: calc(100vh - 80px);
+        padding-bottom: 2rem;
+    }
+
+    .title-block {
+        line-height: 1;
+    }
+
+    .btn-ultra-primary {
+        width: 100%;
+        justify-content: center;
+        padding: 1.1rem 2rem;
+        font-size: 1.1rem;
     }
 }

@@ -47,9 +47,13 @@ function App() {
     return (
         <>
             <Header onNavigate={handleNavigate} currentPage={currentPage} />
-            <main className="main-content">
-                {renderContent()}
-            </main>
+            {currentPage === 'home' ? (
+                renderContent()
+            ) : (
+                <main className="main-content">
+                    {renderContent()}
+                </main>
+            )}
             <Footer />
         </>
     );

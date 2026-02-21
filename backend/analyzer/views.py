@@ -371,7 +371,7 @@ def analyze_product(request):
         )
 
 
-@api_view(['GET'])
+@api_view(['GET', 'HEAD'])
 def health_check(request):
     """
     Simple health check endpoint

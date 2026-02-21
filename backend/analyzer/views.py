@@ -279,6 +279,8 @@ def search_product(request):
     """
     query = request.query_params.get('q', '').strip()
     page = request.query_params.get('page', '1')
+    local_only_str = request.query_params.get('local_only', 'false').lower()
+    local_only = local_only_str == 'true'
     
     if not query:
         return Response(
@@ -298,8 +300,8 @@ def search_product(request):
     except ValueError:
         page_num = 1
     
-    print(f"[SEARCH] Searching OpenFoodFacts for: '{query}' (page {page_num})")
-    result = off_search(query, page=page_num, page_size=10)
+    print(f"[SEARCH] Searching OpenFoodFacts for: '{query}' (page {page_num}, local_only: {local_only})")
+    result = off_search(query, page=page_num, page_size=10, local_only=local_only)
     
     return Response(result, status=status.HTTP_200_OK)
 

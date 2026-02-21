@@ -254,7 +254,7 @@ def _format_local_product(product: Dict) -> Dict:
     }
 
 
-def search_products(query: str, page: int = 1, page_size: int = 10) -> Dict[str, Any]:
+def search_products(query: str, page: int = 1, page_size: int = 10, local_only: bool = False) -> Dict[str, Any]:
     """
     Search for products. Checks local DB first for instant results,
     then falls back to OpenFoodFacts API.
@@ -271,7 +271,7 @@ def search_products(query: str, page: int = 1, page_size: int = 10) -> Dict[str,
         return {"success": False, "error": "Empty search query"}
     
     # Check in-memory cache first
-    cache_key = f"{query.strip().lower()}|{page}"
+    cache_key = f"{query.strip().lower()}|{page}|{local_only}"
     cached = _get_cached_search(cache_key)
     if cached:
         print(f"[OFF] Cache hit for '{query}' (page {page})")
@@ -301,8 +301,12 @@ def search_products(query: str, page: int = 1, page_size: int = 10) -> Dict[str,
     # --- STEP 2: Search OpenFoodFacts API (slow fallback) ---
     # Only fallback to OpenFoodFacts for longer, more specific queries 
     # to avoid 3-5 second delays on autocomplete keystrokes (like typing 2-3 chars)
-    if len(query.strip()) < 4 and page == 1:
-        print(f"[SEARCH] Skipping slow OFF API fallback for short autocomplete query: '{query}'")
+    if local_only or (len(query.strip()) < 4 and page == 1):
+        if local_only:
+            print(f"[SEARCH] local_only=True requested, skipping slow OFF API fallback for: '{query}'")
+        else:
+            print(f"[SEARCH] Skipping slow OFF API fallback for short autocomplete query: '{query}'")
+            
         return {
             "success": True,
             "count": 0,

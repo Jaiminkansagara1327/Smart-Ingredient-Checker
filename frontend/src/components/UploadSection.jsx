@@ -104,7 +104,7 @@ function UploadSection({ onAnalyze }) {
     //  SEARCH TAB LOGIC
     // ========================================
 
-    const searchProducts = useCallback(async (query) => {
+    const searchProducts = useCallback(async (query, isAutocomplete = true) => {
         if (!query || query.trim().length < 2) {
             setSearchResults([]);
             setSearchError(null);
@@ -126,7 +126,8 @@ function UploadSection({ onAnalyze }) {
         setSearchError(null);
 
         // ⚡ Check frontend cache FIRST — instant results
-        const cached = getCachedSearch(thisQuery);
+        const cacheKey = `${thisQuery}_${isAutocomplete}`;
+        const cached = getCachedSearch(cacheKey);
         if (cached) {
             setSearchResults(cached.products || []);
             setShowDropdown(true);
@@ -144,7 +145,7 @@ function UploadSection({ onAnalyze }) {
 
         try {
             const response = await api.get('/api/search-product/', {
-                params: { q: thisQuery },
+                params: { q: thisQuery, local_only: isAutocomplete },
                 signal: controller.signal,
                 timeout: 15000, // Generous timeout for slow connections
             });
@@ -156,12 +157,21 @@ function UploadSection({ onAnalyze }) {
                 setSearchResults(response.data.products || []);
                 setShowDropdown(true);
                 // ⚡ Cache the result for instant future lookups
-                setCachedSearch(thisQuery, response.data);
+                setCachedSearch(cacheKey, response.data);
+
+                // If this isn't autocomplete, or if it is and found nothing
                 if (response.data.products.length === 0) {
-                    setSearchError({
-                        type: 'no_results',
-                        message: `No products found for "${query}". Try a different name or use the "Type Ingredients" tab.`
-                    });
+                    if (isAutocomplete) {
+                        setSearchError({
+                            type: 'no_results',
+                            message: `Press "Enter" to search global database...`
+                        });
+                    } else {
+                        setSearchError({
+                            type: 'no_results',
+                            message: `No products found for "${query}". Try a different name or use the "Type Ingredients" tab.`
+                        });
+                    }
                 }
             } else {
                 setShowDropdown(true);
@@ -224,14 +234,14 @@ function UploadSection({ onAnalyze }) {
         }
 
         searchTimerRef.current = setTimeout(() => {
-            searchProducts(value);
-        }, 150);  // ⚡ Reduced from 300ms — snappier search
+            searchProducts(value, true);
+        }, 300);  // 300ms debounce
     };
 
     const handleSearchSubmit = (e) => {
         e.preventDefault();
         if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-        searchProducts(searchQuery);
+        searchProducts(searchQuery, false);
     };
 
     // Analyze selected product

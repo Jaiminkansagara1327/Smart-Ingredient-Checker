@@ -762,11 +762,16 @@ function UploadSection({ onAnalyze }) {
                                                                         ) : (
                                                                             <div className="recent-scan-placeholder">📦</div>
                                                                         )}
-                                                                        {item.nutriscore_grade && item.nutriscore_grade !== 'unknown' && item.nutriscore_grade !== 'not-applicable' && (
-                                                                            <span className={`recent-scan-badge badge-${item.nutriscore_grade.toLowerCase()}`}>
-                                                                                {item.nutriscore_grade.toUpperCase()}
-                                                                            </span>
-                                                                        )}
+                                                                        {item.nutriscore_grade && item.nutriscore_grade !== 'unknown' && item.nutriscore_grade !== 'not-applicable' && (() => {
+                                                                            const g = item.nutriscore_grade.toLowerCase();
+                                                                            const gradeMap = { a: 9.0, b: 7.0, c: 5.0, d: 3.0, e: 1.0 };
+                                                                            const score = gradeMap[g] || 0;
+                                                                            return (
+                                                                                <span className={`recent-scan-badge badge-${g}`} title="Estimated Score">
+                                                                                    {score.toFixed(1)}/10
+                                                                                </span>
+                                                                            );
+                                                                        })()}
                                                                     </div>
                                                                     <div className="recent-scan-info">
                                                                         <span className="recent-scan-name">{item.name}</span>
@@ -868,11 +873,16 @@ function UploadSection({ onAnalyze }) {
                                             ) : (
                                                 <div className="history-item-placeholder">📦</div>
                                             )}
-                                            {item.nutriscore_grade && item.nutriscore_grade !== 'unknown' && item.nutriscore_grade !== 'not-applicable' && (
-                                                <span className={`history-item-badge badge-${item.nutriscore_grade.toLowerCase()}`}>
-                                                    {item.nutriscore_grade.toUpperCase()}
-                                                </span>
-                                            )}
+                                            {item.nutriscore_grade && item.nutriscore_grade !== 'unknown' && item.nutriscore_grade !== 'not-applicable' && (() => {
+                                                const g = item.nutriscore_grade.toLowerCase();
+                                                const gradeMap = { a: 9.0, b: 7.0, c: 5.0, d: 3.0, e: 1.0 };
+                                                const score = gradeMap[g] || 0;
+                                                return (
+                                                    <span className={`history-item-badge badge-${g}`} title="Estimated Score">
+                                                        {score.toFixed(1)}/10
+                                                    </span>
+                                                );
+                                            })()}
                                         </div>
                                         <div className="history-item-info">
                                             <span className="history-item-name">{item.name}</span>

@@ -72,36 +72,45 @@ function renderOverviewValue(val) {
     return s;
 }
 
-// --- Nutri-Score Badge ---
-function NutriscoreBadge({ grade, size = 'normal' }) {
-    if (!grade) return null;
+// --- Health Score Badge (Out of 10) ---
+function ScoreBadge({ score, grade, size = 'normal' }) {
+    if (score === undefined && !grade) return null;
 
     const sizeClass = size === 'small' ? 'nutriscore-badge-sm' : 'nutriscore-badge';
 
-    // Normalize grade
-    let g = grade.toLowerCase().trim();
+    let displayScore = 0;
+    let isEstimate = false;
 
-    // Handle "unknown", "not-applicable", etc.
-    if (g === 'unknown' || g === 'not-applicable' || g.length > 1) {
-        return (
-            <span className={`${sizeClass} nutriscore-unknown`}>
-                NO SCORE
-            </span>
-        );
+    if (score !== undefined) {
+        displayScore = Number(score);
+        // Defensive check: if score is > 10, it is likely inherited from an older 0-100 
+        // cached API response that hasn't cleared. Gracefully scale it back to /10.
+        if (displayScore > 10) {
+            displayScore = displayScore / 10;
+        }
+    } else if (grade) {
+        const g = grade.toLowerCase().trim();
+        if (g === 'unknown' || g === 'not-applicable' || g.length > 1) {
+            return (
+                <span className={`${sizeClass} nutriscore-unknown`}>
+                    NO SCORE
+                </span>
+            );
+        }
+        const gradeMap = { a: 9.0, b: 7.0, c: 5.0, d: 3.0, e: 1.0 };
+        displayScore = gradeMap[g] || 0;
+        isEstimate = true;
     }
 
-    const colors = {
-        a: '#038141',
-        b: '#85BB2F',
-        c: '#FECB02',
-        d: '#EE8100',
-        e: '#E63E11',
-    };
-    const bg = colors[g] || '#888';
+    let bg = '#E63E11'; // Red (0-3.9)
+    if (displayScore >= 8) bg = '#038141'; // Dark Green (8-10)
+    else if (displayScore >= 6) bg = '#85BB2F'; // Light Green (6-7.9)
+    else if (displayScore >= 4) bg = '#FECB02'; // Yellow (4-5.9)
+    else if (displayScore >= 2) bg = '#EE8100'; // Orange (2-3.9)
 
     return (
-        <span className={sizeClass} style={{ background: bg }}>
-            {g.toUpperCase()}
+        <span className={sizeClass} style={{ background: bg, color: '#fff', padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold' }} title={isEstimate ? "Estimated score based on Nutri-Score" : "Calculated Scientific Score"}>
+            {displayScore.toFixed(1)} / 10
         </span>
     );
 }
@@ -355,7 +364,7 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                                 <span className="product-identity-name">{meta.name}</span>
                                 {meta.brand && <span className="product-identity-brand">{meta.brand}</span>}
                             </div>
-                            {meta.nutriscore_grade && <NutriscoreBadge grade={meta.nutriscore_grade} />}
+                            <ScoreBadge score={data.score} grade={meta.nutriscore_grade} />
                         </div>
                     ) : (
                         <p style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-sm)', marginBottom: 'var(--spacing-md)' }}>
@@ -511,7 +520,7 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                                             <span className="alt-name">{alt.name}</span>
                                             <span className="alt-brand">{alt.brand}</span>
                                         </div>
-                                        <NutriscoreBadge grade={alt.nutriscore_grade} size="small" />
+                                        <ScoreBadge grade={alt.nutriscore_grade} size="small" />
                                     </div>
                                 ))}
                             </div>

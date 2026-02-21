@@ -146,9 +146,9 @@ Provide a JSON response with the following structure:
         
         # --- SECTION 2: Frequency Verdict ---
         # Based on score and processing
-        if score < 30 or nova_group == 4:
+        if score < 3.0 or nova_group == 4:
             frequency_verdict = "❌ Not suitable for daily consumption"
-        elif score < 60 or nova_group == 3:
+        elif score < 6.0 or nova_group == 3:
             frequency_verdict = "⚠️ Okay occasionally"
         else:
             frequency_verdict = "✅ Fine for regular use"
@@ -237,7 +237,7 @@ Provide a JSON response with the following structure:
         if has_added_sugar:
             limit_groups.append("Diabetics")
         
-        if nova_group == 4 or score < 40:
+        if nova_group == 4 or score < 4.0:
             limit_groups.append("People eating packaged food daily")
         
         # --- SECTION 6: Bottom Line ---

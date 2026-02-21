@@ -111,7 +111,7 @@ class IngredientScorer:
             # Processed foods. Scale down slightly to cap around 70-75 max.
             final_score = base_score * 0.75
 
-        final_score = round(max(0, min(100, final_score)))
+        final_score = round(max(0, min(100, final_score)) / 10.0, 1)
 
         # Combine notes
         all_notes = quality_notes + processing_notes

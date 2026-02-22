@@ -10,6 +10,15 @@ const ANALYSIS_MESSAGES = [
     { icon: '✅', text: 'Preparing your report...' },
 ];
 
+const GOAL_OPTIONS = [
+    { value: 'Regular', label: 'Balanced (Standard)', desc: 'Standard nutrient balance targeting mainstream metabolic baselines' },
+    { value: 'Weight Loss', label: 'Weight Loss', desc: 'Strict multi-vector penalization on calories and sugar' },
+    { value: 'Weight Gain', label: 'Weight Gain', desc: 'Allows dense calories but strictly monitors bad ingredients' },
+    { value: 'Diabetic', label: 'Diabetic', desc: 'Aggressive sugar threshold limitation and blood-sugar risk scaling' },
+    { value: 'Heart Health', label: 'Heart Health', desc: 'Severe penalty weighting applied to sodium and saturated fats' },
+    { value: 'Gym', label: 'Gym / Muscle', desc: 'Heavily favors protein density while remaining neutral on raw calories' }
+];
+
 // =========== FRONTEND SEARCH CACHE ===========
 // In-memory cache for instant repeat lookups (survives within session)
 const _searchCache = new Map();
@@ -67,6 +76,10 @@ function UploadSection({ onAnalyze }) {
     const [isLoading, setIsLoading] = useState(false);
     const [validationError, setValidationError] = useState(null);
 
+    // Scoring Options State
+    const [userGoal, setUserGoal] = useState('Regular');
+    const [showGoalDropdown, setShowGoalDropdown] = useState(false);
+
     // Dropdown open/close
     const [showDropdown, setShowDropdown] = useState(false);
 
@@ -74,14 +87,18 @@ function UploadSection({ onAnalyze }) {
     const searchTimerRef = useRef(null);
     const searchInputRef = useRef(null);
     const dropdownRef = useRef(null);
+    const goalDropdownRef = useRef(null);
     const abortControllerRef = useRef(null);  // Cancel stale API requests
     const searchQueryRef = useRef('');  // Track current query to ignore stale responses
 
-    // Click outside to close dropdown
+    // Click outside to close dropdowns
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
                 setShowDropdown(false);
+            }
+            if (goalDropdownRef.current && !goalDropdownRef.current.contains(e.target)) {
+                setShowGoalDropdown(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -254,7 +271,8 @@ function UploadSection({ onAnalyze }) {
         try {
             const response = await api.post('/api/analyze-product/', {
                 barcode: product.barcode,
-                ingredients_text: product.ingredients_text || ''
+                ingredients_text: product.ingredients_text || '',
+                user_goal: userGoal
             });
 
             if (response.data.success === false) {
@@ -398,7 +416,10 @@ function UploadSection({ onAnalyze }) {
         setIsLoading(true);
 
         try {
-            const response = await api.post('/api/analyze/text/', { text: manualText });
+            const response = await api.post('/api/analyze/text/', {
+                text: manualText,
+                user_goal: userGoal
+            });
 
             if (response.data.success === false) {
                 handleAnalysisError(response.data);
@@ -470,6 +491,43 @@ function UploadSection({ onAnalyze }) {
                         </svg>
                         Type Ingredients
                     </button>
+                </div>
+
+                {/* --- SCORING OPTIONS (Goal) --- */}
+                <div className="scoring-options-panel">
+                    <div className="scoring-option-group">
+                        <label htmlFor="userGoal" className="scoring-label">
+                            Your Health Goal
+                        </label>
+                        <div className="custom-goal-dropdown-container" ref={goalDropdownRef}>
+                            <div
+                                className={`scoring-select ${showGoalDropdown ? 'dropdown-open' : ''}`}
+                                onClick={() => setShowGoalDropdown(!showGoalDropdown)}
+                            >
+                                {GOAL_OPTIONS.find(opt => opt.value === userGoal)?.label || 'Balanced (Standard)'}
+                            </div>
+
+                            {showGoalDropdown && (
+                                <div className="custom-goal-dropdown">
+                                    <div className="custom-goal-list">
+                                        {GOAL_OPTIONS.map((option) => (
+                                            <div
+                                                key={option.value}
+                                                className={`custom-goal-item ${userGoal === option.value ? 'selected' : ''}`}
+                                                onClick={() => {
+                                                    setUserGoal(option.value);
+                                                    setShowGoalDropdown(false);
+                                                }}
+                                            >
+                                                <div className="goal-item-label">{option.label}</div>
+                                                <div className="goal-item-desc">{option.desc}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Validation Error Display */}
@@ -551,7 +609,6 @@ function UploadSection({ onAnalyze }) {
                                                         setShowDropdown(true);
                                                     }
                                                 }}
-                                                autoFocus
                                                 autoComplete="off"
                                                 id="product-search-input"
                                             />

@@ -23,6 +23,8 @@ def analyze_text(request):
     SECURITY: Input validation, sanitization, length limits
     """
     text = request.data.get('text', '')
+    user_goal = request.data.get('user_goal', 'Regular')
+    food_type = request.data.get('food_type', 'Solid')
     
     # Security Check 1: Empty input
     if not text or not text.strip():
@@ -137,7 +139,13 @@ def analyze_text(request):
         print(f"[SECURITY] Analyzing text (length: {len(sanitized_text)}, lines: {line_count})")
         
         # Analyze ingredients
-        analysis_result = analyze_product_from_text(sanitized_text.strip())
+        # Text-only implies no specific macros are available yet
+        analysis_result = analyze_product_from_text(
+            text=sanitized_text.strip(),
+            macros={}, 
+            food_type=food_type, 
+            user_goal=user_goal
+        )
         
         # If analysis failed
         if not analysis_result.get('success', True):
@@ -316,6 +324,10 @@ def analyze_product(request):
     """
     barcode = request.data.get('barcode', '').strip()
     supplied_ingredients = request.data.get('ingredients_text', '').strip()
+    user_goal = request.data.get('user_goal', 'Regular')
+    
+    # User might define it, otherwise OpenFoodFacts tags determines it
+    food_type = request.data.get('food_type', 'Solid')
     
     if not barcode and not supplied_ingredients:
         return Response(
@@ -337,6 +349,14 @@ def analyze_product(request):
             
             ingredients_text = product_result.get('ingredients_text', '')
             product_info = product_result.get('product', {})
+            
+            # Map OFF categories to Food Type if the user hasn't explicitly set one
+            if food_type == 'Solid' and product_info.get('categories_tags'):
+                cat_tags = [c.lower() for c in product_info['categories_tags']]
+                if any('beverage' in c or 'drink' in c or 'juice' in c or 'liquid' in c for c in cat_tags):
+                    food_type = 'Liquid'
+                elif any('cheese' in c or 'spread' in c or 'sauce' in c or 'paste' in c or 'yogurt' in c for c in cat_tags):
+                    food_type = 'Semi-solid'
         
         if not ingredients_text:
             return Response({
@@ -345,9 +365,18 @@ def analyze_product(request):
                 'message': 'No ingredient list found for this product. Try typing them manually.',
             }, status=status.HTTP_200_OK)
         
-        # Analyze using the existing pipeline
-        print(f"[PRODUCT] Analyzing ingredients (length: {len(ingredients_text)})")
-        analysis_result = analyze_product_from_text(ingredients_text)
+        # Analyze using the existing pipeline, passing OFF nutriments
+        print(f"[PRODUCT] Analyzing ingredients (length: {len(ingredients_text)}) for goal: {user_goal} ({food_type})")
+        
+        # Extract macros if available from OpenFoodFacts
+        macros = product_info.get('nutriments', {}) if product_info else {}
+        
+        analysis_result = analyze_product_from_text(
+            text=ingredients_text,
+            macros=macros,
+            food_type=food_type,
+            user_goal=user_goal
+        )
         
         # Enrich with product metadata from OpenFoodFacts
         analysis_result['input_method'] = 'openfoodfacts'

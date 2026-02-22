@@ -336,3 +336,50 @@
         font-size: 1.1rem;
     }
 }
+
+/* ---------------- SCROLL TO TOP ---------------- */
+.scroll-top-btn {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    background: var(--color-text-primary);
+    color: var(--color-bg-primary);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: var(--shadow-lg);
+}
+
+.scroll-top-btn.is-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.scroll-top-btn:hover {
+    background: var(--color-accent-primary);
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 10px 20px rgba(13, 148, 136, 0.2);
+}
+
+.scroll-top-btn:active {
+    transform: translateY(-2px) scale(0.95);
+}
+
+.scroll-top-btn svg {
+    transition: transform 0.3s ease;
+}
+
+.scroll-top-btn:hover svg {
+    transform: translateY(-2px);
+}

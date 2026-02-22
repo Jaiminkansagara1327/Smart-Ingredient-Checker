@@ -363,13 +363,35 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                             <div className="product-identity-info">
                                 <span className="product-identity-name">{meta.name}</span>
                                 {meta.brand && <span className="product-identity-brand">{meta.brand}</span>}
+                                {data.details && data.details.goal_used && (
+                                    <div className="product-config-badges" style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                                        <span className="config-badge goal-badge" style={{ fontSize: '0.75rem', background: 'var(--color-bg-tertiary)', padding: '2px 8px', borderRadius: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
+                                            🎯 {data.details.goal_used}
+                                        </span>
+                                        <span className="config-badge type-badge" style={{ fontSize: '0.75rem', background: 'var(--color-bg-tertiary)', padding: '2px 8px', borderRadius: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
+                                            🥣 {data.details.type_used}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                             <ScoreBadge score={data.score} grade={meta.nutriscore_grade} />
                         </div>
                     ) : (
-                        <p style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-sm)', marginBottom: 'var(--spacing-md)' }}>
-                            Analyzed from manually entered ingredients
-                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)' }}>
+                            <p style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
+                                Analyzed from manually entered ingredients
+                            </p>
+                            {data.details && data.details.goal_used && (
+                                <div className="product-config-badges" style={{ display: 'flex', gap: '8px' }}>
+                                    <span className="config-badge goal-badge" style={{ fontSize: '0.75rem', background: 'var(--color-bg-tertiary)', padding: '2px 8px', borderRadius: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
+                                        🎯 {data.details.goal_used}
+                                    </span>
+                                    <span className="config-badge type-badge" style={{ fontSize: '0.75rem', background: 'var(--color-bg-tertiary)', padding: '2px 8px', borderRadius: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
+                                        🥣 {data.details.type_used}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
                     )}
 
                     <div style={{

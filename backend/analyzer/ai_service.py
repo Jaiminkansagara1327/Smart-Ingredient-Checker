@@ -31,7 +31,7 @@ class IngredientAnalyzer:
                     print("Falling back to rule-based analysis")
                     self.openai_client = None
     
-    def analyze_ingredients(self, ingredient_text: str, confidence: float) -> Dict[str, Any]:
+    def analyze_ingredients(self, ingredient_text: str, confidence: float, macros: Dict = None, food_type: str = 'Solid', user_goal: str = 'Regular') -> Dict[str, Any]:
         """
         Analyze ingredient text and return structured health insights
         
@@ -45,15 +45,15 @@ class IngredientAnalyzer:
         # Try AI analysis if available
         if self.openai_client:
             try:
-                return self._analyze_with_ai(ingredient_text, confidence)
+                return self._analyze_with_ai(ingredient_text, confidence, macros or {}, food_type, user_goal)
             except Exception as e:
                 print(f"AI analysis error: {e}")
                 # Fall back to rule-based analysis
         
         # Use rule-based analysis as fallback
-        return self._analyze_with_rules(ingredient_text, confidence)
+        return self._analyze_with_rules(ingredient_text, confidence, macros or {}, food_type, user_goal)
     
-    def _analyze_with_ai(self, ingredient_text: str, confidence: float) -> Dict[str, Any]:
+    def _analyze_with_ai(self, ingredient_text: str, confidence: float, macros: Dict, food_type: str, user_goal: str) -> Dict[str, Any]:
         """Use OpenAI GPT to analyze ingredients"""
         
         prompt = f"""You are a food safety expert providing honest, comprehensive ingredient analysis. Be direct and specific about health impacts.
@@ -65,7 +65,8 @@ Provide a JSON response with the following structure:
 {{
     "product": {{
         "name": "Guessed Product Name",
-        "category": "Food Category"
+        "category": "Food Category",
+        "food_type": "Solid | Liquid | Semi-solid"
     }},
     "verdict": "Clear, honest summary (1-2 sentences)",
     "suitability": {{
@@ -97,14 +98,19 @@ Provide a JSON response with the following structure:
         if not ingredients_list:
              ingredients_list = self._extract_ingredients_from_text(ingredient_text)
 
-        # Use our scientific scorer for the actual score
-        score_data = self.scorer.calculate_score(ingredients_list)
+        # Extract food type (Solid, Liquid, Semi-solid)
+        ai_food_type = analysis.get('product', {}).get('food_type', 'Solid')
+        final_food_type = food_type if food_type != 'Solid' else ai_food_type
+
+        # Use our scientific scorer with exact macros if provided, otherwise AI text fallback
+        score_data = self.scorer.calculate_score(ingredients_list, macros, final_food_type, user_goal)
         
         # Override AI's score with our calculated score
         analysis['score'] = score_data['score']
         analysis['score_breakdown'] = score_data['score_breakdown']
         analysis['nova_group'] = score_data['nova_group']
-        analysis['whole_food_percentage'] = score_data['whole_food_ratio']
+        analysis['food_type'] = final_food_type
+        analysis['details'] = score_data.get('details', {})
         
         analysis['success'] = True
         analysis['confidence'] = confidence
@@ -112,7 +118,7 @@ Provide a JSON response with the following structure:
         
         return analysis
 
-    def _analyze_with_rules(self, ingredient_text: str, confidence: float) -> Dict[str, Any]:
+    def _analyze_with_rules(self, ingredient_text: str, confidence: float, macros: Dict, food_type: str, user_goal: str) -> Dict[str, Any]:
         """
         Factual, neutral, frequency-based ingredient analysis.
         Generates exactly 7 sections as per new guidelines.
@@ -122,8 +128,16 @@ Provide a JSON response with the following structure:
         # Parse ingredients
         ingredients_list = self._extract_ingredients_from_text(ingredient_text)
         
-        # Use scientific scorer
-        score_data = self.scorer.calculate_score(ingredients_list)
+        # Simple heuristic fallback if food_type is still default Solid
+        if food_type == 'Solid' and ingredients_list:
+            first_ing_lower = ingredients_list[0].lower()
+            if any(liq in first_ing_lower for liq in ['water', 'milk', 'juice', 'puree', 'coffee', 'tea', 'beverage']):
+                food_type = 'Liquid'
+            elif any(semi in first_ing_lower for semi in ['cream', 'oil', 'butter', 'cheese', 'yogurt', 'spread']):
+                food_type = 'Semi-solid'
+        
+        # Use scientific scorer (Fallback/Legacy mode for text without macros)
+        score_data = self.scorer.calculate_score(ingredients_list, macros, food_type, user_goal)
         score = score_data['score']
         nova_group = score_data['nova_group']
         
@@ -263,6 +277,8 @@ Provide a JSON response with the following structure:
             'method': 'factual_analysis',
             'score': score,
             'nova_group': nova_group,
+            'details': score_data.get('details', {}),
+            'score_breakdown': score_data.get('score_breakdown', []),
             
             # New structured sections
             'overview': overview,
@@ -278,10 +294,12 @@ Provide a JSON response with the following structure:
                 'name': 'Analyzed Product',
                 'brand': 'Unknown',
                 'category': 'Packaged Food',
-                'nova_group': nova_group
+                'nova_group': nova_group,
+                'food_type': food_type
             },
             'ingredients': ingredients_list,
-            'verdict': frequency_verdict  # For backward compatibility
+            'verdict': frequency_verdict,  # For backward compatibility
+            'food_type': food_type
         }
     
     def _extract_ingredients_from_text(self, text: str) -> list:
@@ -440,7 +458,7 @@ def _get_analyzer():
     return _analyzer_instance
 
 
-def analyze_product_from_text(text: str) -> Dict[str, Any]:
+def analyze_product_from_text(text: str, macros: Dict = None, food_type: str = 'Solid', user_goal: str = 'Regular') -> Dict[str, Any]:
     """
     Main entry point for analyzing ingredients from text string
     """
@@ -461,7 +479,7 @@ def analyze_product_from_text(text: str) -> Dict[str, Any]:
     
     # Analyze ingredients (AI or Rules)
     # Using 100% confidence for manual text entry
-    analysis = analyzer.analyze_ingredients(text, 100.0)
+    analysis = analyzer.analyze_ingredients(text, 100.0, macros, food_type, user_goal)
     
     analysis['raw_ingredients'] = text
     return analysis

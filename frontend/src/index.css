@@ -1625,7 +1625,176 @@ body {
     }
 
     .card {
-        padding: var(--spacing-lg);
+        animation: popIn var(--transition-base) forwards;
+    }
+}
+
+/* ===================================
+   Scoring Options (Goal & Type)
+   =================================== */
+.scoring-options-panel {
+    display: flex;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+    animation: fadeIn 0.4s ease-out;
+}
+
+.scoring-option-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.scoring-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 2px;
+}
+
+.scoring-select {
+    width: 100%;
+    padding: var(--spacing-lg) 2.5rem var(--spacing-lg) var(--spacing-lg);
+    background: #ffffff;
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-lg);
+    font-family: var(--font-family);
+    transition: all var(--transition-base), border-radius 0.15s ease;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1.5rem center;
+    background-size: 20px;
+    text-align: left;
+}
+
+.scoring-select:focus,
+.scoring-select:hover {
+    border-color: var(--color-accent-primary);
+    box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1);
+}
+
+.custom-goal-dropdown-container {
+    position: relative;
+    width: 100%;
+}
+
+.scoring-select.dropdown-open {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom-color: var(--color-border);
+    box-shadow: none;
+    border-color: var(--color-accent-primary);
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='18 15 12 9 6 15'%3e%3c/polyline%3e%3c/svg%3e");
+}
+
+.custom-goal-dropdown {
+    position: absolute;
+    top: calc(100% - 2px);
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: var(--color-bg-card);
+    border: 2px solid var(--color-accent-primary);
+    border-top: 1px solid var(--color-border);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    box-shadow: 0 8px 30px rgba(13, 148, 136, 0.08),
+        0 4px 12px rgba(0, 0, 0, 0.04),
+        0 0 0 4px rgba(13, 148, 136, 0.05);
+    overflow: hidden;
+    animation: dropdownSlide 0.15s ease-out;
+}
+
+.custom-goal-list {
+    display: flex;
+    flex-direction: column;
+    max-height: 380px;
+    overflow-y: auto;
+    background: transparent;
+}
+
+.custom-goal-item {
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: var(--color-bg-primary);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.custom-goal-item:last-child {
+    border-bottom: none;
+}
+
+.custom-goal-item:hover,
+.custom-goal-item.selected {
+    background: var(--color-bg-secondary);
+}
+
+.custom-goal-item.selected {
+    border-left: 3px solid var(--color-accent-primary);
+    padding-left: calc(var(--spacing-lg) - 3px);
+}
+
+.goal-item-label {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 2px;
+}
+
+.goal-item-desc {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-tertiary);
+}
+
+.food-type-toggles {
+    display: flex;
+    gap: 8px;
+    background: var(--color-bg-primary);
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+}
+
+.food-type-btn {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-tertiary);
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.food-type-btn:hover {
+    color: var(--color-text-primary);
+    background: var(--color-bg-tertiary);
+}
+
+.food-type-btn.active {
+    color: #fff;
+    background: var(--color-accent-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 768px) {
+    .scoring-options-panel {
+        flex-direction: column;
+        gap: var(--spacing-md);
     }
 }
 

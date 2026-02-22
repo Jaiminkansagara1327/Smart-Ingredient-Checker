@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import HomePage from './components/HomePage';
 import UploadSection from './components/UploadSection';
@@ -11,6 +11,15 @@ function App() {
     const [showResults, setShowResults] = useState(false);
     const [analysisData, setAnalysisData] = useState(null);
     const [uploadedImage, setUploadedImage] = useState(null);
+
+    // Scroll to top when page or view changes
+    useEffect(() => {
+        // Force scroll to top on every view/page change
+        window.scrollTo(0, 0);
+        // Secondary safety for mobile/delayed renders
+        const timer = setTimeout(() => window.scrollTo(0, 0), 10);
+        return () => clearTimeout(timer);
+    }, [currentPage, showResults]);
 
     const handleAnalyze = (data, image) => {
         setAnalysisData(data);

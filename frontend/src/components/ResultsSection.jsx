@@ -291,7 +291,7 @@ function addToScanHistory(product) {
 }
 
 
-function ResultsSection({ data, image, onAnalyzeNew }) {
+function ResultsSection({ data, image, onAnalyzeNew, onNavigate }) {
     const [alternatives, setAlternatives] = useState([]);
     const [loadingAlternatives, setLoadingAlternatives] = useState(false);
     const [showRawIngredients, setShowRawIngredients] = useState(false);
@@ -309,6 +309,7 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
         }
     }, [meta.name]);
 
+    /*
     // Fetch healthier alternatives (use prefetched if available)
     useEffect(() => {
         if (!meta.categories) return;
@@ -339,6 +340,7 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
             .catch(err => console.error('Alternatives fetch error:', err))
             .finally(() => setLoadingAlternatives(false));
     }, [meta.categories, meta.nutriscore_grade, meta.name]);
+    */
 
     if (!hasNewFormat) {
         return <div style={{ textAlign: 'center', padding: '3rem' }}>
@@ -374,7 +376,23 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                                     </div>
                                 )}
                             </div>
-                            <ScoreBadge score={data.score} grade={meta.nutriscore_grade} />
+                            <div>
+                                <ScoreBadge score={data.score} grade={meta.nutriscore_grade} />
+                                <div
+                                    className="score-math-link"
+                                    onClick={() => onNavigate('scoring')}
+                                    style={{
+                                        fontSize: '0.85rem',
+                                        color: 'var(--color-text-tertiary)',
+                                        cursor: 'pointer',
+                                        marginTop: '0.5rem',
+                                        textDecoration: 'underline',
+                                        textAlign: 'right'
+                                    }}
+                                >
+                                    How this score is calculated
+                                </div>
+                            </div>
                         </div>
                     ) : (
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)' }}>
@@ -474,7 +492,7 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                     </div>
                 </div>
 
-                {/* SECTION 4.5: Raw Ingredient Highlight */}
+                {/* SECTION 4.5: Raw Ingredient Highlight 
                 {rawIngredientsText && (
                     <div className="results-card">
                         <button
@@ -490,8 +508,9 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                         )}
                     </div>
                 )}
+                */}
 
-                {/* SECTION 5: Who Should Limit */}
+                {/* SECTION 5: Who Should Limit 
                 {data.limit_groups && data.limit_groups.length > 0 && (
                     <div className="results-card warning-card">
                         <h3 className="results-section-title" style={{ color: 'var(--color-warning)' }}>
@@ -507,8 +526,10 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                         </ul>
                     </div>
                 )}
+                */}
 
-                {/* SECTION 6: Healthier Alternatives */}
+                {/* 
+                // SECTION 6: Healthier Alternatives 
                 {(loadingAlternatives || alternatives.length > 0) && (
                     <div className="results-card alternatives-card">
                         <h3 className="results-section-title" style={{ color: 'var(--color-success)' }}>
@@ -549,6 +570,7 @@ function ResultsSection({ data, image, onAnalyzeNew }) {
                         )}
                     </div>
                 )}
+                */}
 
                 {/* SECTION 7: Transparency Note */}
                 {data.transparency_note && (

@@ -22,6 +22,13 @@ function Header({ onNavigate, currentPage }) {
         >
           Analyze
         </a>
+        <a
+          href="#"
+          className={`nav-link ${currentPage === 'scoring' ? 'active' : ''}`}
+          onClick={(e) => { e.preventDefault(); onNavigate('scoring'); }}
+        >
+          How it Works
+        </a>
 
         <a
           href="#"

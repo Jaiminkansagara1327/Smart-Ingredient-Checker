@@ -310,6 +310,7 @@ function UploadSection({ onAnalyze }) {
             };
             response.data._product_meta = meta;
 
+            /*
             // ⚡ Prefetch alternatives in background (non-blocking)
             // So they're ready instantly when ResultsSection mounts
             if (meta.categories) {
@@ -331,6 +332,7 @@ function UploadSection({ onAnalyze }) {
                     })
                     .catch(() => { }); // Silent — ResultsSection will retry if needed
             }
+            */
 
             onAnalyze(response.data, null);
         } catch (error) {

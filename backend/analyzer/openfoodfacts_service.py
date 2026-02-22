@@ -783,8 +783,8 @@ def find_healthier_alternatives(
         print(f"[OFF] Alternatives cache hit for '{category}'")
         return cached
     
-    # Use the first category tag (most specific)
-    primary_category = category.split(',')[0].strip()
+    # Use the last category tag (most specific in OpenFoodFacts)
+    primary_category = category.split(',')[-1].strip()
     
     # Determine what nutriscore grades are "better"
     current_grade = current_nutriscore.lower().strip() if current_nutriscore else 'e'
@@ -798,26 +798,49 @@ def find_healthier_alternatives(
         return result
     
     try:
-        params = {
-            "search_terms": primary_category,
-            "search_simple": 1,
+        # First attempt: Search for Indian products in this category
+        params_india = {
+            "tagtype_0": "categories",
+            "tag_contains_0": "contains",
+            "tag_0": primary_category,
+            "tagtype_1": "countries",
+            "tag_contains_1": "contains",
+            "tag_1": "India",
             "action": "process",
             "json": 1,
             "page": 1,
-            "page_size": 20,  # Reduced — we only need 4 alternatives
+            "page_size": 15,
             "sort_by": "nutriscore_score",
             "fields": "code,product_name,brands,image_front_small_url,nutriscore_grade,nova_group,categories,countries_tags",
         }
         
-        response = _session.get(SEARCH_URL, params=params, timeout=10)
+        response = _session.get(SEARCH_URL, params=params_india, timeout=15)
         response.raise_for_status()
         data = response.json()
         
+        products_to_process = data.get("products", [])
+        
+        # Fallback: If not enough Indian products, do a broader global search
+        if len(products_to_process) < 4:
+            params_global = {
+                "tagtype_0": "categories",
+                "tag_contains_0": "contains",
+                "tag_0": primary_category,
+                "action": "process",
+                "json": 1,
+                "page": 1,
+                "page_size": 15,
+                "sort_by": "nutriscore_score",
+                "fields": "code,product_name,brands,image_front_small_url,nutriscore_grade,nova_group,categories,countries_tags",
+            }
+            res_global = _session.get(SEARCH_URL, params=params_global, timeout=15)
+            res_global.raise_for_status()
+            products_to_process.extend(res_global.json().get("products", []))
         alternatives = []
         seen_names = set()
         current_name_lower = current_product_name.lower().strip() if current_product_name else ''
         
-        for item in data.get("products", []):
+        for item in products_to_process:
             product_name = (item.get("product_name") or "").strip()
             brand = (item.get("brands") or "Unknown").strip()
             grade = (item.get("nutriscore_grade") or "").lower()

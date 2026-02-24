@@ -165,12 +165,55 @@ body {
 
 .nav {
     display: flex;
+    align-items: center;
     gap: var(--spacing-lg);
+}
+
+.mobile-menu-btn {
+    display: none;
+    width: 32px;
+    height: 32px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    z-index: 102;
+    /* Above mobile menu */
+    padding: 0;
+    position: relative;
+    outline: none;
+}
+
+.hamburger-line {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background: var(--color-text-primary);
+    border-radius: 2px;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: absolute;
+    left: 4px;
+}
+
+.line-top {
+    top: 11px;
+}
+
+.line-bottom {
+    top: 19px;
+}
+
+.mobile-menu-btn.open .line-top {
+    transform: translateY(4px) rotate(45deg);
+}
+
+.mobile-menu-btn.open .line-bottom {
+    transform: translateY(-4px) rotate(-45deg);
 }
 
 .nav-link {
     color: var(--color-text-secondary);
     text-decoration: none;
+    white-space: nowrap;
     font-size: var(--font-size-sm);
     font-weight: 500;
     padding: var(--spacing-xs) var(--spacing-md);

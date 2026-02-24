@@ -325,15 +325,55 @@
 
 
 @media (max-width: 768px) {
-    .guide-grid {
-        grid-template-columns: 1fr;
+    .guide-wrapper {
+        padding: 3rem 1rem;
+    }
+
+    .guide-header {
+        margin-bottom: 3rem;
+    }
+
+    .guide-title {
+        font-size: 2.25rem;
+    }
+
+    .formula-card {
+        padding: 1.5rem;
     }
 
     .formula-box {
         font-size: 1rem;
+        flex-direction: column;
+        gap: 0.5rem;
     }
 
-    .guide-wrapper {
-        padding: 4rem 1.5rem;
+    .formula-icon {
+        font-size: 2.5rem;
+    }
+
+    .goal-detail-card {
+        padding: 1.5rem;
+    }
+
+    .goal-detail-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .ceiling-alert,
+    .nova-showcase {
+        padding: 1.5rem;
+        margin-top: 3rem;
+    }
+
+    .featured-level {
+        transform: none !important;
+    }
+
+    .nova-conclusion p {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
     }
 }

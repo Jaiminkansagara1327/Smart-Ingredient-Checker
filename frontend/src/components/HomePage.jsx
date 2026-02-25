@@ -161,7 +161,7 @@ function HomePage({ onNavigate }) {
 
             </section>
 
-            {/* ABOUT SECTION ALIGNED TO PREMIUM AESTHETIC */}
+            {/* ABOUT SECTION ALIGNED TO PREMIUM AESTHETIC 
             <section className="about-embedded-section" id="about-section">
                 <FadeInSection direction="up" delay={100}>
                     <div className="about-content-wrapper">
@@ -184,6 +184,7 @@ function HomePage({ onNavigate }) {
                     </div>
                 </FadeInSection>
             </section>
+            */}
 
             {/* SCROLL TO TOP BUTTON */}
             <button

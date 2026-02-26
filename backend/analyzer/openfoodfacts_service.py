@@ -663,9 +663,9 @@ def _is_duplicate(new_name: str, existing_names: list) -> int:
         # Exact match
         if new_name == existing:
             return idx
-        # Fuzzy match — 80% similarity catches spelling variants
+        # Fuzzy match — 85% similarity catches spelling variants/redundancies
         ratio = SequenceMatcher(None, new_name, existing).ratio()
-        if ratio >= 0.80:
+        if ratio >= 0.85:
             return idx
     
     return -1
@@ -692,8 +692,25 @@ def _parse_search_results(data: dict, require_ingredients: bool = True) -> List[
         ingredients_text = _get_english_ingredients(item)
         if require_ingredients and not ingredients_text:
             continue
-        
-        # Skip junk/spam/test products (lenient check if ingredients missing)
+
+        # 1️⃣ STRICT DATA COMPLETENESS CHECKS
+        # Reject products missing crucial user data
+        if brand.lower() in ("unknown", "", "none"):
+            continue
+            
+        if not item.get("image_front_small_url"):
+            continue
+            
+        # Refined ingredients check (must be substantial)
+        if len(ingredients_text) < 15:
+            continue
+            
+        # Nutrition check
+        nutriments = _extract_nutriments(item)
+        if not nutriments or not nutriments.get("rows"):
+            continue
+
+        # Skip junk/spam/test products
         if not _is_quality_product(product_name, brand, ingredients_text):
             continue
         
@@ -755,12 +772,20 @@ def _parse_search_results(data: dict, require_ingredients: bool = True) -> List[
             "categories": (item.get("categories") or "").strip(),
             "nova_group": item.get("nova_group"),
             "nutriscore_grade": item.get("nutriscore_grade"),
-            "nutriments": _extract_nutriments(item),
+            "nutriments": nutriments,
             "is_indian": is_indian,
             "country": country,
+            "completeness": len(ingredients_text) + (200 if is_indian else 0) # Higher completeness score
         })
         normalized_names.append(norm_name)
     
+    # Sort results: Indian products first, then by data completeness
+    products.sort(key=lambda x: x['completeness'], reverse=True)
+    
+    # Remove 'completeness' key before returning
+    for p in products: 
+        p.pop('completeness', None)
+        
     return products
 
 

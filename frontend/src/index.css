@@ -941,6 +941,17 @@ body {
     padding: var(--spacing-md);
     border-bottom: 1px solid var(--color-border);
     gap: var(--spacing-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ingredient-row:hover {
+    background: var(--color-bg-secondary);
+}
+
+.ingredient-row.expanded {
+    background: var(--color-bg-tertiary);
+    border-bottom-color: transparent;
 }
 
 .ingredient-row:last-child {

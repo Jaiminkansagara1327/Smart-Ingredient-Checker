@@ -5,6 +5,7 @@ Combined with scientific scoring based on NOVA/Nutri-Score methodology
 """
 import os
 import json
+import re
 from typing import Dict, Any, Optional
 from .ingredient_scorer import IngredientScorer
 
@@ -58,8 +59,10 @@ class IngredientAnalyzer:
         
         prompt = f"""You are a food safety expert providing honest, comprehensive ingredient analysis. Be direct and specific about health impacts.
 
-Ingredient List:
+Ingredient List (may be in any language):
 {ingredient_text}
+
+MANDATORY INSTRUCTION: If the ingredients or product information above are not in English, you MUST translate them accurately into English before performing the analysis. Every single field in your response (product name, category, verdict, suitability, role, explanation, ingredients array, and flags) MUST be in English.
 
 Provide a JSON response with the following structure:
 {{
@@ -74,7 +77,14 @@ Provide a JSON response with the following structure:
         "cautionFor": "Who should be careful?",
         "avoidFor": "Who should avoid this?"
     }},
-    "ingredients": ["Clean list of ingredients (array of strings)"],
+    "ingredient_details": [
+        {{
+            "name": "Ingredient Name", 
+            "role": "Role", 
+            "explanation": "Provide a comprehensive, balanced layman's explanation. (e.g. 'Used to [purpose/benefit] and generally [safety status]. However, in excess it can [potential risks]. Not a health food but [conclusion/necessity].')"
+        }}
+    ],
+    "ingredients": ["Flattened list of ingredients. If an ingredient has sub-components in brackets like 'Cookie Pieces (Flour, Sugar)', split them into separate items: ['Cookie Pieces', 'Flour', 'Sugar']."],
     "flags": [
         {{"icon": "⚠️", "text": "Flag content"}}
     ]
@@ -84,7 +94,7 @@ Provide a JSON response with the following structure:
         response = self.openai_client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a food safety expert providing honest, comprehensive ingredient analysis. Be direct and specific about health impacts."},
+                {"role": "system", "content": "You are a food safety expert. If you receive non-English ingredient lists or product names, you must translate them perfectly into English first. All your responses MUST be in English only, regardless of the input language."},
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
@@ -105,18 +115,69 @@ Provide a JSON response with the following structure:
         # Use our scientific scorer with exact macros if provided, otherwise AI text fallback
         score_data = self.scorer.calculate_score(ingredients_list, macros, final_food_type, user_goal)
         
-        # Override AI's score with our calculated score
-        analysis['score'] = score_data['score']
-        analysis['score_breakdown'] = score_data['score_breakdown']
-        analysis['nova_group'] = score_data['nova_group']
-        analysis['food_type'] = final_food_type
-        analysis['details'] = score_data.get('details', {})
+        # Build ingredient breakdown with AI explanations
+        ingredient_breakdown = []
+        ai_ingredients = analysis.get('ingredient_details', [])
         
-        analysis['success'] = True
-        analysis['confidence'] = confidence
-        analysis['method'] = 'ai+scientific_scorer'
-        
-        return analysis
+        if not ai_ingredients:
+             # Fallback if AI didn't provide details properly
+             for ing in ingredients_list:
+                 ingredient_breakdown.append({
+                     "name": ing,
+                     "role": "Ingredient",
+                     "risk": "🟢",
+                     "description": "Natural or minimally processed ingredient."
+                 })
+        else:
+            for item in ai_ingredients:
+                name = item.get('name', 'Unknown')
+                ing_lower = name.lower()
+                
+                # Determine risk level 🟢 = low concern, 🟡 = moderate, 🔴 = high caution
+                if any(bad in ing_lower for bad in ['artificial', 'refined', 'hydrogenated', 'high fructose', 'msg', 'tartrazine', 'aspartame']):
+                    risk = "🔴"
+                elif any(mod in ing_lower for mod in ['sugar', 'salt', 'preservative', 'color', 'flavor', 'modified', 'gum', 'emulsifier']):
+                    risk = "🟡"
+                else:
+                    risk = "🟢"
+                    
+                ingredient_breakdown.append({
+                    "name": name,
+                    "role": item.get('role', 'Ingredient'),
+                    "risk": risk,
+                    "description": item.get('explanation', 'A common food ingredient.')
+                })
+
+        # Final structured response
+        return {
+            'success': True,
+            'confidence': confidence,
+            'method': 'ai+scientific_scorer',
+            'score': score_data['score'],
+            'nova_group': score_data['nova_group'],
+            'food_type': final_food_type,
+            'details': score_data.get('details', {}),
+            'overview': {
+                "processing_level": "Highly processed" if score_data['nova_group'] == 4 else "Moderately processed" if score_data['nova_group'] == 3 else "Minimally processed",
+                "ingredient_count": len(ingredients_list),
+                "additives_present": "Yes" if any(self.scorer.ADDITIVE_CONCERNS.get(ing.lower()) for ing in ingredients_list) else "No"
+            },
+            'frequency_verdict': analysis.get('verdict', ""),
+            'key_signals': {
+                "added_sugar": "Yes" if any(s in ingredient_text.lower() for s in self.scorer.ADDED_SUGARS) else "No",
+                "refined_flour_starch": "Yes" if any(r in ingredient_text.lower() for r in self.scorer.REFINED_CARBS) else "No",
+                "artificial_colors": "Yes" if "color" in ingredient_text.lower() or "colour" in ingredient_text.lower() else "No",
+                "preservatives": "Yes" if "preservative" in ingredient_text.lower() else "No",
+                "artificial_flavors": "Yes" if "flavor" in ingredient_text.lower() or "flavour" in ingredient_text.lower() else "No"
+            },
+            'ingredient_breakdown': ingredient_breakdown,
+            'limit_groups': [analysis.get('suitability', {}).get('avoidFor', "")] if analysis.get('suitability', {}).get('avoidFor') else [],
+            'bottom_line': analysis.get('verdict', ""),
+            'transparency_note': "AI-assisted analysis. Always verify with actual packaging.",
+            'product': analysis.get('product', {}),
+            'ingredients': ingredients_list,
+            'score_breakdown': score_data['score_breakdown']
+        }
 
     def _analyze_with_rules(self, ingredient_text: str, confidence: float, macros: Dict, food_type: str, user_goal: str) -> Dict[str, Any]:
         """
@@ -199,12 +260,68 @@ Provide a JSON response with the following structure:
         }
         
         # --- SECTION 4: Ingredient Breakdown ---
-        # Analyze each ingredient with role and risk level
+        # Analyze each ingredient with role, risk level, and layman's description
         ingredient_breakdown = []
         
+        # Dictionary of common ingredients and their layman's descriptions (Detailed & Balanced)
+        LAYMAN_DESCRIPTIONS = {
+            'maltodextrin': "A highly processed carbohydrate used as a filler or thickener. While it helps with food texture and shelf life, it has a very high glycemic index, meaning it spikes blood sugar faster than table sugar. Frequent consumption can lead to weight gain and is problematic for diabetics.",
+            'palm oil': "A vegetable fat widely used for its cheap cost and semi-solid texture. It is high in saturated fats, which can raise 'bad' LDL cholesterol and contribute to heart disease if eaten in large amounts. It is often preferred by manufacturers because it is incredibly shelf-stable and doesn't spoil easily.",
+            'sugar': "A common sweetener used to enhance taste and provide quick energy. While safe in small amounts, modern packaged foods often contain excessive 'hidden' sugars. High intake is a primary driver of obesity, type 2 diabetes, and tooth decay. It offers 'empty calories' with no nutritional value.",
+            'monosodium glutamate': "A flavor enhancer (MSG) that provides a savory 'umami' taste. Most food safety authorities consider it safe in moderation. However, some people are sensitive to it and may experience temporary headaches, sweating, or heart palpitations (often called 'MSG Symptom Complex').",
+            'ins 621': "This is the code for Monosodium Glutamate (MSG). It is used to intensify the savory flavor of savory snacks and noodles. While it makes food taste much better, it is a marker of ultra-processed food and should be limited by those sensitive to additives.",
+            'corn starch': "A refined starch used to thicken sauces or provide a crunchy texture to fried foods. It is a source of refined carbohydrates that digest quickly, causing rapid spikes in blood sugar. It lacks fiber and essential nutrients, providing mostly 'fast' energy.",
+            'soy lecithin': "An emulsifier derived from soybeans that prevents water and oil from separating. It is generally considered safe and is even sold as a health supplement for brain health. In processed food, it is used in tiny amounts primarily for texture and to keep chocolate or spreads smooth.",
+            'xanthan gum': "A powerful thickener and stabilizer created by fermenting sugar. It's used to give 'body' to sauces and gluten-free breads. It is generally safe, but in very large amounts, it can act as a laxative or cause bloating in people with sensitive digestion.",
+            'guar gum': "A natural fiber extracted from guar beans. It is used to thicken and stabilize food textures. It is considered safe and can even have a prebiotic effect (feeding good gut bacteria), though excessive amounts might cause mild gas or bloating.",
+            'hydrogenated vegetable oil': "A liquid oil that has been chemically turned into a solid fat. This process creates 'Trans Fats,' which are considered the most harmful type of fat because they raise bad cholesterol and lower good cholesterol, significantly increasing heart disease risk. Most health experts recommend avoiding this entirely.",
+            'high fructose corn syrup': "A highly refined liquid sweetener made from corn. It is cheaper and sweeter than regular sugar. Research suggests that the body processes HFCS differently, potentially leading more quickly to liver fat, metabolic issues, and a higher risk of obesity compared to natural sweeteners.",
+            'aspartame': "An artificial, zero-calorie sweetener often used in 'Diet' or 'Zero' drinks. While approved for use, it remains controversial; some studies suggest it may alter gut bacterial balance or affect appetite regulation. Not recommended as a 'healthier' long-term alternative to water.",
+            'sodium benzoate': "A common preservative (E211) used to prevent the growth of bacteria and mold, especially in acidic drinks. While safe in small doses, when combined with Vitamin C, it can form benzene (a known carcinogen). Some studies also link it to increased hyperactivity in sensitive children.",
+            'potassium sorbate': "A widely used preservative (E202) that prevents mold and yeast growth in everything from cheese to wine. It is one of the most thoroughly tested and safest preservatives available, with very low risk of side effects for the vast majority of people.",
+            'citric acid': "A natural acid (E330) found in lemons and limes, used in food to control acidity and provide a sour tang. It acts as a mild preservative and helps prevent spoilage. While safe, excessive amounts in drinks can erode tooth enamel over time due to its acidity.",
+            'maida': "This is ultra-refined wheat flour where the healthy bran and germ have been removed, leaving only the starchy endosperm. It has a very high glycemic index and contains almost no fiber, meaning it digests very quickly and can lead to rapid weight gain and insulin resistance.",
+            'refined wheat flour': "Wheat flour that has been 'cleaned' of its fiber and nutrients. It provides mostly empty calories and quick energy. Unlike whole wheat, it doesn't keep you full for long and is a staple of highly processed, low-nutritive foods.",
+            'ins 330': "This is the European code for Citric Acid. It is an acidity regulator used to balance pH and add a tart flavor. It is generally safe and naturally occurring in fruits, though it is often produced commercially through fermentation for use in packaged foods.",
+            'acidity regulator': "Ingredients like citric acid or lactic acid used to control the pH level of food. They prevent bacteria from growing and help maintain a consistent flavor and color. They are necessary for food safety and generally safe, but should be consumed in moderation to protect tooth enamel.",
+            'color': "Artificial dyes used to make food look more vibrant and appealing. While approved, some (like Tartrazine or Sunset Yellow) are linked to allergic reactions and hyperactivity in children. They serve no nutritional purpose and are strictly for visual marketing.",
+            'flavour': "A mix of synthetic chemicals designed to mimic natural tastes like 'strawberry' or 'masala.' They make food highly palatable (and sometimes addictive), often masking the lack of real ingredients. They are safe for consumption but are a hallmark of ultra-processed food.",
+            'ins 500': "This is Sodium Bicarbonate, commonly known as Baking Soda. It is used as a leavening agent to help dough or batter rise. It is generally safe, but contributes to the overall sodium (salt) content of the food.",
+            'emulsifier': "Chemicals like lecithin or mono-diglycerides that help mix oil and water together so they don't separate. They are common in chocolates, ice creams, and breads to create a smooth, consistent texture. Generally safe, but some studies are investigating their long-term impact on gut lining health.",
+        }
+
         for ing in ingredients_list:
             ing_lower = ing.lower()
             
+            description = LAYMAN_DESCRIPTIONS.get(ing_lower)
+            
+            # If no direct match, check for partial matches or keywords
+            if not description:
+                if any(x in ing_lower for x in ['sugar', 'sucrose', 'glucose', 'syrup', 'fructose']):
+                    description = LAYMAN_DESCRIPTIONS['sugar']
+                elif any(x in ing_lower for x in ['oil', 'fat', 'vegetable fat']):
+                    if 'palm' in ing_lower:
+                        description = LAYMAN_DESCRIPTIONS['palm oil']
+                    elif 'hydrogenated' in ing_lower:
+                        description = LAYMAN_DESCRIPTIONS['hydrogenated vegetable oil']
+                    else:
+                        description = "Added fat used to improve texture and extend shelf life. This particular fat should be checked for its saturated fat content, as high intake can impact heart health."
+                elif any(x in ing_lower for x in ['ins 330', 'e330', 'citric acid']):
+                    description = LAYMAN_DESCRIPTIONS['citric acid']
+                elif 'acidity regulator' in ing_lower:
+                    description = LAYMAN_DESCRIPTIONS['acidity regulator']
+                elif any(x in ing_lower for x in ['ins', 'e-']):
+                    description = "A food additive (like a preservative, color, or stabilizer) used to keep food safe, colorful, or consistent. While safety-tested, they are markers of factory-made food and should be consumed in moderation."
+                elif any(x in ing_lower for x in ['starch', 'flour', 'maida']):
+                    if 'maida' in ing_lower:
+                        description = LAYMAN_DESCRIPTIONS['maida']
+                    else:
+                        description = LAYMAN_DESCRIPTIONS['refined wheat flour']
+                elif 'preservative' in ing_lower:
+                    description = "A chemical added to prevent food from spoiling due to bacteria or mold. While essential for keeping packaged food safe for long periods, fresh foods without these additives are generally better for long-term health."
+                else:
+                    description = "A common ingredient used in modern food production for texture, flavor stability, or shelf-life. Like most processed food components, it is best consumed as part of a balanced diet rather than as a staple."
+
             # Determine role (one word)
             if any(s in ing_lower for s in ['wheat', 'rice', 'oat', 'potato', 'corn']):
                 role = "Base"
@@ -229,9 +346,9 @@ Provide a JSON response with the following structure:
             
             # Determine risk level
             # 🟢 = low concern, 🟡 = moderate, 🔴 = high caution
-            if any(bad in ing_lower for bad in ['artificial', 'refined', 'hydrogenated', 'high fructose', 'msg', 'tartrazine']):
+            if any(bad in ing_lower for bad in ['artificial', 'refined', 'hydrogenated', 'high fructose', 'msg', 'tartrazine', 'aspartame']):
                 risk = "🔴"
-            elif any(mod in ing_lower for mod in ['sugar', 'salt', 'preservative', 'color', 'flavor', 'modified']):
+            elif any(mod in ing_lower for mod in ['sugar', 'salt', 'preservative', 'color', 'flavor', 'modified', 'gum', 'emulsifier']):
                 risk = "🟡"
             else:
                 risk = "🟢"
@@ -239,7 +356,8 @@ Provide a JSON response with the following structure:
             ingredient_breakdown.append({
                 "name": ing,
                 "role": role,
-                "risk": risk
+                "risk": risk,
+                "description": description
             })
         
         # --- SECTION 5: Who Should Limit This ---
@@ -356,8 +474,8 @@ Provide a JSON response with the following structure:
                     depth -= 1
                 current.append(char)
             
-            # Check for delimiters at top level
-            elif depth == 0:
+            # Check for delimiters at ALL levels (flattened)
+            else:
                 is_delimiter = False
                 skip_len = 1
                 
@@ -378,10 +496,6 @@ Provide a JSON response with the following structure:
                     elif remaining > 10 and processed_text[i:i+10] == ' contains ':
                         is_delimiter = True
                         skip_len = 10
-                    # Check for " like "
-                    elif remaining > 6 and processed_text[i:i+6] == ' like ':
-                         is_delimiter = True
-                         skip_len = 6
                 
                 if is_delimiter:
                     item = "".join(current).strip()
@@ -391,8 +505,6 @@ Provide a JSON response with the following structure:
                     i += skip_len - 1
                 else:
                     current.append(char)
-            else:
-                current.append(char)
             i += 1
             
         item = "".join(current).strip()
@@ -403,24 +515,25 @@ Provide a JSON response with the following structure:
         final_list = []
         seen = set()
         
-        # filler words to remove
-        filler_words = {'permitted', 'added'}
-        
-        for ing in ingredients:
-            # Clean punctuation
-            ing = ing.strip('•·-—*#: .')
+        # Clean and finalize
+        for raw in ingredients:
+            # Aggressive cleanup of leftover brackets and symbols
+            clean = raw.replace('(', '').replace(')', '').replace('[', '').replace(']', '').replace('{', '').replace('}', '')
+            clean = re.sub(r'[*•·—]', '', clean).strip()
             
-            # Remove filler words
-            words = ing.split()
-            clean_words = [w for w in words if w not in filler_words]
-            ing = " ".join(clean_words)
+            # Skip noise
+            if not clean or len(clean) < 2: continue
+            if clean in {'and', '&', 'contains', 'contains 2% or less', 'less than 2%'}: continue
             
-            if len(ing) < 2:
-                continue
+            # Remove leading numbers/percents 
+            clean = re.sub(r'^\d+(\.\d+)?%?\s*', '', clean).strip()
             
-            if ing not in seen:
-                final_list.append(ing)
-                seen.add(ing)
+            # Remove "contains 2% or less of"
+            clean = re.sub(r'^(contains|added|natural|artificial|permitted|organic)\s+', '', clean)
+            
+            if clean and clean not in seen:
+                final_list.append(clean)
+                seen.add(clean)
                 
         return final_list
 

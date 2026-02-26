@@ -389,11 +389,23 @@ def search_products(query: str, page: int = 1, page_size: int = 10, local_only: 
 
 
 def _is_english_text(text: str) -> bool:
-    """Check if a text string appears to be in English (mostly ASCII)."""
+    """Check if a text string appears to be in English (strictly ASCII/Latin)."""
     if not text:
         return False
-    ascii_chars = sum(1 for c in text if ord(c) < 128)
-    return ascii_chars / max(len(text), 1) >= 0.85
+    
+    # Check for non-Latin characters (Chinese, Arabic, Hindi, etc.)
+    # Basic rule: if more than 10% of characters are non-ASCII/non-Latin, reject.
+    total = len(text)
+    non_latin = 0
+    for char in text:
+        # Check if character is outside Latin-1 Supplement (U+0000 to U+00FF)
+        if ord(char) > 255:
+            non_latin += 1
+            
+    if non_latin / total > 0.1:
+        return False
+        
+    return True
 
 
 def _get_english_ingredients(item: dict) -> str:
@@ -411,7 +423,7 @@ def _get_english_ingredients(item: dict) -> str:
     if generic_text and _is_english_text(generic_text):
         return generic_text
     
-    # Both are non-English
+    # Check for other language versions if possible, but for now we strict filter
     return ""
 
 
@@ -501,46 +513,41 @@ def _is_quality_product(name: str, brand: str, ingredients_text: str = "") -> bo
     """
     Check if a product entry looks like a real, quality entry in English.
     Filters out junk/spam/test entries and non-English products from OpenFoodFacts.
-    
-    Returns True if the product looks legitimate and is in English.
     """
-    
-    
-    # Reject very short names
-    if len(name) < 3:
+    if not name or len(name) < 3:
         return False
     
-    # ---- ENGLISH LANGUAGE CHECK ----
-    # Reject names with non-Latin characters (Chinese, Arabic, Korean, Cyrillic, Thai, etc.)
+    # ❌ Reject non-Latin characters (Chinese, Hindi, Arabic, etc.) completely for Search results
     if not _is_english_text(name):
         return False
     
-    # Reject names that are all uppercase gibberish (e.g. "SDHK GRN SLD")
+    # ❌ Reject names that look like random hex/numeric ID codes
+    if re.match(r'^[0-9\-\s]+$', name):
+        return False
+        
+    # ❌ Reject names that are all uppercase gibberish with no vowels
     words = name.split()
+    if len(words) >= 1:
+        vowel_count = sum(1 for c in name.lower() if c in 'aeiou')
+        if vowel_count < len(name.replace(' ', '')) * 0.15:
+             return False
     
-    # If the name has too many very short words (abbreviation soup), it's junk
+    # ❌ Reject long strings of unreadable abbreviations
     if len(words) >= 4:
         short_words = sum(1 for w in words if len(w) <= 3)
-        if short_words / len(words) > 0.6:
+        if short_words / len(words) > 0.7:
             return False
     
-    # Reject names with excessive consonant clusters (no real word has 5+ consonants in a row)
-    consonant_cluster = re.search(r'[bcdfghjklmnpqrstvwxyz]{5,}', name.lower())
-    if consonant_cluster:
+    # ❌ Reject names with excessive consonant clusters (unreadable junk)
+    if re.search(r'[bcdfghjklmnpqrstvwxyz]{6,}', name.lower()):
         return False
     
-    # Reject entries where brand is Unknown AND name looks like gibberish
-    if brand.lower() in ("unknown", ""):
-        vowel_count = sum(1 for c in name.lower() if c in 'aeiou')
-        if vowel_count < len(name) * 0.15:
-            return False
-    
-    # Reject test/placeholder entries
+    # ❌ Reject test/placeholder entries
     test_patterns = re.compile(
-        r'\b(test|sample|example|placeholder|todo|xxx|zzz|abc|asdf|qwerty)\b',
+        r'\b(test|sample|example|placeholder|todo|xxx|zzz|abc|asdf|qwerty|barcode)\b',
         re.IGNORECASE
     )
-    if test_patterns.search(name):
+    if test_patterns.search(name) or test_patterns.search(brand):
         return False
     
     return True

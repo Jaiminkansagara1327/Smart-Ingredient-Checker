@@ -295,6 +295,7 @@ function ResultsSection({ data, image, onAnalyzeNew, onNavigate }) {
     const [alternatives, setAlternatives] = useState([]);
     const [loadingAlternatives, setLoadingAlternatives] = useState(false);
     const [showRawIngredients, setShowRawIngredients] = useState(false);
+    const [expandedIngIdx, setExpandedIngIdx] = useState(null);
 
     if (!data) return null;
 
@@ -471,22 +472,59 @@ function ResultsSection({ data, image, onAnalyzeNew, onNavigate }) {
                     <h3 className="results-section-title">Ingredient Breakdown</h3>
 
                     {/* Color legend */}
+                    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)', marginBottom: 'var(--spacing-md)' }}>
+                        Click on an ingredient to see what it actually is in layman's terms.
+                    </p>
                     <div className="ingredient-legend">
                         <span className="legend-item"><span className="legend-dot red"></span> Concerning</span>
                         <span className="legend-item"><span className="legend-dot green"></span> Positive</span>
                         <span className="legend-item"><span className="legend-dot neutral"></span> Neutral</span>
                     </div>
 
-                    <div>
+                    <div className="ingredient-list">
                         {data.ingredient_breakdown.map((item, idx) => (
-                            <div key={idx} className="ingredient-row">
-                                <span className={`ingredient-name ${item.risk === '🔴' || item.risk === '🟡' ? 'flagged-red' :
-                                    item.risk === '🟢' ? 'flagged-green' : ''
-                                    }`}>
-                                    {item.name}
-                                </span>
-                                <span className="ingredient-role">{item.role}</span>
-                                <span className="ingredient-risk">{item.risk}</span>
+                            <div key={idx} className="ingredient-group">
+                                <div
+                                    className={`ingredient-row ${expandedIngIdx === idx ? 'expanded' : ''}`}
+                                    onClick={() => setExpandedIngIdx(expandedIngIdx === idx ? null : idx)}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <div className="ingredient-main-info" style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '12px' }}>
+                                        <span className="expand-icon" style={{
+                                            fontSize: '0.8rem',
+                                            color: 'var(--color-text-tertiary)',
+                                            transition: 'transform 0.2s ease',
+                                            transform: expandedIngIdx === idx ? 'rotate(180deg)' : 'rotate(0deg)'
+                                        }}>
+                                            ▼
+                                        </span>
+                                        <span className={`ingredient-name ${item.risk === '🔴' || item.risk === '🟡' ? 'flagged-red' :
+                                            item.risk === '🟢' ? 'flagged-green' : ''
+                                            }`} style={{ flex: 1 }}>
+                                            {item.name}
+                                        </span>
+                                    </div>
+                                    <span className="ingredient-role" style={{ fontSize: '0.85rem', color: 'var(--color-text-tertiary)', marginRight: '8px' }}>
+                                        {item.role}
+                                    </span>
+                                    <span className="ingredient-risk">{item.risk}</span>
+                                </div>
+                                {expandedIngIdx === idx && (
+                                    <div className="ingredient-explanation" style={{
+                                        padding: 'var(--spacing-md) var(--spacing-lg) var(--spacing-md) calc(var(--spacing-md) + 24px)',
+                                        background: 'var(--color-bg-tertiary)',
+                                        fontSize: '0.9rem',
+                                        color: 'var(--color-text-secondary)',
+                                        borderBottom: '1px solid var(--color-border)',
+                                        lineHeight: '1.5',
+                                        animation: 'fadeIn 0.2s ease'
+                                    }}>
+                                        <div style={{ fontWeight: '600', marginBottom: '2px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-tertiary)' }}>
+                                            Layman's Terms:
+                                        </div>
+                                        {item.description || "A common food ingredient used for texture, flavor, or preservation."}
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>

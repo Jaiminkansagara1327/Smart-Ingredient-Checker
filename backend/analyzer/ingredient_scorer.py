@@ -108,17 +108,30 @@ class IngredientScorer:
         food_type = food_type.capitalize()
         notes = []
 
-        # Safely extract macros (values per 100g or 100ml)
-        kcal = max(0.0, float(macros.get('energy_kcal', 0)))
-        sugar = max(0.0, float(macros.get('sugars', 0)))
-        sodium = max(0.0, float(macros.get('sodium', 0))) # in literal mg, some APIs give g. We assume mg here.
-        if sodium < 10 and macros.get('salt', 0) > 0: # If it's a salt value in grams, convert to mg 
+        # Safely extract and CLAMP macros (values per 100g or 100ml)
+        # Prevents data errors (e.g. 1000mg salt misread as 1000g) from breaking the score.
+        kcal = min(1000.0, max(0.0, float(macros.get('energy_kcal', 0))))
+        sugar = min(100.0, max(0.0, float(macros.get('sugars', 0))))
+        sodium = max(0.0, float(macros.get('sodium', 0)))
+        if sodium < 10 and macros.get('salt', 0) > 0:
             sodium = float(macros.get('salt', 0)) * 400
+        sodium = min(10000.0, sodium) # Max 10g salt per 100g
             
-        sat_fat = max(0.0, float(macros.get('saturated_fat', 0)))
-        tot_fat = max(0.0, float(macros.get('fat', sat_fat)))
-        protein = max(0.0, float(macros.get('proteins', 0)))
-        fiber = max(0.0, float(macros.get('fiber', 0)))
+        sat_fat = min(100.0, max(0.0, float(macros.get('saturated_fat', 0))))
+        tot_fat = min(100.0, max(0.0, float(macros.get('fat', sat_fat))))
+        protein = min(100.0, max(0.0, float(macros.get('proteins', 0))))
+        fiber = min(100.0, max(0.0, float(macros.get('fiber', 0))))
+
+        # ---------------------------------------------------
+        # DESSERT PROTECTION: If it's a cream/custard/yogurt, 
+        # do not treat as Liquid beverage
+        # ---------------------------------------------------
+        orig_food_type = food_type
+        if food_type == 'Liquid':
+            is_dessert_matrix = any(x in " ".join(ingredients_list).lower() for x in ['cream', 'yogurt', 'custard', 'dessert', 'pudding', 'crème', 'oeufs'])
+            if is_dessert_matrix:
+                food_type = 'Semi-solid'
+                notes.append({'description': "Matrix identified as dairy dessert (Reclassified from Liquid)", 'points': 0})
 
         # ---------------------------------------------------
         # BASE RISK RATIOS
@@ -231,7 +244,20 @@ class IngredientScorer:
         final_normalized = max(0.0, min(1.0, raw_score))
         
         # Convert to Display 0.0 -> 10.0
-        display_score = round(final_normalized * 10.0, 1)
+        display_score = final_normalized * 10.0
+        
+        # ---------------------------------------------------
+        # BASE FLOOR PROTECTION
+        # ---------------------------------------------------
+        # If the product contains whole foods (Milk, Eggs, etc.), it shouldn't be 0.0
+        # unless it's genuinely harmful.
+        has_whole_foods = any(self._is_whole_food(ing) for ing in ingredients_list[:3])
+        if has_whole_foods and nova_group < 4:
+            display_score = max(display_score, 4.0)
+        elif has_whole_foods:
+            display_score = max(display_score, 3.0)
+            
+        display_score = round(display_score, 1)
 
         notes.append({'description': f"Scored optimized for: {user_goal} ({food_type})", 'points': 0})
 
@@ -315,6 +341,13 @@ class IngredientScorer:
             protein_multiplier *= 0.5
             notes.append({'description': "Gym Score capped (Exact protein unverified)", 'points': 0})
             
+        # DESSERT PROTECTION in Legacy Mode
+        if food_type == 'Liquid':
+            is_dessert_matrix = any(x in " ".join(ingredients).lower() for x in ['cream', 'yogurt', 'custard', 'dessert', 'pudding', 'crème', 'oeufs'])
+            if is_dessert_matrix:
+                food_type = 'Semi-solid'
+                notes.append({'description': "Matrix identified as dairy dessert (Reclassified from Liquid)", 'points': 0})
+
         for i, ing in enumerate(ingredients):
             ing_lower = ing.lower()
             
@@ -374,7 +407,16 @@ class IngredientScorer:
         # Lock to 0.0 -> 1.0, with a soft floor so it never hits absolute zero trivially
         final_normalized = max(0.08, min(1.0, raw_score))
         
-        display_score = round(final_normalized * 10.0, 1)
+        display_score = final_normalized * 10.0
+        
+        # WHOLE FOOD FLOOR protection in Legacy Mode
+        has_whole_foods = any(self._is_whole_food(ing) for ing in ingredients[:3])
+        if has_whole_foods and nova_group < 4:
+            display_score = max(display_score, 4.0)
+        elif has_whole_foods:
+            display_score = max(display_score, 3.0)
+            
+        display_score = round(display_score, 1)
         
         # SYSTEMIC CEILING: Fallback Engine distrusts non-whole foods.
         # Ultra-processed foods (NOVA 4) cannot cross 'Pretty Decent' (6.0) without macro proof.

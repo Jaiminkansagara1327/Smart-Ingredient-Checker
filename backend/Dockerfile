@@ -10,9 +10,6 @@ FROM python:3.11-slim AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -34,9 +31,6 @@ FROM python:3.11-slim AS runtime
 # Same system libs needed at runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -62,7 +56,7 @@ EXPOSE 8000
 # --workers: 4 workers to handle concurrent requests
 # --timeout: 120 seconds for long AI analysis calls
 CMD ["gunicorn", "foodview_api.wsgi:application", \
-     "--bind", "0.0.0.0:8000", \
-     "--workers", "4", \
-     "--timeout", "120", \
-     "--log-level", "info"]
+    "--bind", "0.0.0.0:8000", \
+    "--workers", "4", \
+    "--timeout", "120", \
+    "--log-level", "info"]

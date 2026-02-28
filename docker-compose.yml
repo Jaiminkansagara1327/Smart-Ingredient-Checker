@@ -1,0 +1,83 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Ingrexa — docker-compose.yml
+# ─────────────────────────────────────────────────────────────────────────────
+# Spins up 3 services with a single command: docker-compose up
+#   1. db       — PostgreSQL database
+#   2. backend  — Django REST Framework (Gunicorn)
+#   3. frontend — React + Vite dev server (or nginx in production)
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: '3.9'
+
+services:
+
+  # ── 1. PostgreSQL Database ─────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: ingrexa_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ingrexa
+      POSTGRES_USER: ingrexa_user
+      POSTGRES_PASSWORD: ingrexa_pass # Change in production!
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persist data between restarts
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ingrexa_user -d ingrexa" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── 2. Django Backend ──────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ingrexa_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env # Your real secrets live here (gitignored)
+    environment:
+      # Override DB to use the Docker Postgres service (not SQLite)
+      DATABASE_URL: postgresql://ingrexa_user:ingrexa_pass@db:5432/ingrexa
+      DEBUG: "False"
+      ALLOWED_HOSTS: "localhost,127.0.0.1,backend"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy # Wait until PostgreSQL is ready
+    volumes:
+      - ./backend:/app # Live-reload during development
+      - media_files:/app/media # Persist uploaded media files
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn foodview_api.wsgi:application
+             --bind 0.0.0.0:8000
+             --workers 4
+             --timeout 120
+             --log-level info"
+
+  # ── 3. React Frontend ──────────────────────────────────────────────────────
+  frontend:
+    image: node:20-alpine
+    container_name: ingrexa_frontend
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Prevent host node_modules from bleeding in
+    ports:
+      - "3000:3000"
+    environment:
+      VITE_API_URL: "http://localhost:8000"
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      - backend
+
+# ── Named Volumes ──────────────────────────────────────────────────────────
+volumes:
+  postgres_data: # Database files (persisted)
+  media_files: # Uploaded images/media (persisted)

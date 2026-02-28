@@ -22,8 +22,32 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'drf_spectacular',
     'analyzer',
 ]
+
+# ====================
+# API Documentation
+# ====================
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Ingrexa API',
+    'DESCRIPTION': (
+        'High-performance AI-driven API for smart ingredient analysis. '
+        'Search products from OpenFoodFacts, analyze ingredients using GPT-4o-mini, '
+        'OCR label scanning, scientific NOVA/Nutri-Score, and healthier alternative suggestions.'
+    ),
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'CONTACT': {'name': 'Jaimin Kansagara', 'url': 'https://github.com/Jaiminkansagara1327'},
+    'LICENSE': {'name': 'MIT'},
+    'TAGS': [
+        {'name': 'Analysis', 'description': 'Ingredient text and barcode analysis endpoints.'},
+        {'name': 'Search', 'description': 'Product search via OpenFoodFacts.'},
+        {'name': 'Healthier Alternatives', 'description': 'Find better product alternatives.'},
+        {'name': 'Contact', 'description': 'Contact form submission.'},
+        {'name': 'Health', 'description': 'Health check and monitoring.'},
+    ],
+}
 
 
 
@@ -186,6 +210,7 @@ REST_FRAMEWORK = {
         'anon': '100/hour',  # 100 requests per hour for anonymous users
     },
     'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 # Request Size Limits (Prevent DoS attacks)

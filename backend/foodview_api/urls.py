@@ -16,8 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('analyzer.urls')),
+
+    # ── API Documentation ──────────────────────────────────────
+    # Raw OpenAPI schema (JSON/YAML) — useful for importing into Postman
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    # ReDoc — professional, clean, read-only documentation UI
+    path('api/docs/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]

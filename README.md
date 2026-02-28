@@ -14,14 +14,28 @@
 ---
 
 ### 🛠️ Tech Stack
-- **Frontend:** React + Vite (Premium Minimalist UI)
+- **Frontend:** React + Vite
 - **Backend:** Django REST Framework
 - **Intelligence:** OpenAI GPT-4o-mini + Custom Scorer
-- **Database:** OpenFoodFacts + Local Product Cache
+- **Database:** OpenFoodFacts + Local Product Cache (3000+ products, <1ms response)
+- **Docs:** OpenAPI 3.0 via `drf-spectacular` (ReDoc)
+- **Containerization:** Docker + Docker Compose (PostgreSQL + Django + React)
+
+---
+
+### 📄 API Documentation
+Once the server is running, explore the API:
+
+| URL | Description |
+|:----|:------------|
+| `http://localhost:8000/api/docs/` | **ReDoc** — professional, clean, read-only API docs |
+| `http://localhost:8000/api/schema/` | **Raw OpenAPI JSON** — import into Postman |
 
 ---
 
 ### ⚡ Quick Start
+
+**Option A: Local Development**
 
 **1. Backend**
 ```bash
@@ -37,11 +51,35 @@ cd frontend
 npm install && npm run dev
 ```
 
+**Option B: Docker (Recommended)**
+```bash
+# Spins up PostgreSQL + Django + React in one command
+docker-compose up --build
+```
+> Backend: `http://localhost:8000` | Frontend: `http://localhost:3000`
+
 ---
 
-### � Configuration
+### 🧪 Automated Tests
+```bash
+cd backend
+source venv/bin/activate
+python manage.py test analyzer --verbosity=2
+```
+**41 tests** covering:
+- ✅ Unit Tests — brand detection, ingredient scoring, quality filter
+- ✅ API Tests — all 6 endpoints (health, search, analyze, contact, alternatives)
+- ✅ Security Tests — SQL injection, XSS, input length, special chars
+
+---
+
+### ⚙️ Configuration
 Create a `.env` in `backend/` and add:
-`OPENAI_API_KEY=your_key_here`
+```
+OPENAI_API_KEY=your_key_here
+SECRET_KEY=your_django_secret_key
+DEBUG=True
+```
 
 ---
 

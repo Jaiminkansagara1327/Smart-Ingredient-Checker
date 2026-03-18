@@ -26,7 +26,6 @@ env/
 ENV/
 .venv
 .gemini/
-docs/
 
 # Django
 *.log

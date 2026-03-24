@@ -28,9 +28,15 @@ class SecurityHeadersMiddleware:
         
         # Remove server information leakage
         if 'Server' in response:
-            del response['Server']
+            try:
+                response['Server'] = ''
+            except (KeyError, TypeError):
+                pass
         if 'X-Powered-By' in response:
-            del response['X-Powered-By']
+            try:
+                response['X-Powered-By'] = ''
+            except (KeyError, TypeError):
+                pass
         
         return response
 
@@ -74,7 +80,7 @@ class RequestValidationMiddleware:
                             'error': 'Invalid input',
                             'message': 'Your input has been blocked for security reasons.'
                         }, status=403)
-            except:
+            except (UnicodeDecodeError, AttributeError):
                 pass
         
         return self.get_response(request)
@@ -145,7 +151,7 @@ class IPRateLimitMiddleware:
             if current_time - data['start_time'] > self.window_seconds:
                 to_remove.append(ip)
         for ip in to_remove:
-            del self._requests[ip]
+            self._requests.pop(ip, None)
     
     def get_client_ip(self, request):
         """Get client IP address"""

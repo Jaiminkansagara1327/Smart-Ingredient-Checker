@@ -162,9 +162,9 @@ function UploadSection({ onAnalyze }) {
 
         try {
             const response = await api.get('/api/search-product/', {
-                params: { q: thisQuery, local_only: isAutocomplete },
+                params: { q: thisQuery },
                 signal: controller.signal,
-                timeout: 15000, // Generous timeout for slow connections
+                timeout: 15000,
             });
 
             // Ignore if query changed while waiting (stale response)
@@ -178,17 +178,14 @@ function UploadSection({ onAnalyze }) {
 
                 // If this isn't autocomplete, or if it is and found nothing
                 if (response.data.products.length === 0) {
-                    if (isAutocomplete) {
-                        setSearchError({
-                            type: 'no_results',
-                            message: `Press "Enter" to search global database...`
-                        });
-                    } else {
-                        setSearchError({
-                            type: 'no_results',
-                            message: `No products found for "${query}". Try a different name or use the "Type Ingredients" tab.`
-                        });
-                    }
+                    // not_in_db means the product simply isn't in our database yet
+                    const dbMessage = response.data.not_in_db
+                        ? `"${query}" is not in our database yet. Try the "Type Ingredients" tab.`
+                        : `No products found for "${query}". Try a different name.`;
+                    setSearchError({
+                        type: 'no_results',
+                        message: dbMessage,
+                    });
                 }
             } else {
                 setShowDropdown(true);
@@ -207,7 +204,7 @@ function UploadSection({ onAnalyze }) {
             setShowDropdown(true);
             setSearchError({
                 type: 'error',
-                message: 'Search is taking too long. Please retry.'
+                message: 'Could not connect to server. Please check your connection and retry.'
             });
         } finally {
             // Only stop spinner if this is still the active query
@@ -699,13 +696,21 @@ function UploadSection({ onAnalyze }) {
                                                                     </div>
                                                                 </div>
                                                                 <div className="result-info">
-                                                                    <span className="result-name">{product.name}</span>
+                                                                    <div className="result-name-wrapper">
+                                                                        <span className="result-name">{product.name}</span>
+                                                                        {product.is_verified && (
+                                                                            <span className="verified-badge-pill" title="Verified True Data">
+                                                                                <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '14px', height: '14px' }}>
+                                                                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                                                                                </svg>
+                                                                                Verified
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
                                                                     <span className="result-brand">
                                                                         {product.brand}
-                                                                        {product.country && (
-                                                                            <span className={`country-badge ${product.is_indian ? 'indian' : ''}`}>
-                                                                                {product.is_indian ? '🇮🇳' : ''} {product.country}
-                                                                            </span>
+                                                                        {product.is_indian && (
+                                                                            <span className="indian-badge" title="Indian Product">🇮🇳</span>
                                                                         )}
                                                                     </span>
                                                                     {product.categories && (

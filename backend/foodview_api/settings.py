@@ -6,7 +6,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
 # Security Settings
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-u14!s%v!j#^10l(g2v6_y^%vwp*&@-4q+6o9(m6)x%+)^3qoa)')
+_secret_key = os.getenv('SECRET_KEY')
+if not _secret_key:
+    import warnings
+    warnings.warn("SECRET_KEY environment variable is not set! Using an insecure default for local dev only.")
+    _secret_key = 'django-insecure-local-dev-only-do-not-use-in-production'
+SECRET_KEY = _secret_key
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
@@ -94,16 +99,18 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Allow Render Hosting
 if not DEBUG:
-    ALLOWED_HOSTS = ['*']  # Temporarily allow all for easy setup
+    # Use ALLOWED_HOSTS env var in production. E.g. "myapp.onrender.com,www.myapp.com"
+    render_hosts = os.getenv('RENDER_EXTERNAL_HOSTNAME', '')
+    if render_hosts:
+        ALLOWED_HOSTS += [render_hosts]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Needs to be right after SecurityMiddleware
     'corsheaders.middleware.CorsMiddleware',
-    # Custom middleware - temporarily disabled during development
-    # 'analyzer.middleware.SecurityHeadersMiddleware',  # Custom: Security headers
-    # 'analyzer.middleware.IPRateLimitMiddleware',      # Custom: Global rate limiting
-    # 'analyzer.middleware.RequestValidationMiddleware', # Custom: Suspicious pattern detection
+    'analyzer.middleware.SecurityHeadersMiddleware',   # Custom: Security headers
+    'analyzer.middleware.IPRateLimitMiddleware',       # Custom: Global rate limiting
+    'analyzer.middleware.RequestValidationMiddleware', # Custom: Suspicious pattern detection
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

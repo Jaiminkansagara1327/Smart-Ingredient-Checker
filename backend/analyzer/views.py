@@ -282,7 +282,7 @@ class SearchRateThrottle(AnonRateThrottle):
 @throttle_classes([SearchRateThrottle])
 def search_product(request):
     """
-    Search OpenFoodFacts for products by name.
+    Search local database for products by name or brand.
     Query params: ?q=<search_term>&page=1
     """
     query = request.query_params.get('q', '').strip()
@@ -308,7 +308,7 @@ def search_product(request):
     except ValueError:
         page_num = 1
     
-    print(f"[SEARCH] Searching OpenFoodFacts for: '{query}' (page {page_num}, local_only: {local_only})")
+    print(f"[SEARCH] Searching database for: '{query}' (page {page_num})")
     result = off_search(query, page=page_num, page_size=10, local_only=local_only)
     
     return Response(result, status=status.HTTP_200_OK)

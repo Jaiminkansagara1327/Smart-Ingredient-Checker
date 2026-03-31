@@ -1,22 +1,54 @@
-from rest_framework.decorators import api_view, throttle_classes
+from rest_framework.decorators import api_view, throttle_classes, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.throttling import AnonRateThrottle
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from drf_spectacular.utils import extend_schema
 import traceback
 import re
 import html
 import os
-from .models import ContactMessage
-from .serializers import ContactMessageSerializer
+from .models import AnalysisRecord, ContactMessage, Product, ProductFavorite, SearchEvent
+from .serializers import ContactMessageSerializer, AnalysisRecordSerializer, ProductFavoriteSerializer
 from .ai_service import analyze_product_from_text
 from .openfoodfacts_service import search_products as off_search, get_product_details as off_get_product, find_healthier_alternatives as off_find_alternatives
 
-# Custom throttle class for stricter rate limiting
-class AnalysisRateThrottle(AnonRateThrottle):
-    rate = '200/hour'  # 200 analysis requests per hour
+
+class AuthenticatedOnlyUserRateThrottle(UserRateThrottle):
+    """
+    Throttle authenticated users only.
+
+    This keeps anonymous requests covered by the dedicated `AnonRateThrottle`
+    scope without double-throttling them via the user scope.
+    """
+
+    def get_cache_key(self, request, view):
+        if not (request.user and request.user.is_authenticated):
+            return None
+        return super().get_cache_key(request, view)
+
+# Analysis throttles for anonymous vs authenticated users
+class AnalysisAnonRateThrottle(AnonRateThrottle):
+    rate = '200/hour'  # 200 analysis requests per hour for anonymous users
+
+
+class AnalysisUserRateThrottle(AuthenticatedOnlyUserRateThrottle):
+    rate = '2000/hour'  # 10x higher for authenticated users
+
+
+def get_client_ip(request):
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+    if x_forwarded_for:
+        return x_forwarded_for.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR", "")
+
+
+def get_user_agent(request):
+    return request.META.get("HTTP_USER_AGENT", "")
 
 @api_view(['POST'])
-@throttle_classes([AnalysisRateThrottle])
+@permission_classes([AllowAny])
+@throttle_classes([AnalysisAnonRateThrottle, AnalysisUserRateThrottle])
 def analyze_text(request):
     """
     Analyze product from manually entered ingredient text
@@ -154,6 +186,31 @@ def analyze_text(request):
         # Add metadata about manual entry
         analysis_result['input_method'] = 'manual'
         analysis_result['raw_ingredients_text'] = sanitized_text.strip()
+
+        # Save to authenticated users' analysis history (SaaS feature).
+        if request.user and request.user.is_authenticated:
+            try:
+                product_data = analysis_result.get("product", {}) or {}
+                analysis_for_storage = dict(analysis_result)
+                # Avoid storing the full ingredient text in the JSON history.
+                analysis_for_storage.pop("raw_ingredients_text", None)
+
+                AnalysisRecord.objects.create(
+                    user=request.user,
+                    input_method=AnalysisRecord.INPUT_TEXT,
+                    input_text_preview=sanitized_text.strip()[:400],
+                    product_name=product_data.get("name", ""),
+                    product_brand=product_data.get("brand", ""),
+                    user_goal=user_goal,
+                    food_type=food_type,
+                    confidence=analysis_result.get("confidence"),
+                    score=analysis_result.get("score"),
+                    nova_group=analysis_result.get("nova_group"),
+                    nutriscore_grade=product_data.get("nutriscore_grade", "") or "",
+                    analysis_json=analysis_for_storage,
+                )
+            except Exception as e:
+                print(f"[AUDIT] Could not save AnalysisRecord: {type(e).__name__}")
         
         # Return successful analysis
         return Response(analysis_result, status=status.HTTP_200_OK)
@@ -174,12 +231,17 @@ def analyze_text(request):
         )
 
 
-# Custom throttle for contact form (stricter to prevent spam)
-class ContactRateThrottle(AnonRateThrottle):
-    rate = '5/hour'  # Only 5 contact submissions per hour
+# Contact throttles for anonymous vs authenticated users
+class ContactAnonRateThrottle(AnonRateThrottle):
+    rate = '5/hour'  # Only 5 contact submissions per hour for anonymous users
+
+
+class ContactUserRateThrottle(AuthenticatedOnlyUserRateThrottle):
+    rate = '20/hour'  # higher limit for authenticated users
 
 @api_view(['POST'])
-@throttle_classes([ContactRateThrottle])
+@permission_classes([AllowAny])
+@throttle_classes([ContactAnonRateThrottle, ContactUserRateThrottle])
 def contact_submit(request):
     """
     Handle contact form submission
@@ -274,12 +336,17 @@ def contact_submit(request):
 #  OpenFoodFacts Product Search & Analyze
 # ========================================
 
-class SearchRateThrottle(AnonRateThrottle):
+class SearchAnonRateThrottle(AnonRateThrottle):
     rate = '3000/hour'  # 3000 search requests per hour to support instant autocomplete
 
 
+class SearchUserRateThrottle(AuthenticatedOnlyUserRateThrottle):
+    rate = '10000/hour'  # higher limit for authenticated users
+
+
 @api_view(['GET'])
-@throttle_classes([SearchRateThrottle])
+@permission_classes([AllowAny])
+@throttle_classes([SearchAnonRateThrottle, SearchUserRateThrottle])
 def search_product(request):
     """
     Search local database for products by name or brand.
@@ -310,12 +377,26 @@ def search_product(request):
     
     print(f"[SEARCH] Searching database for: '{query}' (page {page_num})")
     result = off_search(query, page=page_num, page_size=10, local_only=local_only)
-    
+
+    # Save search event for authenticated + anonymous users.
+    if result.get("success"):
+        try:
+            SearchEvent.objects.create(
+                user=request.user if request.user and request.user.is_authenticated else None,
+                query=query[:200],
+                local_only=local_only,
+                ip_address=get_client_ip(request)[:64],
+                user_agent=get_user_agent(request)[:512],
+            )
+        except Exception as e:
+            print(f"[AUDIT] Could not save SearchEvent: {type(e).__name__}")
+
     return Response(result, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
-@throttle_classes([AnalysisRateThrottle])
+@permission_classes([AllowAny])
+@throttle_classes([AnalysisAnonRateThrottle, AnalysisUserRateThrottle])
 def analyze_product(request):
     """
     Fetch a product from OpenFoodFacts by barcode and analyze its ingredients.
@@ -388,6 +469,30 @@ def analyze_product(request):
             if 'product' in analysis_result:
                 analysis_result['product']['name'] = product_info.get('name', analysis_result['product'].get('name', 'Unknown'))
                 analysis_result['product']['brand'] = product_info.get('brand', 'Unknown')
+
+        # Save to authenticated users' analysis history (SaaS feature).
+        if request.user and request.user.is_authenticated:
+            try:
+                product_data = analysis_result.get("product", {}) or {}
+                analysis_for_storage = dict(analysis_result)
+                analysis_for_storage.pop("raw_ingredients_text", None)
+
+                AnalysisRecord.objects.create(
+                    user=request.user,
+                    input_method=AnalysisRecord.INPUT_BARCODE if barcode else AnalysisRecord.INPUT_TEXT,
+                    input_text_preview=ingredients_text.strip()[:400],
+                    product_name=product_data.get("name", ""),
+                    product_brand=product_data.get("brand", ""),
+                    user_goal=user_goal,
+                    food_type=food_type,
+                    confidence=analysis_result.get("confidence"),
+                    score=analysis_result.get("score"),
+                    nova_group=analysis_result.get("nova_group"),
+                    nutriscore_grade=product_data.get("nutriscore_grade", "") or "",
+                    analysis_json=analysis_for_storage,
+                )
+            except Exception as e:
+                print(f"[AUDIT] Could not save AnalysisRecord: {type(e).__name__}")
         
         return Response(analysis_result, status=status.HTTP_200_OK)
     
@@ -401,6 +506,7 @@ def analyze_product(request):
 
 
 @api_view(['GET', 'HEAD'])
+@permission_classes([AllowAny])
 def health_check(request):
     """
     Simple health check endpoint
@@ -415,7 +521,8 @@ def health_check(request):
 
 
 @api_view(['GET'])
-@throttle_classes([SearchRateThrottle])
+@permission_classes([AllowAny])
+@throttle_classes([SearchAnonRateThrottle, SearchUserRateThrottle])
 def get_alternatives(request):
     """
     Find healthier alternatives for a product.
@@ -435,3 +542,102 @@ def get_alternatives(request):
     result = off_find_alternatives(category, nutriscore, product_name)
     
     return Response(result, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@extend_schema(tags=["Support"], summary="Support/donation links (free access)")
+def support(request):
+    """
+    Public endpoint for "support the creator" links (no billing required).
+    """
+
+    message = os.getenv(
+        "DONATION_MESSAGE",
+        "If you find Ingrexa helpful, consider supporting the creator.",
+    )
+
+    buy_me_a_coffee_url = os.getenv("DONATION_BUY_ME_A_COFFEE_URL", "").strip()
+    upi_url = os.getenv("DONATION_UPI_URL", "").strip()
+
+    links = {}
+    if buy_me_a_coffee_url:
+        links["buy_me_a_coffee_url"] = buy_me_a_coffee_url
+    if upi_url:
+        links["upi_url"] = upi_url
+
+    return Response(
+        {"success": True, "message": message, "links": links},
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+@extend_schema(tags=["User Data"], summary="Favorites (GET list, POST toggle/add)")
+def favorites(request):
+    """
+    GET: list user's favorite products.
+    POST: toggle favorite by `product_barcode` (or `barcode`).
+    """
+
+    if request.method == "GET":
+        qs = ProductFavorite.objects.filter(user=request.user).select_related("product").order_by("-created_at")
+        return Response(
+            {"success": True, "items": ProductFavoriteSerializer(qs, many=True).data},
+            status=status.HTTP_200_OK,
+        )
+
+    barcode = request.data.get("product_barcode", "") or request.data.get("barcode", "")
+    barcode = barcode.strip()
+    if not barcode:
+        return Response(
+            {"success": False, "error": "NO_PRODUCT_BARCODE", "message": "Provide product_barcode."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    product = Product.objects.filter(barcode=barcode).first()
+    if not product:
+        return Response(
+            {"success": False, "error": "PRODUCT_NOT_FOUND", "message": "Product not found in local DB."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    existing = ProductFavorite.objects.filter(user=request.user, product=product).first()
+    if existing:
+        existing.delete()
+        return Response(
+            {"success": True, "status": "removed", "product_barcode": barcode},
+            status=status.HTTP_200_OK,
+        )
+
+    ProductFavorite.objects.create(user=request.user, product=product)
+    return Response(
+        {"success": True, "status": "added", "product_barcode": barcode},
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@extend_schema(tags=["User Data"], summary="Analysis history for the authenticated user")
+def analysis_history(request):
+    """
+    GET: list recent analyses for the authenticated user.
+    Query params: ?limit=20 (max 50)
+    """
+
+    limit_str = request.query_params.get("limit", "20")
+    try:
+        limit = int(limit_str)
+    except ValueError:
+        limit = 20
+
+    limit = max(1, min(limit, 50))
+
+    base_qs = AnalysisRecord.objects.filter(user=request.user).order_by("-created_at")
+    qs = base_qs[:limit]
+    return Response(
+        {"success": True, "count": base_qs.count(), "items": AnalysisRecordSerializer(qs, many=True).data},
+        status=status.HTTP_200_OK,
+    )

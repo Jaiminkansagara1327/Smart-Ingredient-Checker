@@ -7,5 +7,8 @@ urlpatterns = [
     path('analyze-product/', views.analyze_product, name='analyze_product'),
     path('alternatives/', views.get_alternatives, name='get_alternatives'),
     path('contact/', views.contact_submit, name='contact_submit'),
+    path('support/', views.support, name='support'),
+    path('favorites/', views.favorites, name='favorites'),
+    path('history/', views.analysis_history, name='analysis_history'),
     path('health/', views.health_check, name='health_check'),
 ]

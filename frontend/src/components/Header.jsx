@@ -39,13 +39,7 @@ function Header({ onNavigate, currentPage }) {
         >
           Analyze
         </a>
-        <a
-          href="#"
-          className={`nav-link ${currentPage === 'scoring' ? 'active' : ''}`}
-          onClick={(e) => { e.preventDefault(); handleNavClick('scoring'); }}
-        >
-          How it Works
-        </a>
+
 
         <a
           href="#"
@@ -53,6 +47,14 @@ function Header({ onNavigate, currentPage }) {
           onClick={(e) => { e.preventDefault(); handleNavClick('contact'); }}
         >
           Contact
+        </a>
+        <a
+          href="https://rzp.io/rzp/Z62X3EqH"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="nav-link btn-support"
+        >
+          Support My Work ☕
         </a>
       </nav>
     </header>

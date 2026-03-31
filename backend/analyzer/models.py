@@ -1,4 +1,8 @@
 from django.db import models
+from django.contrib.auth import get_user_model
+
+
+User = get_user_model()
 
 
 class ContactMessage(models.Model):
@@ -108,3 +112,129 @@ class Product(models.Model):
 
     def has_nutrition(self):
         return bool(self.nutriments)
+
+
+class UserProfile(models.Model):
+    """
+    Stores user-level SaaS preferences and profile data.
+    """
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    display_name = models.CharField(max_length=150, blank=True, default="")
+
+    # Simple dietary/preferences toggles (can be expanded later).
+    veg_only = models.BooleanField(default=False)
+    health_goal = models.CharField(max_length=50, blank=True, default="")
+
+    # Notifications
+    notify_email = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.display_name or f"Profile of {self.user.email}"
+
+
+class ProductFavorite(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="favorite_products")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="favorited_by")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "product")
+        indexes = [
+            models.Index(fields=["user", "product"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} -> {self.product.barcode}"
+
+
+class AnalysisRecord(models.Model):
+    """
+    Stores a saved analysis (history) for a user.
+
+    Note: `user` is nullable to support future anonymous history if you
+    choose, but authenticated users will be the primary path.
+    """
+
+    INPUT_TEXT = "text"
+    INPUT_BARCODE = "barcode"
+    INPUT_METHOD_CHOICES = [
+        (INPUT_TEXT, "text"),
+        (INPUT_BARCODE, "barcode"),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="analysis_records",
+        null=True,
+        blank=True,
+    )
+
+    input_method = models.CharField(max_length=20, choices=INPUT_METHOD_CHOICES, default=INPUT_TEXT)
+
+    # Avoid storing huge raw ingredient strings; keep a preview for debugging/history.
+    input_text_preview = models.CharField(max_length=400, blank=True, default="")
+
+    # Optional product snapshot fields
+    product_name = models.CharField(max_length=512, blank=True, default="")
+    product_brand = models.CharField(max_length=255, blank=True, default="")
+    product_json = models.JSONField(null=True, blank=True)
+
+    # Scoring/meta
+    user_goal = models.CharField(max_length=50, blank=True, default="Regular")
+    food_type = models.CharField(max_length=20, blank=True, default="Solid")
+    confidence = models.FloatField(null=True, blank=True)
+    score = models.FloatField(null=True, blank=True)
+    nova_group = models.IntegerField(null=True, blank=True)
+    nutriscore_grade = models.CharField(max_length=10, blank=True, default="")
+
+    analysis_json = models.JSONField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "-created_at"]),
+        ]
+
+    def __str__(self):
+        who = self.user.email if self.user_id else "anonymous"
+        return f"AnalysisRecord({who}, {self.input_method}, {self.created_at:%Y-%m-%d})"
+
+
+class SearchEvent(models.Model):
+    """
+    Captures search requests for observability/analytics.
+    """
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="search_events",
+        null=True,
+        blank=True,
+    )
+
+    query = models.CharField(max_length=200)
+    local_only = models.BooleanField(default=False)
+
+    ip_address = models.CharField(max_length=64, blank=True, default="")
+    user_agent = models.CharField(max_length=512, blank=True, default="")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["created_at"]),
+        ]
+
+    def __str__(self):
+        who = self.user.email if self.user_id else "anonymous"
+        return f"SearchEvent({who}, {self.query[:20]})"

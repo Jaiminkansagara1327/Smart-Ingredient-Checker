@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'drf_spectacular',
+    'accounts',
     'analyzer',
 ]
 
@@ -50,6 +51,9 @@ SPECTACULAR_SETTINGS = {
         {'name': 'Search', 'description': 'Product search via OpenFoodFacts.'},
         {'name': 'Healthier Alternatives', 'description': 'Find better product alternatives.'},
         {'name': 'Contact', 'description': 'Contact form submission.'},
+        {'name': 'Auth', 'description': 'Authentication endpoints (JWT).'},
+        {'name': 'User Data', 'description': 'User saved data: favorites and analysis history.'},
+        {'name': 'Support', 'description': 'Public support/donation links.'},
         {'name': 'Health', 'description': 'Health check and monitoring.'},
     ],
 }
@@ -212,10 +216,18 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/hour',  # 100 requests per hour for anonymous users
+        'user': '1000/hour',  # Authenticated users default quota
     },
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ],
     'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }

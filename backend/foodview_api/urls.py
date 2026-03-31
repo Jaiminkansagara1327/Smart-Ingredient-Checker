@@ -21,6 +21,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('analyzer.urls')),
+    path('api/auth/', include('accounts.urls')),
 
     # ── API Documentation ──────────────────────────────────────
     # Raw OpenAPI schema (JSON/YAML) — useful for importing into Postman

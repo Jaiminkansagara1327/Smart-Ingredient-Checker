@@ -3,8 +3,9 @@ import Header from './components/Header';
 import HomePage from './components/HomePage';
 import UploadSection from './components/UploadSection';
 import ResultsSection from './components/ResultsSection';
-import ScoringGuide from './components/ScoringGuide';
+
 import ContactPage from './components/ContactPage';
+
 import Footer from './components/Footer';
 
 function App() {
@@ -42,7 +43,8 @@ function App() {
     const renderContent = () => {
         if (currentPage === 'home') return <HomePage onNavigate={handleNavigate} />;
         if (currentPage === 'contact') return <ContactPage />;
-        if (currentPage === 'scoring') return <ScoringGuide />;
+
+
 
         return !showResults ? (
             <UploadSection onAnalyze={handleAnalyze} />

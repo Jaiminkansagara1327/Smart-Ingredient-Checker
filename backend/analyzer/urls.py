@@ -11,4 +11,9 @@ urlpatterns = [
     path('favorites/', views.favorites, name='favorites'),
     path('history/', views.analysis_history, name='analysis_history'),
     path('health/', views.health_check, name='health_check'),
+
+    # Razorpay Full API Endpoints
+    path('razorpay/create-order/', views.create_razorpay_order, name='create_razorpay_order'),
+    path('razorpay/verify-payment/', views.verify_razorpay_payment, name='verify_razorpay_payment'),
+    path('razorpay/webhook/', views.razorpay_webhook, name='razorpay_webhook'),
 ]

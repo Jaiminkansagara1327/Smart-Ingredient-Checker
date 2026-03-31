@@ -641,3 +641,151 @@ def analysis_history(request):
         {"success": True, "count": base_qs.count(), "items": AnalysisRecordSerializer(qs, many=True).data},
         status=status.HTTP_200_OK,
     )
+
+
+# ========================================
+#  Razorpay Integration (Full API)
+# ========================================
+import razorpay
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@extend_schema(tags=["Finances"], summary="Create a new Razorpay Order")
+def create_razorpay_order(request):
+    """
+    Step 1: Backend creates an Order ID.
+    Returns: { 'id': 'order_XXX', 'amount': 10000, 'currency': 'INR', 'key_id': '...' }
+    """
+    try:
+        # Get amount from request, default to 100 INR if not provided
+        # Razorpay expects amount in PAISA (100 INR = 10000 Paisa)
+        amount_in_rupees = int(request.data.get('amount', 49))  # Default to 49 INR
+        amount_in_paisa = amount_in_rupees * 100
+
+        client = razorpay.Client(
+            auth=(os.getenv("RAZORPAY_KEY_ID"), os.getenv("RAZORPAY_KEY_SECRET"))
+        )
+
+        order_data = {
+            'amount': amount_in_paisa,
+            'currency': 'INR',
+            'payment_capture': 1  # 1 = auto capture, 0 = manual
+        }
+
+        order = client.order.create(data=order_data)
+
+        # Return order details plus the public KEY_ID for the frontend
+        return Response({
+            'success': True,
+            'order_id': order['id'],
+            'amount': order['amount'],
+            'currency': order['currency'],
+            'key_id': os.getenv("RAZORPAY_KEY_ID")
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print(f"[RAZORPAY] Order creation failed: {str(e)}")
+        return Response({
+            'success': False,
+            'message': 'Failed to create payment order.'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@extend_schema(tags=["Finances"], summary="Verify a Razorpay Payment")
+def verify_razorpay_payment(request):
+    """
+    Step 2: Backend verifies the signature sent by frontend after payment.
+    Ensures the payment wasn't tampered with.
+    """
+    try:
+        razorpay_order_id = request.data.get('razorpay_order_id')
+        razorpay_payment_id = request.data.get('razorpay_payment_id')
+        razorpay_signature = request.data.get('razorpay_signature')
+
+        client = razorpay.Client(
+            auth=(os.getenv("RAZORPAY_KEY_ID"), os.getenv("RAZORPAY_KEY_SECRET"))
+        )
+
+        # Verify signature using SDK
+        params_dict = {
+            'razorpay_order_id': razorpay_order_id,
+            'razorpay_payment_id': razorpay_payment_id,
+            'razorpay_signature': razorpay_signature
+        }
+
+        # This will raise a SignatureVerificationError if signature is invalid
+        client.utility.verify_payment_signature(params_dict)
+
+        print(f"[RAZORPAY] Payment verified successfully: {razorpay_payment_id}")
+        return Response({
+            'success': True,
+            'message': 'Payment verified successfully.'
+        }, status=status.HTTP_200_OK)
+
+    except razorpay.errors.SignatureVerificationError:
+        print("[RAZORPAY] Signature verification failed!")
+        return Response({
+            'success': False,
+            'message': 'Invalid payment signature.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        print(f"[RAZORPAY] Verification Error: {str(e)}")
+        return Response({
+            'success': False,
+            'message': 'Internal server error during verification.'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+from django.views.decorators.csrf import csrf_exempt
+import json
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@extend_schema(tags=["Finances"], summary="Handle Razorpay Webhooks (Success/Failed events)")
+def razorpay_webhook(request):
+    """
+    Step 3: Razorpay Server calls this endpoint directly to confirm payment.
+    This provides 'redundant' security in case the user's browser closes.
+    """
+    try:
+        # Get raw data and signature from headers
+        webhook_body = request.body.decode('utf-8')
+        webhook_signature = request.headers.get('X-Razorpay-Signature')
+        webhook_secret = os.getenv("RAZORPAY_WEBHOOK_SECRET")
+
+        client = razorpay.Client(
+            auth=(os.getenv("RAZORPAY_KEY_ID"), os.getenv("RAZORPAY_KEY_SECRET"))
+        )
+
+        # Verify Webhook Signature
+        client.utility.verify_webhook_signature(
+            webhook_body,
+            webhook_signature,
+            webhook_secret
+        )
+
+        # Process the event
+        event_data = json.loads(webhook_body)
+        event_type = event_data.get('event')
+
+        print(f"[RAZORPAY WEBHOOK] Received event: {event_type}")
+
+        if event_type == 'payment.captured':
+            payment_id = event_data['payload']['payment']['entity']['id']
+            amount = event_data['payload']['payment']['entity']['amount']
+            print(f"[RAZORPAY WEBHOOK] Payment Successful! ID: {payment_id}, Amount: {amount/100} INR")
+            # Here you could update your database or send an automated Thank You email
+            
+        elif event_type == 'payment.failed':
+            print(f"[RAZORPAY WEBHOOK] Payment Failed.")
+
+        return Response({'status': 'ok'}, status=status.HTTP_200_OK)
+
+    except razorpay.errors.SignatureVerificationError:
+        print("[RAZORPAY WEBHOOK] Invalid Webhook Signature!")
+        return Response({'status': 'invalid signature'}, status=400)
+    except Exception as e:
+        print(f"[RAZORPAY WEBHOOK] Error: {str(e)}")
+        return Response({'status': 'error'}, status=500)

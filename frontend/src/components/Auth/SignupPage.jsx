@@ -40,8 +40,10 @@ const SignupPage = ({ onNavigate, onLoginSuccess }) => {
       if (errData && errData.errors) {
         const messages = Object.values(errData.errors).flat().join(' ');
         setError(messages);
+      } else if (err.message === 'Network Error') {
+        setError('Network Error: Cannot connect to the server. Please check if the backend is running.');
       } else {
-        setError('Failed to create account. Please try again.');
+        setError(err.response?.data?.message || 'Failed to create account. Server returned an error (500). Please check your backend migrations.');
       }
     } finally {
       setLoading(false);

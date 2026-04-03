@@ -79,6 +79,10 @@ class MeAPIView(APIView):
 
     def get(self, request):
         user = request.user
+        # Get or create profile
+        from analyzer.models import UserProfile
+        profile, created = UserProfile.objects.get_or_create(user=user)
+        
         return Response(
             {
                 "success": True,
@@ -88,10 +92,22 @@ class MeAPIView(APIView):
                     "username": user.username,
                     "first_name": user.first_name,
                     "last_name": user.last_name,
+                    "health_goal": profile.health_goal or "General Health",
                 },
             },
             status=status.HTTP_200_OK,
         )
+
+    def patch(self, request):
+        user = request.user
+        from analyzer.models import UserProfile
+        profile, created = UserProfile.objects.get_or_create(user=user)
+        
+        if "health_goal" in request.data:
+            profile.health_goal = request.data["health_goal"]
+            profile.save()
+            
+        return Response({"success": True, "health_goal": profile.health_goal})
 
 
 __all__ = [

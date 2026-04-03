@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import api from '../api';
+import api from '../../api';
 
 // Smart loading messages shown during analysis
 const ANALYSIS_MESSAGES = [
@@ -10,14 +10,7 @@ const ANALYSIS_MESSAGES = [
     { icon: '✅', text: 'Preparing your report...' },
 ];
 
-const GOAL_OPTIONS = [
-    { value: 'Regular', label: 'Balanced (Standard)', desc: 'Standard nutrient balance targeting mainstream metabolic baselines' },
-    { value: 'Weight Loss', label: 'Weight Loss', desc: 'Strict multi-vector penalization on calories and sugar' },
-    { value: 'Weight Gain', label: 'Weight Gain', desc: 'Allows dense calories but strictly monitors bad ingredients' },
-    { value: 'Diabetic', label: 'Diabetic', desc: 'Aggressive sugar threshold limitation and blood-sugar risk scaling' },
-    { value: 'Heart Health', label: 'Heart Health', desc: 'Severe penalty weighting applied to sodium and saturated fats' },
-    { value: 'Gym', label: 'Gym / Muscle', desc: 'Heavily favors protein density while remaining neutral on raw calories' }
-];
+
 
 // =========== FRONTEND SEARCH CACHE ===========
 // In-memory cache for instant repeat lookups (survives within session)
@@ -57,9 +50,13 @@ function setPrefetchedAlternatives(categories, nutriscore, name, data) {
     _altCache.set(key, data);
 }
 
-function UploadSection({ onAnalyze }) {
+function UploadSection({ onAnalyze, user }) {
     // Tab state: 'search' or 'manual'
     const [activeTab, setActiveTab] = useState('search');
+    
+    // Auth and Backend History
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [backendHistory, setBackendHistory] = useState([]);
 
     // Search state
     const [searchQuery, setSearchQuery] = useState('');
@@ -69,7 +66,7 @@ function UploadSection({ onAnalyze }) {
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [isAnalyzingProduct, setIsAnalyzingProduct] = useState(false);
     const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
-    const [showHistoryModal, setShowHistoryModal] = useState(false);
+
 
     // Manual text state
     const [manualText, setManualText] = useState('');
@@ -78,7 +75,6 @@ function UploadSection({ onAnalyze }) {
 
     // Scoring Options State
     const [userGoal, setUserGoal] = useState('Regular');
-    const [showGoalDropdown, setShowGoalDropdown] = useState(false);
 
     // Dropdown open/close
     const [showDropdown, setShowDropdown] = useState(false);
@@ -87,7 +83,6 @@ function UploadSection({ onAnalyze }) {
     const searchTimerRef = useRef(null);
     const searchInputRef = useRef(null);
     const dropdownRef = useRef(null);
-    const goalDropdownRef = useRef(null);
     const abortControllerRef = useRef(null);  // Cancel stale API requests
     const searchQueryRef = useRef('');  // Track current query to ignore stale responses
 
@@ -96,9 +91,6 @@ function UploadSection({ onAnalyze }) {
         const handleClickOutside = (e) => {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
                 setShowDropdown(false);
-            }
-            if (goalDropdownRef.current && !goalDropdownRef.current.contains(e.target)) {
-                setShowGoalDropdown(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -116,6 +108,35 @@ function UploadSection({ onAnalyze }) {
         }, 1800);
         return () => clearInterval(interval);
     }, [isAnalyzingProduct, isLoading]);
+
+    // Sync with user goal from profile
+    useEffect(() => {
+        if (user && user.health_goal) {
+            setUserGoal(user.health_goal);
+        }
+    }, [user]);
+
+    // Fetch user history if logged in
+    useEffect(() => {
+        const token = localStorage.getItem('access_token');
+        if (token) {
+            setIsAuthenticated(true);
+               
+            // Only fetch if user prop not provided (fallback)
+            if (!user) {
+                api.get('/api/auth/me/')
+                   .then(res => {
+                        if (res.data.success && res.data.user.health_goal) {
+                            setUserGoal(res.data.user.health_goal);
+                        }
+                   })
+                   .catch(err => console.error(err));
+            }
+        } else {
+            setIsAuthenticated(false);
+            setBackendHistory([]);
+        }
+    }, [activeTab, user]);  // Re-fetch when switching back to tab or user changes
 
     // ========================================
     //  SEARCH TAB LOGIC
@@ -269,7 +290,8 @@ function UploadSection({ onAnalyze }) {
             const response = await api.post('/api/analyze-product/', {
                 barcode: product.barcode,
                 ingredients_text: product.ingredients_text || '',
-                user_goal: userGoal
+                user_goal: userGoal,
+                product_meta: product
             });
 
             if (response.data.success === false) {
@@ -492,42 +514,7 @@ function UploadSection({ onAnalyze }) {
                     </button>
                 </div>
 
-                {/* --- SCORING OPTIONS (Goal) --- */}
-                <div className="scoring-options-panel">
-                    <div className="scoring-option-group">
-                        <label htmlFor="userGoal" className="scoring-label">
-                            Your Health Goal
-                        </label>
-                        <div className="custom-goal-dropdown-container" ref={goalDropdownRef}>
-                            <div
-                                className={`scoring-select ${showGoalDropdown ? 'dropdown-open' : ''}`}
-                                onClick={() => setShowGoalDropdown(!showGoalDropdown)}
-                            >
-                                {GOAL_OPTIONS.find(opt => opt.value === userGoal)?.label || 'Balanced (Standard)'}
-                            </div>
 
-                            {showGoalDropdown && (
-                                <div className="custom-goal-dropdown">
-                                    <div className="custom-goal-list">
-                                        {GOAL_OPTIONS.map((option) => (
-                                            <div
-                                                key={option.value}
-                                                className={`custom-goal-item ${userGoal === option.value ? 'selected' : ''}`}
-                                                onClick={() => {
-                                                    setUserGoal(option.value);
-                                                    setShowGoalDropdown(false);
-                                                }}
-                                            >
-                                                <div className="goal-item-label">{option.label}</div>
-                                                <div className="goal-item-desc">{option.desc}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
 
                 {/* Validation Error Display */}
                 {validationError && (
@@ -793,61 +780,7 @@ function UploadSection({ onAnalyze }) {
                                             </div>
                                         </div>
 
-                                        {/* Recent scans from localStorage */}
-                                        {(() => {
-                                            try {
-                                                const history = JSON.parse(localStorage.getItem('ingrexa_scan_history') || '[]');
-                                                if (history.length === 0) return null;
-                                                return (
-                                                    <div className="recent-scans-section">
-                                                        <div className="recent-scans-header">
-                                                            <p className="suggestions-label" style={{ margin: 0 }}>🕐 Recent scans</p>
-                                                            {history.length > 4 && (
-                                                                <button onClick={() => setShowHistoryModal(true)} className="view-history-btn">
-                                                                    View All
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                        <div className="recent-scans-grid">
-                                                            {history.slice(0, 4).map((item, idx) => (
-                                                                <button
-                                                                    key={idx}
-                                                                    className="recent-scan-card"
-                                                                    onClick={() => {
-                                                                        setSearchQuery(item.name);
-                                                                        setIsSearching(true);
-                                                                        setShowDropdown(true);
-                                                                        searchProducts(item.name);
-                                                                    }}
-                                                                >
-                                                                    <div className="recent-scan-img-wrap">
-                                                                        {item.image_url ? (
-                                                                            <img src={item.image_url} alt="" className="recent-scan-img" />
-                                                                        ) : (
-                                                                            <div className="recent-scan-placeholder">📦</div>
-                                                                        )}
-                                                                        {item.nutriscore_grade && item.nutriscore_grade !== 'unknown' && item.nutriscore_grade !== 'not-applicable' && (() => {
-                                                                            const g = item.nutriscore_grade.toLowerCase();
-                                                                            const gradeMap = { a: 9.0, b: 7.0, c: 5.0, d: 3.0, e: 1.0 };
-                                                                            const score = gradeMap[g] || 0;
-                                                                            return (
-                                                                                <span className={`recent-scan-badge badge-${g}`} title="Estimated Score">
-                                                                                    {score.toFixed(1)}/10
-                                                                                </span>
-                                                                            );
-                                                                        })()}
-                                                                    </div>
-                                                                    <div className="recent-scan-info">
-                                                                        <span className="recent-scan-name">{item.name}</span>
-                                                                        {item.brand && <span className="recent-scan-brand">{item.brand}</span>}
-                                                                    </div>
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            } catch { return null; }
-                                        })()}
+
                                     </div>
                                 )}
                             </>
@@ -900,76 +833,7 @@ function UploadSection({ onAnalyze }) {
                 )}
             </div>
 
-            {/* History Modal Overlay */}
-            {showHistoryModal && (
-                <div className="history-modal-overlay" onClick={() => setShowHistoryModal(false)}>
-                    <div className="history-modal-content" onClick={e => e.stopPropagation()}>
-                        <div className="history-modal-header">
-                            <div>
-                                <h1 className="history-title">Your Scan History</h1>
-                                <p className="history-subtitle">Find your previously analyzed products</p>
-                            </div>
-                            <button className="history-modal-close" onClick={() => setShowHistoryModal(false)} aria-label="Close history">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                                </svg>
-                            </button>
-                        </div>
-                        <div className="history-modal-body">
-                            {(() => {
-                                const history = JSON.parse(localStorage.getItem('ingrexa_scan_history') || '[]');
-                                return history.map((item, idx) => (
-                                    <button
-                                        key={idx}
-                                        className="history-list-item"
-                                        onClick={() => {
-                                            setShowHistoryModal(false);
-                                            setSearchQuery(item.name);
-                                            setIsSearching(true);
-                                            setShowDropdown(true);
-                                            searchProducts(item.name);
-                                        }}
-                                    >
-                                        <div className="history-item-img-wrap">
-                                            {item.image_url ? (
-                                                <img src={item.image_url} alt="" className="history-item-img" />
-                                            ) : (
-                                                <div className="history-item-placeholder">📦</div>
-                                            )}
-                                            {item.nutriscore_grade && item.nutriscore_grade !== 'unknown' && item.nutriscore_grade !== 'not-applicable' && (() => {
-                                                const g = item.nutriscore_grade.toLowerCase();
-                                                const gradeMap = { a: 9.0, b: 7.0, c: 5.0, d: 3.0, e: 1.0 };
-                                                const score = gradeMap[g] || 0;
-                                                return (
-                                                    <span className={`history-item-badge badge-${g}`} title="Estimated Score">
-                                                        {score.toFixed(1)}/10
-                                                    </span>
-                                                );
-                                            })()}
-                                        </div>
-                                        <div className="history-item-info">
-                                            <span className="history-item-name">{item.name}</span>
-                                            {item.brand && <span className="history-item-brand">{item.brand}</span>}
-                                            {item.scannedAt && (
-                                                <span className="history-item-date">
-                                                    {new Date(item.scannedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="history-item-arrow">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                <path d="M5 12h14M12 5l7 7-7 7" />
-                                            </svg>
-                                        </div>
-                                    </button>
-                                ));
-                            })()}
-                        </div>
-                    </div>
-                </div>
-            )
-            }
+
         </section >
     );
 }

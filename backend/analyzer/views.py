@@ -406,6 +406,7 @@ def analyze_product(request):
     barcode = request.data.get('barcode', '').strip()
     supplied_ingredients = request.data.get('ingredients_text', '').strip()
     user_goal = request.data.get('user_goal', 'Regular')
+    frontend_meta = request.data.get('product_meta', None)
     
     # User might define it, otherwise OpenFoodFacts tags determines it
     food_type = request.data.get('food_type', 'Solid')
@@ -417,18 +418,19 @@ def analyze_product(request):
         )
     
     try:
-        product_info = None
+        product_info = frontend_meta
         ingredients_text = supplied_ingredients
         
-        # If we have a barcode and no pre-supplied ingredients, fetch from OFF
-        if barcode and not ingredients_text:
+        # If we have a barcode but no product info, fetch from OFF
+        if barcode and not product_info:
             print(f"[PRODUCT] Fetching product details for barcode: {barcode}")
             product_result = off_get_product(barcode)
             
             if not product_result.get('success'):
                 return Response(product_result, status=status.HTTP_200_OK)
             
-            ingredients_text = product_result.get('ingredients_text', '')
+            if not ingredients_text:
+                ingredients_text = product_result.get('ingredients_text', '')
             product_info = product_result.get('product', {})
             
             # Map OFF categories to Food Type if the user hasn't explicitly set one
@@ -469,6 +471,20 @@ def analyze_product(request):
             if 'product' in analysis_result:
                 analysis_result['product']['name'] = product_info.get('name', analysis_result['product'].get('name', 'Unknown'))
                 analysis_result['product']['brand'] = product_info.get('brand', 'Unknown')
+                analysis_result['product']['image_url'] = product_info.get('image_url', '')
+                analysis_result['product']['nutriscore_grade'] = product_info.get('nutriscore_grade', '')
+            
+            # Add _product_meta to analysis_json for easier frontend rendering
+            # this makes future history loaded from backend match the "live" analysis meta
+            analysis_result['_product_meta'] = {
+                'name': product_info.get('name', ''),
+                'brand': product_info.get('brand', ''),
+                'image_url': product_info.get('image_url', ''),
+                'categories': product_info.get('categories', ''),
+                'nutriscore_grade': product_info.get('nutriscore_grade', ''),
+                'barcode': barcode,
+                'nutriments': product_info.get('nutriments', None)
+            }
 
         # Save to authenticated users' analysis history (SaaS feature).
         if request.user and request.user.is_authenticated:

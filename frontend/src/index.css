@@ -177,10 +177,8 @@ body {
     border: none;
     cursor: pointer;
     z-index: 102;
-    /* Above mobile menu */
     padding: 0;
     position: relative;
-    outline: none;
 }
 
 .hamburger-line {
@@ -188,26 +186,27 @@ body {
     width: 24px;
     height: 2px;
     background: var(--color-text-primary);
-    border-radius: 2px;
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 4px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: absolute;
     left: 4px;
 }
 
-.line-top {
-    top: 11px;
+.line-1 { top: 10px; }
+.line-2 { top: 16px; opacity: 1; }
+.line-3 { top: 22px; }
+
+.mobile-menu-btn.open .line-1 {
+    transform: translateY(6px) rotate(45deg);
 }
 
-.line-bottom {
-    top: 19px;
+.mobile-menu-btn.open .line-2 {
+    opacity: 0;
+    transform: translateX(-10px);
 }
 
-.mobile-menu-btn.open .line-top {
-    transform: translateY(4px) rotate(45deg);
-}
-
-.mobile-menu-btn.open .line-bottom {
-    transform: translateY(-4px) rotate(-45deg);
+.mobile-menu-btn.open .line-3 {
+    transform: translateY(-6px) rotate(-45deg);
 }
 
 .nav-link {
@@ -237,7 +236,10 @@ body {
     color: white !important;
     font-weight: 600;
     box-shadow: var(--shadow-sm);
-    padding: var(--spacing-xs) var(--spacing-md);
+    padding: var(--spacing-xs) var(--spacing-lg);
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .btn-support:hover {
@@ -1647,54 +1649,131 @@ body {
    =================================== */
 @media (max-width: 768px) {
     .header {
-        padding: var(--spacing-md) var(--spacing-lg);
+        padding: var(--spacing-sm) var(--spacing-md);
+        height: 70px;
+    }
+
+    .mobile-menu-btn {
+        display: block;
     }
 
     .nav {
-        gap: var(--spacing-sm);
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 100vh;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: var(--spacing-2xl) var(--spacing-xl);
+        gap: var(--spacing-xl);
+        z-index: 101;
+        transform: translateY(-100%);
+        transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        display: flex;
+        box-shadow: none;
+    }
+
+    .nav-open {
+        transform: translateY(0);
     }
 
     .nav-link {
-        padding: var(--spacing-xs) var(--spacing-sm);
-        font-size: var(--font-size-xs);
+        width: auto;
+        text-align: center;
+        padding: var(--spacing-md) var(--spacing-2xl);
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-text-primary) !important;
+        border-radius: var(--radius-lg);
+        letter-spacing: -0.02em;
+        background: transparent !important;
+    }
+
+    .btn-support {
+        width: auto;
+        min-width: 240px;
+        justify-content: center;
+        margin-top: var(--spacing-md);
+        background: var(--color-text-primary) !important;
+        color: white !important;
+        padding: 1.1rem 2.5rem !important;
+        border-radius: 100px !important;
+        font-size: 1rem !important;
+        display: flex !important;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+
+    .btn-support svg {
+        width: 20px;
+        height: 20px;
     }
 
     .main-content {
-        padding: var(--spacing-lg);
+        padding: var(--spacing-md);
     }
 
     .main-title {
-        font-size: var(--font-size-3xl);
+        font-size: var(--font-size-2xl);
+        line-height: 1.2;
     }
 
     .main-subtitle {
         font-size: var(--font-size-base);
+        margin-bottom: var(--spacing-xl);
     }
 
-    .upload-tabs {
+    /* Results Mobile Fixes */
+    .product-identity-row {
         flex-direction: column;
-    }
-
-    .product-info {
-        flex-direction: column;
-        align-items: center;
         text-align: center;
+        gap: var(--spacing-sm);
     }
 
-    .action-buttons {
+    .product-identity-img {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto;
+    }
+
+    .overview-stats {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-sm);
+    }
+
+    .verdict-card {
+        padding: var(--spacing-xl) var(--spacing-md);
+    }
+
+    .verdict-text {
+        font-size: var(--font-size-xl);
+    }
+
+    .nutriscore-badge {
+        font-size: 1.5rem;
+        height: 38px;
+        min-width: 50px;
+    }
+
+    .scoring-options-panel {
         flex-direction: column;
+        gap: var(--spacing-md);
     }
 
-    .url-input-container {
+    .history-card {
+        padding: var(--spacing-md);
+    }
+
+    .history-item-content {
         flex-direction: column;
-    }
-
-    .text-input-container {
-        flex-direction: column;
-    }
-
-    .card {
-        animation: popIn var(--transition-base) forwards;
+        align-items: flex-start;
+        gap: var(--spacing-xs);
     }
 }
 

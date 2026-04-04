@@ -24,6 +24,10 @@ function App() {
     const [analysisData, setAnalysisData] = useState(null);
     const [uploadedImage, setUploadedImage] = useState(null);
     const [user, setUser] = useState(() => {
+        // Only trust cached user if we have a token
+        const token = localStorage.getItem('access_token');
+        if (!token) return null;
+        
         const cached = localStorage.getItem('ingrexa_cached_user');
         return cached ? JSON.parse(cached) : null;
     });
@@ -126,7 +130,7 @@ function App() {
     };
 
     const renderContent = () => {
-        const isLoggedIn = !!user || !!localStorage.getItem('access_token');
+        const isLoggedIn = !!user;
 
         if (currentPage === 'home') return <HomePage onNavigate={handleNavigate} />;
         if (currentPage === 'contact') return <ContactPage />;

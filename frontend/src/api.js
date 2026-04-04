@@ -57,9 +57,8 @@ api.interceptors.response.use(
                 }
             } catch (refreshError) {
                 // Refresh token is expired too, must log in again
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
-                // You could optionally window.location.href = '/' here
+                localStorage.clear();
+                window.location.reload(); // Force app to refresh state if not handled by React
             }
         }
         return Promise.reject(error);

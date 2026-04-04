@@ -20,6 +20,7 @@ function Header({ onNavigate, currentPage, user, setUser }) {
   const handleLogout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('ingrexa_cached_user');
     setUser(null);
     onNavigate('home');
     setIsMenuOpen(false);
@@ -132,8 +133,7 @@ function Header({ onNavigate, currentPage, user, setUser }) {
           className={`nav-link ${currentPage === 'analyze' ? 'active' : ''}`}
           onClick={(e) => { 
             e.preventDefault(); 
-            const hasToken = localStorage.getItem('access_token');
-            if (hasToken) {
+            if (user) {
               handleNavClick('analyze');
             } else {
               handleNavClick('login');
@@ -229,8 +229,6 @@ function Header({ onNavigate, currentPage, user, setUser }) {
               </div>
             )}
           </div>
-        ) : localStorage.getItem('access_token') ? (
-          <div className="login-avatar" style={{ marginLeft: '10px' }}>U</div>
         ) : (
           <div className="login-pill" onClick={() => handleNavClick('login')}>
             <span className="login-text">Sign in</span>

@@ -131,10 +131,100 @@ class MeAPIView(APIView):
             )
 
 
+@extend_schema(tags=["Auth"], summary="Login with Google")
+class GoogleLoginAPIView(APIView):
+    """
+    Backend view to handle the Google Login. 
+    Supports both `credential` (ID Token) and `access_token` (implicit flow).
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        token = request.data.get("credential") # ID Token from standard btn
+        access_token = request.data.get("access_token") # From custom hook btn
+        
+        if not token and not access_token:
+            return Response({"success": False, "message": "Token is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        import os
+        import requests as py_requests
+        from rest_framework_simplejwt.tokens import RefreshToken
+        from django.db import transaction
+
+        try:
+            email, first_name, last_name = None, "", ""
+
+            if token:
+                # Flow A: Verify ID Token
+                from google.oauth2 import id_token
+                from google.auth.transport import requests as google_requests
+                client_id = os.environ.get("GOOGLE_CLIENT_ID")
+                idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), client_id)
+                email = idinfo['email']
+                first_name = idinfo.get('given_name', '')
+                last_name = idinfo.get('family_name', '')
+            else:
+                # Flow B: Verify Access Token via Google UserInfo API
+                userinfo_res = py_requests.get(
+                    "https://www.googleapis.com/oauth2/v3/userinfo",
+                    headers={"Authorization": f"Bearer {access_token}"}
+                )
+                if not userinfo_res.ok:
+                    raise Exception("Failed to verify access token with Google")
+                
+                user_data = userinfo_res.json()
+                email = user_data['email']
+                first_name = user_data.get('given_name', '')
+                last_name = user_data.get('family_name', '')
+
+            # In this project, we map email to the username
+            username = email.lower()
+
+            with transaction.atomic():
+                user, created = User.objects.get_or_create(
+                    username=username,
+                    defaults={
+                        'email': email,
+                        'first_name': first_name,
+                        'last_name': last_name,
+                    }
+                )
+
+                if created:
+                    user.set_unusable_password()
+                    user.save()
+                    from analyzer.models import UserProfile
+                    UserProfile.objects.get_or_create(user=user)
+
+            # Generate local tokens
+            refresh = RefreshToken.for_user(user)
+            
+            return Response({
+                "success": True,
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "first_name": user.first_name,
+                }
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            import logging
+            logger = logging.getLogger("accounts")
+            logger.error(f"Google Login error: {str(e)}", exc_info=True)
+            return Response({
+                "success": False, 
+                "message": f"Login failed: {str(e)}"
+            }, status=status.HTTP_401_UNAUTHORIZED)
+
+
 __all__ = [
     "RegisterAPIView",
     "MeAPIView",
     "EmailTokenObtainPairView",
     "TokenRefreshView",
+    "GoogleLoginAPIView",
 ]
 

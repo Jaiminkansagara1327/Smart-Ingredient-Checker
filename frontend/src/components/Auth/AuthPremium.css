@@ -120,22 +120,23 @@
     background: var(--color-text-primary);
     color: white;
     border: none;
-    border-radius: 16px;
+    border-radius: 100px;
     font-size: 1.1rem;
     font-weight: 700;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    margin-top: 1rem;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    margin-top: 1.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .auth-submit-btn:hover {
     background: #1e293b;
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
 }
 
 .auth-submit-btn:active {
@@ -150,8 +151,8 @@
 .auth-social-divider {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    margin: 2rem 0;
+    gap: 1.5rem;
+    margin: 2.5rem 0 1.5rem;
 }
 
 .auth-social-divider::before,
@@ -159,37 +160,40 @@
     content: '';
     flex: 1;
     height: 1px;
-    background: #e2e8f0;
+    background: linear-gradient(to right, transparent, #e2e8f0, transparent);
 }
 
 .auth-social-divider span {
-    font-size: 0.75rem;
-    font-weight: 700;
+    font-size: 0.8rem;
+    font-weight: 800;
     color: #94a3b8;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.15em;
 }
 
 .auth-google-btn {
     width: 100%;
-    padding: 1rem;
+    padding: 1.1rem;
     background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 100px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    font-size: 1rem;
+    gap: 14px;
+    font-size: 1.05rem;
     font-weight: 600;
     color: var(--color-text-primary);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .auth-google-btn:hover {
     background: #f8fafc;
     border-color: #cbd5e1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .auth-footer-premium {

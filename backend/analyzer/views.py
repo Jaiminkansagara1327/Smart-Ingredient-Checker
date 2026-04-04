@@ -288,38 +288,61 @@ def contact_submit(request):
     if serializer.is_valid():
         serializer.save()
         
-        # Send email via Resend HTTP API (synchronously)
-        # Render blocks SMTP ports AND kills background threads
-        import requests as http_requests
-        
+        # Send email notification
+        from_email = os.environ.get('EMAIL_HOST_USER', 'se.jaimin91@gmail.com')
+        to_email = os.environ.get('CONTACT_EMAIL_RECIPIENT', 'se.jaimin91@gmail.com')
+        subject = f"New Contact Message from {sanitized_data['name']}"
+        body = (
+            f"New contact message from Ingrexa:\n\n"
+            f"From: {sanitized_data['name']}\n"
+            f"Email: {sanitized_data['email']}\n\n"
+            f"Message:\n{sanitized_data['message']}\n\n"
+            f"---\nSent from Ingrexa Contact Form"
+        )
+
+        email_sent = False
+
+        # PRIMARY: Django send_mail via Gmail SMTP
         try:
-            resend_api_key = os.environ.get('RESEND_API_KEY', '')
-            to_email = os.environ.get('CONTACT_EMAIL_RECIPIENT', 'se.jaimin91@gmail.com')
-            
-            print(f"[EMAIL] Starting Resend send to {to_email}, key present: {bool(resend_api_key)}", flush=True)
-            
-            if not resend_api_key:
-                print("[EMAIL] Skipping - RESEND_API_KEY not set", flush=True)
-            else:
-                email_response = http_requests.post(
-                    'https://api.resend.com/emails',
-                    headers={
-                        'Authorization': f'Bearer {resend_api_key}',
-                        'Content-Type': 'application/json'
-                    },
-                    json={
-                        'from': 'Ingrexa Contact <onboarding@resend.dev>',
-                        'to': [to_email],
-                        'subject': f"New Contact Message from {sanitized_data['name']}",
-                        'text': f"New contact message from Ingrexa:\n\nFrom: {sanitized_data['name']}\nEmail: {sanitized_data['email']}\n\nMessage:\n{sanitized_data['message']}\n\n---\nSent from Ingrexa Contact Form"
-                    },
-                    timeout=10
-                )
-                
-                print(f"[EMAIL] Resend response: {email_response.status_code} - {email_response.text}", flush=True)
-        except Exception as e:
-            print(f"[EMAIL ERROR] {type(e).__name__}: {str(e)}", flush=True)
-        
+            from django.core.mail import send_mail
+            send_mail(
+                subject=subject,
+                message=body,
+                from_email=from_email,
+                recipient_list=[to_email],
+                fail_silently=False,
+            )
+            email_sent = True
+            print(f"[EMAIL] Gmail SMTP sent successfully to {to_email}", flush=True)
+        except Exception as smtp_err:
+            print(f"[EMAIL] Gmail SMTP failed: {smtp_err}. Trying Resend...", flush=True)
+
+        # FALLBACK: Resend HTTP API
+        if not email_sent:
+            try:
+                import requests as http_requests
+                resend_api_key = os.environ.get('RESEND_API_KEY', '')
+                if resend_api_key:
+                    email_response = http_requests.post(
+                        'https://api.resend.com/emails',
+                        headers={
+                            'Authorization': f'Bearer {resend_api_key}',
+                            'Content-Type': 'application/json'
+                        },
+                        json={
+                            'from': 'Ingrexa Contact <onboarding@resend.dev>',
+                            'to': [to_email],
+                            'subject': subject,
+                            'text': body,
+                        },
+                        timeout=10
+                    )
+                    print(f"[EMAIL] Resend response: {email_response.status_code}", flush=True)
+                else:
+                    print("[EMAIL] No Resend API key found either. Message saved to DB only.", flush=True)
+            except Exception as resend_err:
+                print(f"[EMAIL] Resend also failed: {resend_err}", flush=True)
+
         print(f"[SECURITY] Contact form submitted: {sanitized_data['email']}", flush=True)
         return Response({
             'success': True,

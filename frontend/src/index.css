@@ -104,9 +104,11 @@ body {
 
 
 #root {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
     position: relative;
     z-index: 1;
-    min-height: 100vh;
 }
 
 /* ===================================
@@ -331,9 +333,11 @@ body {
    Main Content
    =================================== */
 .main-content {
+    flex: 1;
     max-width: 1200px;
     margin: 0 auto;
     padding: var(--spacing-2xl);
+    width: 100%;
 }
 
 /* ===================================
@@ -2247,7 +2251,7 @@ html {
     background: var(--color-bg-card);
     border-top: 2px solid var(--color-border);
     padding: var(--spacing-xl) var(--spacing-2xl);
-    margin-top: var(--spacing-2xl);
+    margin-top: auto; /* Push to bottom in flex container */
 }
 
 .footer-content {

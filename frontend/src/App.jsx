@@ -13,8 +13,10 @@ import HistoryPage from './components/Other/HistoryPage';
 import Footer from './components/Layout/Footer';
 import api from './api';
 
+import { useGoogleOneTapLogin } from '@react-oauth/google';
+
 function App() {
-    // Start where the user left off, or default to home
+    // Current state management...
     const [currentPage, setCurrentPage] = useState(() => {
         return sessionStorage.getItem('ingrexa_current_page') || 'home';
     });
@@ -22,7 +24,6 @@ function App() {
     const [analysisData, setAnalysisData] = useState(null);
     const [uploadedImage, setUploadedImage] = useState(null);
     const [user, setUser] = useState(() => {
-        // Instant load from cache to avoid flickering
         const cached = localStorage.getItem('ingrexa_cached_user');
         return cached ? JSON.parse(cached) : null;
     });
@@ -40,17 +41,34 @@ function App() {
             } catch (err) {
                 console.error("Auth verify error", err);
                 if (err.response && (err.response.status === 401 || err.response.status === 403)) {
-                    localStorage.removeItem('access_token');
-                    localStorage.removeItem('refresh_token');
-                    localStorage.removeItem('ingrexa_cached_user');
+                    localStorage.clear();
                     setUser(null);
                 }
             }
-        } else {
-            setUser(null);
-            localStorage.removeItem('ingrexa_cached_user');
         }
     };
+
+    // Google One Tap Implementation
+    useGoogleOneTapLogin({
+        onSuccess: async (credentialResponse) => {
+            try {
+                const response = await api.post('/api/auth/google-login/', {
+                    credential: credentialResponse.credential
+                });
+                
+                if (response.data.success) {
+                    localStorage.setItem('access_token', response.data.access);
+                    localStorage.setItem('refresh_token', response.data.refresh);
+                    await fetchUser();
+                    // Optional: redirect to analyzer if they were on a restricted page
+                }
+            } catch (err) {
+                console.error('One Tap Login error', err);
+            }
+        },
+        onError: () => console.log('One Tap Login Failed'),
+        disabled: !!user || !!localStorage.getItem('access_token'),
+    });
 
     // Global auth listener — run once on mount
     useEffect(() => {
@@ -108,10 +126,22 @@ function App() {
     };
 
     const renderContent = () => {
+        const isLoggedIn = !!user || !!localStorage.getItem('access_token');
+
         if (currentPage === 'home') return <HomePage onNavigate={handleNavigate} />;
         if (currentPage === 'contact') return <ContactPage />;
-        if (currentPage === 'login') return <LoginPage onNavigate={handleNavigate} onLoginSuccess={fetchUser} />;
-        if (currentPage === 'signup') return <SignupPage onNavigate={handleNavigate} onLoginSuccess={fetchUser} />;
+
+        // If already logged in, don't show auth pages — redirect to analyze
+        if (currentPage === 'login' || currentPage === 'signup') {
+            if (isLoggedIn) {
+                // Silently fix the stuck page state
+                setTimeout(() => handleNavigate('analyze'), 0);
+                return <UploadSection onAnalyze={handleAnalyze} user={user} />;
+            }
+            if (currentPage === 'login') return <LoginPage onNavigate={handleNavigate} onLoginSuccess={fetchUser} />;
+            if (currentPage === 'signup') return <SignupPage onNavigate={handleNavigate} onLoginSuccess={fetchUser} />;
+        }
+
         if (currentPage === 'settings') return <SettingsPage onNavigate={handleNavigate} user={user} setUser={setUser} />;
         if (currentPage === 'history') return <HistoryPage onNavigate={handleNavigate} user={user} onSelectHistoryItem={handleHistorySelect} />;
         

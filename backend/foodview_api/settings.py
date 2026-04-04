@@ -92,9 +92,16 @@ DATABASES = {
     }
 }
 
-# Override with Database URL for Production (Render)
-db_from_env = dj_database_url.config(conn_max_age=600)
+# Override with Database URL for Production (Render + Supabase Pooler)
+# Using conn_max_age=0 because Supabase uses PgBouncer (transaction pooling mode),
+# which is incompatible with persistent connections (conn_max_age > 0).
+# DISABLE_SERVER_SIDE_CURSORS is also required for PgBouncer transaction pooling.
+db_from_env = dj_database_url.config(
+    conn_max_age=0,   # Required for PgBouncer / Supabase connection pooler
+    ssl_require=True, # Force SSL for Supabase
+)
 if db_from_env:
+    db_from_env['DISABLE_SERVER_SIDE_CURSORS'] = True
     DATABASES['default'].update(db_from_env)
 
 # Static Files (Whitenoise)

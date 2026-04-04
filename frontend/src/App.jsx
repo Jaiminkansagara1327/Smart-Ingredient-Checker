@@ -21,7 +21,11 @@ function App() {
     const [showResults, setShowResults] = useState(false);
     const [analysisData, setAnalysisData] = useState(null);
     const [uploadedImage, setUploadedImage] = useState(null);
-    const [user, setUser] = useState(null);
+    const [user, setUser] = useState(() => {
+        // Instant load from cache to avoid flickering
+        const cached = localStorage.getItem('ingrexa_cached_user');
+        return cached ? JSON.parse(cached) : null;
+    });
 
     const fetchUser = async () => {
         const token = localStorage.getItem('access_token');
@@ -29,27 +33,29 @@ function App() {
             try {
                 const res = await api.get('/api/auth/me/');
                 if (res.data && res.data.success) {
-                    setUser(res.data.user);
+                    const userData = res.data.user;
+                    setUser(userData);
+                    localStorage.setItem('ingrexa_cached_user', JSON.stringify(userData));
                 }
             } catch (err) {
                 console.error("Auth verify error", err);
-                // Only wipe tokens if the server explicitly tells us they are invalid (401/403)
-                // Otherwise, a random network glitch would log the user out!
                 if (err.response && (err.response.status === 401 || err.response.status === 403)) {
                     localStorage.removeItem('access_token');
                     localStorage.removeItem('refresh_token');
+                    localStorage.removeItem('ingrexa_cached_user');
+                    setUser(null);
                 }
-                setUser(null);
             }
         } else {
             setUser(null);
+            localStorage.removeItem('ingrexa_cached_user');
         }
     };
 
-    // Global auth listener
+    // Global auth listener — run once on mount
     useEffect(() => {
         fetchUser();
-    }, [currentPage]);
+    }, []);
 
     // Scroll to top when page or view changes
     useEffect(() => {

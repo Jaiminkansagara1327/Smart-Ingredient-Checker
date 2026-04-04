@@ -246,10 +246,16 @@ function Header({ onNavigate, currentPage, user, setUser }) {
             width: '40px',
             height: '40px',
             borderRadius: '50%',
-            backgroundColor: '#e2e8f0',
-            animation: 'pulse 1.5s infinite',
-            marginLeft: '10px'
-          }} title="Loading Profile..."></div>
+            backgroundColor: '#f1f5f9',
+            color: '#94a3b8',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1rem',
+            fontWeight: '600',
+            marginLeft: '10px',
+            border: '1px solid #e2e8f0'
+          }}>U</div>
         ) : (
           <div 
             onClick={() => handleNavClick('login')}

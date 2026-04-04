@@ -165,25 +165,13 @@ function Header({ onNavigate, currentPage, user, setUser }) {
 
         {user ? (
           <div className="profile-menu-container" style={{ position: 'relative', marginLeft: '10px' }}>
-            <div 
-              onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                backgroundColor: '#00A389',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.2rem',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-              }}
-              title="Profile Menu"
-            >
-              {user.first_name ? user.first_name[0].toUpperCase() : 'U'}
+            <div className="profile-pill" onClick={() => setShowProfileDropdown(!showProfileDropdown)}>
+              <span className="profile-text">
+                {user.first_name || 'My Profile'}
+              </span>
+              <div className="profile-avatar">
+                {user.first_name ? user.first_name[0].toUpperCase() : 'U'}
+              </div>
             </div>
 
             {showProfileDropdown && (
@@ -242,54 +230,11 @@ function Header({ onNavigate, currentPage, user, setUser }) {
             )}
           </div>
         ) : localStorage.getItem('access_token') ? (
-          <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            backgroundColor: '#f1f5f9',
-            color: '#94a3b8',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1rem',
-            fontWeight: '600',
-            marginLeft: '10px',
-            border: '1px solid #e2e8f0'
-          }}>U</div>
+          <div className="login-avatar" style={{ marginLeft: '10px' }}>U</div>
         ) : (
-          <div 
-            onClick={() => handleNavClick('login')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              backgroundColor: '#f2f3ff',
-              padding: '6px 14px',
-              borderRadius: '100px',
-              cursor: 'pointer',
-              border: '1px solid #e2e7ff',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = '#eef0ff';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = '#f2f3ff';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#131b2e' }}>Sign in</span>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              backgroundColor: '#e2e7ff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#57657b'
-            }}>
+          <div className="login-pill" onClick={() => handleNavClick('login')}>
+            <span className="login-text">Sign in</span>
+            <div className="login-avatar">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                 <circle cx="12" cy="7" r="4"></circle>

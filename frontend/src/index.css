@@ -232,21 +232,99 @@ body {
 }
 
 .btn-support {
-    background: var(--color-accent-gradient);
+    background: var(--color-accent-primary);
     color: white !important;
     font-weight: 600;
     box-shadow: var(--shadow-sm);
-    padding: var(--spacing-xs) var(--spacing-lg);
+    padding: var(--spacing-sm) var(--spacing-lg);
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    border-radius: 100px;
+    cursor: pointer;
 }
 
 .btn-support:hover {
     box-shadow: var(--shadow-md);
     transform: translateY(-1px);
-    background: var(--color-accent-gradient);
-    filter: brightness(1.05);
+    background: var(--color-accent-secondary);
+}
+
+.nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.profile-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fdfbff;
+    padding: 2px 2px 2px 14px;
+    border-radius: 100px;
+    border: 1px solid #e0e7ff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+.profile-pill:hover {
+    background: #f8faff;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+}
+
+.profile-text {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.profile-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e0e7ff 0%, #f1f5f9 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+.login-pill {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #f2f3ff;
+    padding: 6px 6px 6px 14px;
+    border-radius: 100px;
+    cursor: pointer;
+    border: 1px solid #e2e7ff;
+    transition: all 0.2s ease;
+}
+
+.login-pill:hover {
+    background: #eef1ff;
+    transform: translateY(-1px);
+}
+
+.login-text {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #131b2e;
+}
+
+.login-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #e2e7ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #57657b;
 }
 
 /* ===================================

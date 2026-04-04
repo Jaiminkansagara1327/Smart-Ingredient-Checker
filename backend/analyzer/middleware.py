@@ -147,7 +147,9 @@ class IPRateLimitMiddleware:
     def _cleanup_old_entries(self, current_time):
         """Remove entries older than the window"""
         to_remove = []
-        for ip, data in self._requests.items():
+        # Use a list of keys to avoid 'Dictionary changed size during iteration'
+        for ip in list(self._requests.keys()):
+            data = self._requests[ip]
             if current_time - data['start_time'] > self.window_seconds:
                 to_remove.append(ip)
         for ip in to_remove:

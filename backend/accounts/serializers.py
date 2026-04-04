@@ -29,17 +29,29 @@ class RegisterSerializer(serializers.Serializer):
         return value
 
     def create(self, validated_data):
+        from django.db import transaction
+        from analyzer.models import UserProfile
+
         email = validated_data["email"]
         password = validated_data["password"]
         name = validated_data.get("name", "").strip()
 
-        # Username is required by Django's default User model.
-        return User.objects.create_user(
-            username=email,
-            email=email,
-            password=password,
-            first_name=name,
-        )
+        with transaction.atomic():
+            # Username is required by Django's default User model.
+            user = User.objects.create_user(
+                username=email,
+                email=email,
+                password=password,
+                first_name=name,
+            )
+            
+            # Ensure profile is created immediately to avoid 500 errors in subsequent 'me' calls
+            UserProfile.objects.get_or_create(
+                user=user,
+                defaults={'display_name': name}
+            )
+            
+            return user
 
 
 __all__ = ["RegisterSerializer"]

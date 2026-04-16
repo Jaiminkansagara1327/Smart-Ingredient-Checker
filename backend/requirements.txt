@@ -75,3 +75,9 @@ typing_extensions==4.15.0
 uritemplate==4.2.0
 urllib3==2.6.3
 whitenoise==6.11.0
+
+# ── Redis + Celery ──────────────────────────────────────────────────────────
+celery==5.4.0
+django-celery-results==2.5.1
+redis==5.2.1
+django-redis==5.4.0

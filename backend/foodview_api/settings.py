@@ -279,3 +279,66 @@ LOGGING = {
 }
 
 
+# ============================================================
+# Redis Cache (used for DRF throttling + general caching)
+# ============================================================
+# CACHE_URL example: redis://localhost:6379/1
+# In production set REDIS_URL in .env  (Render / Railway give you one free)
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            # Silently ignore Redis errors so the app degrades gracefully
+            # if Redis is temporarily unavailable.
+            "IGNORE_EXCEPTIONS": True,
+        },
+        "TIMEOUT": 300,  # Default cache TTL: 5 minutes
+        "KEY_PREFIX": "ingrexa",
+    }
+}
+
+# Use Redis for Django sessions too (optional but faster than DB sessions)
+# SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+# SESSION_CACHE_ALIAS = "default"
+
+# ============================================================
+# Celery Configuration
+# ============================================================
+# Broker  = Redis DB 0  (task queue)
+# Backend = Redis DB 1  (task results / polling)
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
+
+# Serialize tasks as JSON (safer than pickle)
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+
+# Keep task results in Redis for 1 hour, then auto-expire
+CELERY_TASK_RESULT_EXPIRES = 3600
+
+# If a task is soft-time-limited (raises SoftTimeLimitExceeded), kill
+# it after 5 minutes maximum so workers never get permanently stuck.
+CELERY_TASK_SOFT_TIME_LIMIT = 240  # 4 min soft limit
+CELERY_TASK_TIME_LIMIT = 300      # 5 min hard kill
+
+# Only acknowledge the task AFTER it finishes (safer against worker crashes)
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+
+# Prefetch 1 task at a time (prevents memory hogging with heavy ML tasks)
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+
+# Task routing — keep analysis tasks in a dedicated queue so they don't
+# block lightweight email tasks.
+CELERY_TASK_ROUTES = {
+    "analyzer.tasks.analyze_ingredients_task": {"queue": "analysis"},
+    "analyzer.tasks.send_contact_email_task": {"queue": "email"},
+}
+

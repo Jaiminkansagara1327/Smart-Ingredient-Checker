@@ -13,6 +13,15 @@ from .serializers import ContactMessageSerializer, AnalysisRecordSerializer, Pro
 from .ai_service import analyze_product_from_text
 from .openfoodfacts_service import search_products as off_search, get_product_details as off_get_product, find_healthier_alternatives as off_find_alternatives
 
+# ── Celery / Redis helpers ────────────────────────────────────────────────────
+try:
+    from celery.result import AsyncResult
+    from .tasks import analyze_ingredients_task, send_contact_email_task
+    CELERY_AVAILABLE = True
+except Exception:
+    CELERY_AVAILABLE = False
+    AsyncResult = None
+
 
 class AuthenticatedOnlyUserRateThrottle(UserRateThrottle):
     """
@@ -167,60 +176,72 @@ def analyze_text(request):
         )
     
     try:
-        # Log analysis attempt (for audit trail)
         print(f"[SECURITY] Analyzing text (length: {len(sanitized_text)}, lines: {line_count})")
-        
-        # Analyze ingredients
-        # Text-only implies no specific macros are available yet
-        analysis_result = analyze_product_from_text(
-            text=sanitized_text.strip(),
-            macros={}, 
-            food_type=food_type, 
-            user_goal=user_goal
-        )
-        
-        # If analysis failed
-        if not analysis_result.get('success', True):
-            return Response(analysis_result, status=status.HTTP_200_OK)
-        
-        # Add metadata about manual entry
-        analysis_result['input_method'] = 'manual'
-        analysis_result['raw_ingredients_text'] = sanitized_text.strip()
 
-        # Save to authenticated users' analysis history (SaaS feature).
-        if request.user and request.user.is_authenticated:
-            try:
-                product_data = analysis_result.get("product", {}) or {}
-                analysis_for_storage = dict(analysis_result)
-                # Avoid storing the full ingredient text in the JSON history.
-                analysis_for_storage.pop("raw_ingredients_text", None)
-
-                AnalysisRecord.objects.create(
-                    user=request.user,
-                    input_method=AnalysisRecord.INPUT_TEXT,
-                    input_text_preview=sanitized_text.strip()[:400],
-                    product_name=product_data.get("name", ""),
-                    product_brand=product_data.get("brand", ""),
-                    user_goal=user_goal,
+        if CELERY_AVAILABLE:
+            # ── ASYNC path: dispatch to Celery worker ─────────────────────
+            task = analyze_ingredients_task.apply_async(
+                kwargs=dict(
+                    text=sanitized_text.strip(),
+                    macros={},
                     food_type=food_type,
-                    confidence=analysis_result.get("confidence"),
-                    score=analysis_result.get("score"),
-                    nova_group=analysis_result.get("nova_group"),
-                    nutriscore_grade=product_data.get("nutriscore_grade", "") or "",
-                    analysis_json=analysis_for_storage,
-                )
-            except Exception as e:
-                print(f"[AUDIT] Could not save AnalysisRecord: {type(e).__name__}")
-        
-        # Return successful analysis
-        return Response(analysis_result, status=status.HTTP_200_OK)
-    
+                    user_goal=user_goal,
+                    user_id=request.user.pk if request.user and request.user.is_authenticated else None,
+                    input_method="manual",
+                ),
+                queue="analysis",
+            )
+            print(f"[CELERY] analyze_text dispatched → task_id={task.id}")
+            return Response(
+                {
+                    "success": True,
+                    "async": True,
+                    "task_id": task.id,
+                    "message": "Analysis started. Poll /api/task/<task_id>/ for results.",
+                },
+                status=status.HTTP_202_ACCEPTED,
+            )
+        else:
+            # ── SYNC fallback (no Redis / dev mode) ───────────────────────
+            analysis_result = analyze_product_from_text(
+                text=sanitized_text.strip(),
+                macros={},
+                food_type=food_type,
+                user_goal=user_goal,
+            )
+            if not analysis_result.get('success', True):
+                return Response(analysis_result, status=status.HTTP_200_OK)
+
+            analysis_result['input_method'] = 'manual'
+            analysis_result['raw_ingredients_text'] = sanitized_text.strip()
+
+            if request.user and request.user.is_authenticated:
+                try:
+                    product_data = analysis_result.get("product", {}) or {}
+                    analysis_for_storage = dict(analysis_result)
+                    analysis_for_storage.pop("raw_ingredients_text", None)
+                    AnalysisRecord.objects.create(
+                        user=request.user,
+                        input_method=AnalysisRecord.INPUT_TEXT,
+                        input_text_preview=sanitized_text.strip()[:400],
+                        product_name=product_data.get("name", ""),
+                        product_brand=product_data.get("brand", ""),
+                        user_goal=user_goal,
+                        food_type=food_type,
+                        confidence=analysis_result.get("confidence"),
+                        score=analysis_result.get("score"),
+                        nova_group=analysis_result.get("nova_group"),
+                        nutriscore_grade=product_data.get("nutriscore_grade", "") or "",
+                        analysis_json=analysis_for_storage,
+                    )
+                except Exception as e:
+                    print(f"[AUDIT] Could not save AnalysisRecord: {type(e).__name__}")
+
+            return Response(analysis_result, status=status.HTTP_200_OK)
+
     except Exception as e:
-        # Log error without exposing internal details
         print(f"[SECURITY] Analysis error: {type(e).__name__}")
         print(traceback.format_exc())
-        
-        # Return generic error message (don't expose internals)
         return Response(
             {
                 'success': False,
@@ -287,68 +308,65 @@ def contact_submit(request):
     serializer = ContactMessageSerializer(data=sanitized_data)
     if serializer.is_valid():
         serializer.save()
-        
-        # Send email notification
-        from_email = os.environ.get('EMAIL_HOST_USER', 'se.jaimin91@gmail.com')
-        to_email = os.environ.get('CONTACT_EMAIL_RECIPIENT', 'se.jaimin91@gmail.com')
-        subject = f"New Contact Message from {sanitized_data['name']}"
-        body = (
-            f"New contact message from Ingrexa:\n\n"
-            f"From: {sanitized_data['name']}\n"
-            f"Email: {sanitized_data['email']}\n\n"
-            f"Message:\n{sanitized_data['message']}\n\n"
-            f"---\nSent from Ingrexa Contact Form"
-        )
 
-        email_sent = False
-
-        # PRIMARY: Django send_mail via Gmail SMTP
-        try:
-            from django.core.mail import send_mail
-            send_mail(
-                subject=subject,
-                message=body,
-                from_email=from_email,
-                recipient_list=[to_email],
-                fail_silently=False,
+        # ── Send email: async via Celery if available, sync fallback ──────
+        if CELERY_AVAILABLE:
+            send_contact_email_task.apply_async(
+                kwargs=dict(
+                    name=sanitized_data['name'],
+                    email=sanitized_data['email'],
+                    message=sanitized_data['message'],
+                ),
+                queue="email",
             )
-            email_sent = True
-            print(f"[EMAIL] Gmail SMTP sent successfully to {to_email}", flush=True)
-        except Exception as smtp_err:
-            print(f"[EMAIL] Gmail SMTP failed: {smtp_err}. Trying Resend...", flush=True)
-
-        # FALLBACK: Resend HTTP API
-        if not email_sent:
+            print(f"[CELERY] Contact email task dispatched for {sanitized_data['email']}", flush=True)
+        else:
+            from_email = os.environ.get('EMAIL_HOST_USER', '')
+            to_email = os.environ.get('CONTACT_EMAIL_RECIPIENT', from_email)
+            subject = f"New Contact Message from {sanitized_data['name']}"
+            body = (
+                f"New contact message from Ingrexa:\n\n"
+                f"From: {sanitized_data['name']}\n"
+                f"Email: {sanitized_data['email']}\n\n"
+                f"Message:\n{sanitized_data['message']}\n\n"
+                f"---\nSent from Ingrexa Contact Form"
+            )
+            email_sent = False
+            # Primary: SMTP
             try:
-                import requests as http_requests
-                resend_api_key = os.environ.get('RESEND_API_KEY', '')
-                if resend_api_key:
-                    email_response = http_requests.post(
-                        'https://api.resend.com/emails',
-                        headers={
-                            'Authorization': f'Bearer {resend_api_key}',
-                            'Content-Type': 'application/json'
-                        },
-                        json={
-                            'from': 'Ingrexa Contact <onboarding@resend.dev>',
-                            'to': [to_email],
-                            'subject': subject,
-                            'text': body,
-                        },
-                        timeout=10
-                    )
-                    print(f"[EMAIL] Resend response: {email_response.status_code}", flush=True)
-                else:
-                    print("[EMAIL] No Resend API key found either. Message saved to DB only.", flush=True)
-            except Exception as resend_err:
-                print(f"[EMAIL] Resend also failed: {resend_err}", flush=True)
+                from django.core.mail import send_mail
+                send_mail(subject=subject, message=body, from_email=from_email,
+                          recipient_list=[to_email], fail_silently=False)
+                email_sent = True
+                print(f"[EMAIL] SMTP sent to {to_email}", flush=True)
+            except Exception as smtp_err:
+                print(f"[EMAIL] SMTP failed: {smtp_err}. Trying Resend...", flush=True)
+            # Fallback: Resend
+            if not email_sent:
+                try:
+                    import requests as http_requests
+                    resend_api_key = os.environ.get('RESEND_API_KEY', '')
+                    if resend_api_key:
+                        resp = http_requests.post(
+                            'https://api.resend.com/emails',
+                            headers={'Authorization': f'Bearer {resend_api_key}',
+                                     'Content-Type': 'application/json'},
+                            json={'from': 'Ingrexa Contact <onboarding@resend.dev>',
+                                  'to': [to_email], 'subject': subject, 'text': body},
+                            timeout=10,
+                        )
+                        print(f"[EMAIL] Resend response: {resp.status_code}", flush=True)
+                    else:
+                        print("[EMAIL] No Resend API key. Message saved to DB only.", flush=True)
+                except Exception as resend_err:
+                    print(f"[EMAIL] Resend also failed: {resend_err}", flush=True)
 
         print(f"[SECURITY] Contact form submitted: {sanitized_data['email']}", flush=True)
         return Response({
             'success': True,
             'message': 'Message sent successfully!'
         }, status=status.HTTP_201_CREATED)
-    
+
     return Response({
         'success': False,
         'errors': serializer.errors
@@ -473,68 +491,86 @@ def analyze_product(request):
         
         # Analyze using the existing pipeline, passing OFF nutriments
         print(f"[PRODUCT] Analyzing ingredients (length: {len(ingredients_text)}) for goal: {user_goal} ({food_type})")
-        
-        # Extract macros if available from OpenFoodFacts
+
         macros = product_info.get('nutriments', {}) if product_info else {}
-        
-        analysis_result = analyze_product_from_text(
-            text=ingredients_text,
-            macros=macros,
-            food_type=food_type,
-            user_goal=user_goal
-        )
-        
-        # Enrich with product metadata from OpenFoodFacts
-        analysis_result['input_method'] = 'openfoodfacts'
-        analysis_result['raw_ingredients_text'] = ingredients_text
-        
-        if product_info:
-            analysis_result['product_info'] = product_info
-            # Override generic product name with real one
-            if 'product' in analysis_result:
-                analysis_result['product']['name'] = product_info.get('name', analysis_result['product'].get('name', 'Unknown'))
-                analysis_result['product']['brand'] = product_info.get('brand', 'Unknown')
-                analysis_result['product']['image_url'] = product_info.get('image_url', '')
-                analysis_result['product']['nutriscore_grade'] = product_info.get('nutriscore_grade', '')
-            
-            # Add _product_meta to analysis_json for easier frontend rendering
-            # this makes future history loaded from backend match the "live" analysis meta
-            analysis_result['_product_meta'] = {
-                'name': product_info.get('name', ''),
-                'brand': product_info.get('brand', ''),
-                'image_url': product_info.get('image_url', ''),
-                'categories': product_info.get('categories', ''),
-                'nutriscore_grade': product_info.get('nutriscore_grade', ''),
-                'barcode': barcode,
-                'nutriments': product_info.get('nutriments', None)
-            }
 
-        # Save to authenticated users' analysis history (SaaS feature).
-        if request.user and request.user.is_authenticated:
-            try:
-                product_data = analysis_result.get("product", {}) or {}
-                analysis_for_storage = dict(analysis_result)
-                analysis_for_storage.pop("raw_ingredients_text", None)
-
-                AnalysisRecord.objects.create(
-                    user=request.user,
-                    input_method=AnalysisRecord.INPUT_BARCODE if barcode else AnalysisRecord.INPUT_TEXT,
-                    input_text_preview=ingredients_text.strip()[:400],
-                    product_name=product_data.get("name", ""),
-                    product_brand=product_data.get("brand", ""),
-                    user_goal=user_goal,
+        if CELERY_AVAILABLE:
+            # ── ASYNC path ────────────────────────────────────────────────
+            task = analyze_ingredients_task.apply_async(
+                kwargs=dict(
+                    text=ingredients_text,
+                    macros=macros,
                     food_type=food_type,
-                    confidence=analysis_result.get("confidence"),
-                    score=analysis_result.get("score"),
-                    nova_group=analysis_result.get("nova_group"),
-                    nutriscore_grade=product_data.get("nutriscore_grade", "") or "",
-                    analysis_json=analysis_for_storage,
-                )
-            except Exception as e:
-                print(f"[AUDIT] Could not save AnalysisRecord: {type(e).__name__}")
-        
-        return Response(analysis_result, status=status.HTTP_200_OK)
-    
+                    user_goal=user_goal,
+                    user_id=request.user.pk if request.user and request.user.is_authenticated else None,
+                    input_method='openfoodfacts' if not barcode else 'barcode',
+                    barcode=barcode,
+                    product_info=product_info,
+                ),
+                queue="analysis",
+            )
+            print(f"[CELERY] analyze_product dispatched → task_id={task.id}")
+            return Response(
+                {
+                    "success": True,
+                    "async": True,
+                    "task_id": task.id,
+                    "message": "Analysis started. Poll /api/task/<task_id>/ for results.",
+                },
+                status=status.HTTP_202_ACCEPTED,
+            )
+        else:
+            # ── SYNC fallback ─────────────────────────────────────────────
+            analysis_result = analyze_product_from_text(
+                text=ingredients_text,
+                macros=macros,
+                food_type=food_type,
+                user_goal=user_goal,
+            )
+            analysis_result['input_method'] = 'openfoodfacts'
+            analysis_result['raw_ingredients_text'] = ingredients_text
+
+            if product_info:
+                analysis_result['product_info'] = product_info
+                if 'product' in analysis_result:
+                    analysis_result['product']['name'] = product_info.get('name', analysis_result['product'].get('name', 'Unknown'))
+                    analysis_result['product']['brand'] = product_info.get('brand', 'Unknown')
+                    analysis_result['product']['image_url'] = product_info.get('image_url', '')
+                    analysis_result['product']['nutriscore_grade'] = product_info.get('nutriscore_grade', '')
+                analysis_result['_product_meta'] = {
+                    'name': product_info.get('name', ''),
+                    'brand': product_info.get('brand', ''),
+                    'image_url': product_info.get('image_url', ''),
+                    'categories': product_info.get('categories', ''),
+                    'nutriscore_grade': product_info.get('nutriscore_grade', ''),
+                    'barcode': barcode,
+                    'nutriments': product_info.get('nutriments', None),
+                }
+
+            if request.user and request.user.is_authenticated:
+                try:
+                    product_data = analysis_result.get("product", {}) or {}
+                    analysis_for_storage = dict(analysis_result)
+                    analysis_for_storage.pop("raw_ingredients_text", None)
+                    AnalysisRecord.objects.create(
+                        user=request.user,
+                        input_method=AnalysisRecord.INPUT_BARCODE if barcode else AnalysisRecord.INPUT_TEXT,
+                        input_text_preview=ingredients_text.strip()[:400],
+                        product_name=product_data.get("name", ""),
+                        product_brand=product_data.get("brand", ""),
+                        user_goal=user_goal,
+                        food_type=food_type,
+                        confidence=analysis_result.get("confidence"),
+                        score=analysis_result.get("score"),
+                        nova_group=analysis_result.get("nova_group"),
+                        nutriscore_grade=product_data.get("nutriscore_grade", "") or "",
+                        analysis_json=analysis_for_storage,
+                    )
+                except Exception as e:
+                    print(f"[AUDIT] Could not save AnalysisRecord: {type(e).__name__}")
+
+            return Response(analysis_result, status=status.HTTP_200_OK)
+
     except Exception as e:
         print(f"[PRODUCT] Analysis error: {type(e).__name__}")
         print(traceback.format_exc())
@@ -542,6 +578,72 @@ def analyze_product(request):
             {'success': False, 'error': 'ANALYSIS_FAILED', 'message': 'An error occurred during analysis. Please try again.'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Task Status Polling Endpoint
+# ─────────────────────────────────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@extend_schema(tags=["Analysis"], summary="Poll an async analysis task by task_id")
+def task_status(request, task_id: str):
+    """
+    GET /api/task/<task_id>/
+
+    Returns the current status of a Celery task dispatched by
+    analyze_text or analyze_product.
+
+    Response shapes
+    ---------------
+    Pending  : { "state": "PENDING",  "status": "queued" }
+    Running  : { "state": "STARTED",  "status": "processing" }
+    Success  : { "state": "SUCCESS",  "status": "done", "result": { ...analysis... } }
+    Failure  : { "state": "FAILURE",  "status": "error", "error": "..." }
+    Retry    : { "state": "RETRY",    "status": "retrying" }
+    """
+    if not CELERY_AVAILABLE or AsyncResult is None:
+        return Response(
+            {'error': 'Async tasks are not available (Celery/Redis not configured).'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    # Validate task_id (alphanumeric + hyphens only — Celery UUIDs)
+    if not re.fullmatch(r'[a-f0-9\-]{36}', task_id):
+        return Response(
+            {'error': 'INVALID_TASK_ID', 'message': 'Invalid task ID format.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    result = AsyncResult(task_id)
+    state = result.state  # PENDING | STARTED | RETRY | SUCCESS | FAILURE
+
+    if state == 'SUCCESS':
+        return Response({
+            'state': state,
+            'status': 'done',
+            'result': result.result,   # The full analysis_result dict
+        }, status=status.HTTP_200_OK)
+
+    elif state == 'FAILURE':
+        # Don't expose raw internal exception to the client
+        return Response({
+            'state': state,
+            'status': 'error',
+            'error': 'Analysis failed. Please try again.',
+        }, status=status.HTTP_200_OK)
+
+    elif state in ('STARTED', 'RETRY'):
+        return Response({
+            'state': state,
+            'status': 'processing',
+        }, status=status.HTTP_200_OK)
+
+    else:  # PENDING (or unknown)
+        return Response({
+            'state': state,
+            'status': 'queued',
+        }, status=status.HTTP_200_OK)
 
 
 @api_view(['GET', 'HEAD'])

@@ -12,8 +12,12 @@ urlpatterns = [
     path('history/', views.analysis_history, name='analysis_history'),
     path('health/', views.health_check, name='health_check'),
 
+    # Async task polling (Celery + Redis)
+    path('task/<str:task_id>/', views.task_status, name='task_status'),
+
     # Razorpay Full API Endpoints
     path('razorpay/create-order/', views.create_razorpay_order, name='create_razorpay_order'),
     path('razorpay/verify-payment/', views.verify_razorpay_payment, name='verify_razorpay_payment'),
     path('razorpay/webhook/', views.razorpay_webhook, name='razorpay_webhook'),
 ]
+

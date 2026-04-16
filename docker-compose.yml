@@ -1,10 +1,13 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Ingrexa — docker-compose.yml
 # ─────────────────────────────────────────────────────────────────────────────
-# Spins up 3 services with a single command: docker-compose up
-#   1. db       — PostgreSQL database
-#   2. backend  — Django REST Framework (Gunicorn)
-#   3. frontend — React + Vite dev server (or nginx in production)
+# Spins up 5 services with a single command: docker-compose up
+#   1. db              — PostgreSQL database
+#   2. redis           — Redis broker + cache + result backend
+#   3. backend         — Django REST Framework (Gunicorn)
+#   4. celery_worker   — Celery worker for AI analysis tasks (heavy queue)
+#   5. celery_email    — Celery worker for email tasks (lightweight queue)
+#   6. frontend        — React + Vite dev server (or nginx in production)
 # ─────────────────────────────────────────────────────────────────────────────
 
 version: '3.9'
@@ -30,7 +33,23 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── 2. Django Backend ──────────────────────────────────────────────────────
+  # ── 2. Redis (Broker + Cache + Result Backend) ─────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: ingrexa_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes   # Persist task queue to disk
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── 3. Django Backend ──────────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
@@ -40,18 +59,22 @@ services:
     env_file:
       - ./backend/.env # Your real secrets live here (gitignored)
     environment:
-      # Override DB to use the Docker Postgres service (not SQLite)
       DATABASE_URL: postgresql://ingrexa_user:ingrexa_pass@db:5432/ingrexa
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
       DEBUG: "False"
       ALLOWED_HOSTS: "localhost,127.0.0.1,backend"
     ports:
       - "8000:8000"
     depends_on:
       db:
-        condition: service_healthy # Wait until PostgreSQL is ready
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
-      - ./backend:/app # Live-reload during development
-      - media_files:/app/media # Persist uploaded media files
+      - ./backend:/app
+      - media_files:/app/media
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
@@ -61,7 +84,66 @@ services:
              --timeout 120
              --log-level info"
 
-  # ── 3. React Frontend ──────────────────────────────────────────────────────
+  # ── 4. Celery Worker — AI Analysis Queue (heavy tasks) ────────────────────
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ingrexa_celery_analysis
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql://ingrexa_user:ingrexa_pass@db:5432/ingrexa
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - media_files:/app/media
+    # concurrency=2: 2 parallel AI analysis tasks max (memory-intensive)
+    command: >
+      celery -A foodview_api worker
+      --loglevel=info
+      --queues=analysis
+      --concurrency=2
+      --hostname=worker-analysis@%h
+
+  # ── 5. Celery Worker — Email Queue (lightweight tasks) ────────────────────
+  celery_email:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ingrexa_celery_email
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql://ingrexa_user:ingrexa_pass@db:5432/ingrexa
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    # concurrency=4: emails are fast I/O, we can handle more in parallel
+    command: >
+      celery -A foodview_api worker
+      --loglevel=info
+      --queues=email
+      --concurrency=4
+      --hostname=worker-email@%h
+
+  # ── 6. React Frontend ──────────────────────────────────────────────────────
   frontend:
     image: node:20-alpine
     container_name: ingrexa_frontend
@@ -80,4 +162,6 @@ services:
 # ── Named Volumes ──────────────────────────────────────────────────────────
 volumes:
   postgres_data: # Database files (persisted)
-  media_files: # Uploaded images/media (persisted)
+  redis_data:    # Redis AOF / RDB snapshots (persisted)
+  media_files:   # Uploaded images/media (persisted)
+

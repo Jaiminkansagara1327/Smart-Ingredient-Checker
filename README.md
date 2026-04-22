@@ -1,86 +1,63 @@
 # 🛡️ Ingrexa: Smart Ingredient Analysis
 
-**Decode what you eat.** Ingrexa is a high-performance, AI-driven platform that transforms complex food labels into clear, actionable health insights using GPT-4o and scientific scoring.
+**Decode what you eat.** Ingrexa is a high-performance platform that transforms complex food labels into clear, actionable health insights using AI and scientific scoring.
 
 ---
 
-### 🚀 High Impact Features
-- **📸 AI Scanner:** Instant OCR extraction from any product label.
-- **📖 Layman Terms:** Balanced "Purpose vs. Risk" explanations for 3,000+ additives.
-- **🌎 Auto-Translate:** Scan label in any language; analyze in English instantly.
-- **📊 Scientific Scoring:** Real-time NOVA (processing) & Nutri-Score analysis.
-- **🏠 Indian Priority:** Optimized search for Indian consumer brands and quality data.
+### 🌟 Our Vision & Philosophy
+- **Health First**: We believe health should never be compromised. Our mission is to provide transparency so you know exactly what goes into your body.
+- **Free Forever**: Ingrexa is committed to remaining free for everyone, for a lifetime. Access to health information is a right, not a privilege.
+- **Keep it Simple**: We prioritize a simple, minimalist design. No clutter—just the insights you need to make better health choices.
 
 ---
 
-### 🛠️ Tech Stack
-- **Frontend:** React + Vite
-- **Backend:** Django REST Framework
-- **Intelligence:** OpenAI GPT-4o-mini + Custom Scorer
-- **Database:** OpenFoodFacts + Local Product Cache (3000+ products, <1ms response)
-- **Docs:** OpenAPI 3.0 via `drf-spectacular` (ReDoc)
-- **Containerization:** Docker + Docker Compose (PostgreSQL + Django + React)
+### 🚀 Live Features
+- **🔍 Smart Search**: Instantly find 3,000+ products (optimized for Indian brands).
+- **🧪 AI Insights**: Get "Purpose vs. Risk" explanations for complex additives in plain English.
+- **📊 Scientific Scoring**: Real-time health scoring based on processing levels (NOVA group).
+- **💡 Better Choices**: Don't just see the bad—find healthier alternatives for your favorite snacks.
 
 ---
 
-### 📄 API Documentation
-Once the server is running, explore the API:
-
-| URL | Description |
-|:----|:------------|
-| `http://localhost:8000/api/docs/` | **ReDoc** — professional, clean, read-only API docs |
-| `http://localhost:8000/api/schema/` | **Raw OpenAPI JSON** — import into Postman |
+### 🛠️ Tech Stack (The Simple Version)
+- **Frontend**: React (The user interface)
+- **Backend**: Django (The brain that processes data)
+- **AI**: OpenAI GPT-4o-mini (The expert analysis)
+- **Database**: OpenFoodFacts (The world's largest food database)
 
 ---
 
-### ⚡ Quick Start
+### ⚡ Quick Start for Beginners
 
-**Option A: Local Development**
+Getting started is easy! Follow these steps to run Ingrexa on your computer:
 
-**1. Backend**
+#### 1. Pre-requisites
+Make sure you have [Python](https://www.python.org/) and [Node.js](https://nodejs.org/) installed.
+
+#### 2. Setup the Backend (The Brain)
 ```bash
 cd backend
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-python3 manage.py runserver
+python3 -m venv venv           # Create a virtual environment
+source venv/bin/activate       # Activate it (Windows users: venv\Scripts\activate)
+pip install -r requirements.txt # Install dependencies
+cp .env.example .env           # Create your environment file
+python3 manage.py migrate      # Prepare the database
+python3 manage.py runserver    # Start the engine!
 ```
 
-**2. Frontend**
+#### 3. Setup the Frontend (The Interface)
+Open a **new terminal window** and run:
 ```bash
 cd frontend
-npm install && npm run dev
+npm install                    # Install dependencies
+npm run dev                    # Start the app!
 ```
-
-**Option B: Docker (Recommended)**
-```bash
-# Spins up PostgreSQL + Django + React in one command
-docker-compose up --build
-```
-> Backend: `http://localhost:8000` | Frontend: `http://localhost:3000`
+Now open `http://localhost:3000` in your browser! 🎉
 
 ---
 
-### 🧪 Automated Tests
-```bash
-cd backend
-source venv/bin/activate
-python manage.py test analyzer --verbosity=2
-```
-**41 tests** covering:
-- ✅ Unit Tests — brand detection, ingredient scoring, quality filter
-- ✅ API Tests — all 6 endpoints (health, search, analyze, contact, alternatives)
-- ✅ Security Tests — SQL injection, XSS, input length, special chars
-
----
-
-### ⚙️ Configuration
-Create a `.env` in `backend/` and add:
-```
-OPENAI_API_KEY=your_key_here
-SECRET_KEY=your_django_secret_key
-DEBUG=True
-```
-
----
+### 🤝 Contributing
+Want to help build the future of food transparency? We love contributors!
+Please read our [**Contributing Guidelines**](CONTRIBUTING.md) to get started.
 
 Developed with ❤️ by [Jaimin Kansagara](https://github.com/Jaiminkansagara1327)

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './HomePage.css';
 
-function HomePage({ onNavigate }) {
+function HomePage({ onNavigate, user }) {
     const [showScrollToTop, setShowScrollToTop] = useState(false);
 
     useEffect(() => {
@@ -40,8 +40,7 @@ function HomePage({ onNavigate }) {
                         <button
                             className="btn-ultra-primary"
                             onClick={() => {
-                                const token = localStorage.getItem('access_token');
-                                if (token) {
+                                if (user) {
                                     onNavigate('analyze');
                                 } else {
                                     onNavigate('login');

@@ -66,16 +66,23 @@
     }
     </script>
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Fonts (finding #13: crossorigin is required for SRI + CORS preconnect) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
     <div id="root"></div>
-    <!-- Razorpay Checkout Script -->
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <!--
+      Razorpay checkout.js is loaded ON DEMAND in the payment handler (see src/utils/razorpay.js).
+      Loading it here eagerly was flagged as SRI violation (finding #9).
+      Razorpay's CDN dynamically generates the bundle per-request so a static
+      SRI hash is not supported. The mitigations are:
+        1. Load only when the user initiates a payment (reduces attack surface).
+        2. CSP connect-src / frame-src restrict where the script can phone home.
+        3. Razorpay is PCI-DSS certified; no card data touches our server.
+    -->
     <script type="module" src="/src/main.jsx"></script>
 </body>
 

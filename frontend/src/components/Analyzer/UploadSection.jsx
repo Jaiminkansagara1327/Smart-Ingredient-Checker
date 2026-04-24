@@ -118,20 +118,8 @@ function UploadSection({ onAnalyze, user }) {
 
     // Fetch user history if logged in
     useEffect(() => {
-        const token = localStorage.getItem('access_token');
-        if (token) {
+        if (user) {
             setIsAuthenticated(true);
-               
-            // Only fetch if user prop not provided (fallback)
-            if (!user) {
-                api.get('/api/auth/me/')
-                   .then(res => {
-                        if (res.data.success && res.data.user.health_goal) {
-                            setUserGoal(res.data.user.health_goal);
-                        }
-                   })
-                   .catch(err => console.error(err));
-            }
         } else {
             setIsAuthenticated(false);
             setBackendHistory([]);

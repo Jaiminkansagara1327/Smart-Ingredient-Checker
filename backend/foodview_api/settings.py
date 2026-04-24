@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',  # Required for ROTATE_REFRESH_TOKENS
     'corsheaders',
     'drf_spectacular',
     'accounts',
@@ -226,8 +227,15 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/hour',  # 100 requests per hour for anonymous users
-        'user': '1000/hour',  # Authenticated users default quota
+        'anon':     '100/hour',   # 100 req/hr for anonymous users
+        'user':     '1000/hour',  # Authenticated users default quota
+        # Strict limits for credential endpoints (findings #6, #7, #12)
+        # NOTE: DRF accepts only s/m/h/d as period identifiers.
+        # The middleware layer enforces 5-per-15-min at the IP level;
+        # these DRF throttles add a Redis-backed per-user-token limit.
+        'login':    '5/hour',   # 5 attempts per hour per IP
+        'register': '10/hour',  # Account creation limit
+        'google':   '10/hour',  # OAuth flow limit
     },
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -235,7 +243,8 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
     ],
-    'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
+    # Production: sanitise generic errors so stack traces are never exposed (finding #10)
+    'EXCEPTION_HANDLER': 'accounts.exception_handler.safe_exception_handler',
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
@@ -244,8 +253,38 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5 MB
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 100
 
 # Additional Security Settings
-SECURE_REFERRER_POLICY = 'same-origin'
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
+
+# ============================================================
+# SimpleJWT — short-lived tokens + rotation (findings #1-4)
+# ============================================================
+from datetime import timedelta
+SIMPLE_JWT = {
+    # Access token: 15 min — short enough to limit XSS blast radius
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    # Refresh token: 7 days with rotation (old token blacklisted on use)
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    # Sign with HS256 by default; upgrade to RS256 if you split auth service
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    # The access token is still sent in the Authorization header from the
+    # frontend memory store — the refresh token is sent via HttpOnly cookie.
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+# ============================================================
+# HttpOnly cookie settings for the refresh token (finding #1)
+# ============================================================
+# These are read by accounts/views.py when setting/reading the cookie.
+JWT_AUTH_COOKIE          = 'ingrexa_refresh'   # cookie name
+JWT_AUTH_COOKIE_SECURE   = not DEBUG           # HTTPS-only in prod
+JWT_AUTH_COOKIE_HTTPONLY = True
+JWT_AUTH_COOKIE_SAMESITE = 'Lax'              # allows cross-origin redirects
+JWT_AUTH_COOKIE_MAX_AGE  = 7 * 24 * 60 * 60   # 7 days (matches refresh lifetime)
 
 # Logging for Security Monitoring (Console only for development)
 LOGGING = {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import './AuthPremium.css';
 import api from '../../api';
 import { useGoogleLogin } from '@react-oauth/google';
+import { generateNonce } from '../../utils/nonce';
 
 const SignupPage = ({ onNavigate, onLoginSuccess }) => {
   const [firstName, setFirstName] = useState('');
@@ -15,16 +16,14 @@ const SignupPage = ({ onNavigate, onLoginSuccess }) => {
       setLoading(true);
       setError('');
       try {
+        const nonce = generateNonce();
         const response = await api.post('/api/auth/google-login/', {
-          access_token: tokenResponse.access_token
+          access_token: tokenResponse.access_token,
+          nonce,
         });
 
-        localStorage.setItem('access_token', response.data.access);
-        localStorage.setItem('refresh_token', response.data.refresh);
-        localStorage.removeItem('ingrexa_scan_history'); 
-        
         if (onLoginSuccess) {
-          onLoginSuccess(response.data);
+          onLoginSuccess(response.data.access);
         }
         onNavigate('analyze');
       } catch (err) {
@@ -54,12 +53,8 @@ const SignupPage = ({ onNavigate, onLoginSuccess }) => {
         password
       });
 
-      localStorage.setItem('access_token', response.data.access);
-      localStorage.setItem('refresh_token', response.data.refresh);
-      localStorage.removeItem('ingrexa_scan_history'); 
-      
       if (onLoginSuccess) {
-        onLoginSuccess(response.data);
+        onLoginSuccess(response.data.access);
       }
       onNavigate('analyze');
     } catch (err) {
@@ -69,9 +64,9 @@ const SignupPage = ({ onNavigate, onLoginSuccess }) => {
         const messages = Object.values(errData.errors).flat().join(' ');
         setError(messages);
       } else if (err.message === 'Network Error') {
-        setError('Network Error: Cannot connect to the server. Please check if the backend is running.');
+        setError('Network Error: Cannot connect to the server.');
       } else {
-        setError(err.response?.data?.message || 'Failed to create account. Server returned an error (500). Please check your backend migrations.');
+        setError(err.response?.data?.message || 'Failed to create account. Please try again.');
       }
     } finally {
       setLoading(false);

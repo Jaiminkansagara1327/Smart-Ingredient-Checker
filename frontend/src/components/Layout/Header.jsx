@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import api from '../../api';
+import api, { clearAccessToken } from '../../api';
+import { loadRazorpay } from '../../utils/razorpay';
 
 function Header({ onNavigate, currentPage, user, setUser }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -17,13 +18,25 @@ function Header({ onNavigate, currentPage, user, setUser }) {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
   
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('ingrexa_cached_user');
-    setUser(null);
-    onNavigate('home');
-    setIsMenuOpen(false);
+  const handleLogout = async () => {
+    try {
+      // Invalidate on backend (blacklists refresh token and clears cookie)
+      await api.post('/api/auth/logout/');
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      // Clear local memory
+      clearAccessToken();
+      setUser(null);
+      
+      // Clear legacy/cached items
+      localStorage.removeItem('ingrexa_cached_user');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      
+      onNavigate('home');
+      setIsMenuOpen(false);
+    }
   };
 
   const handleNavClick = (page) => {
@@ -48,7 +61,10 @@ function Header({ onNavigate, currentPage, user, setUser }) {
 
       const { order_id, amount, currency, key_id } = orderResponse.data;
 
-      // Step 2: Open Razorpay Checkout Popup
+      // Step 2: Load Razorpay lazily (Finding #9)
+      const Razorpay = await loadRazorpay();
+
+      // Step 3: Open Razorpay Checkout Popup
       const options = {
         key: key_id,
         amount: amount,
@@ -91,7 +107,7 @@ function Header({ onNavigate, currentPage, user, setUser }) {
         }
       };
 
-      const rzp = new window.Razorpay(options);
+      const rzp = new Razorpay(options);
       rzp.open();
 
     } catch (error) {

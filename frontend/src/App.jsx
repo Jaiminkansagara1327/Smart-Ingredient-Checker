@@ -1,92 +1,111 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Layout/Header';
 import HomePage from './components/Home/HomePage';
 import UploadSection from './components/Analyzer/UploadSection';
 import ResultsSection from './components/Analyzer/ResultsSection';
-
 import ContactPage from './components/Other/ContactPage';
 import LoginPage from './components/Auth/LoginPage';
 import SignupPage from './components/Auth/SignupPage';
 import SettingsPage from './components/Other/SettingsPage';
 import HistoryPage from './components/Other/HistoryPage';
-
 import Footer from './components/Layout/Footer';
-import api from './api';
+
+import api, { setAccessToken, clearAccessToken, getAccessToken } from './api';
 
 import { useGoogleOneTapLogin } from '@react-oauth/google';
+import { generateNonce } from './utils/nonce';
 
 function App() {
-    // Current state management...
-    const [currentPage, setCurrentPage] = useState(() => {
-        return sessionStorage.getItem('ingrexa_current_page') || 'home';
-    });
+    const [currentPage, setCurrentPage] = useState(() =>
+        sessionStorage.getItem('ingrexa_current_page') || 'home'
+    );
     const [showResults, setShowResults] = useState(false);
     const [analysisData, setAnalysisData] = useState(null);
     const [uploadedImage, setUploadedImage] = useState(null);
-    const [user, setUser] = useState(() => {
-        // Only trust cached user if we have a token
-        const token = localStorage.getItem('access_token');
-        if (!token) return null;
-        
-        const cached = localStorage.getItem('ingrexa_cached_user');
-        return cached ? JSON.parse(cached) : null;
-    });
 
-    const fetchUser = async () => {
-        const token = localStorage.getItem('access_token');
-        if (token) {
-            try {
-                const res = await api.get('/api/auth/me/');
-                if (res.data && res.data.success) {
-                    const userData = res.data.user;
-                    setUser(userData);
-                    localStorage.setItem('ingrexa_cached_user', JSON.stringify(userData));
-                }
-            } catch (err) {
-                console.error("Auth verify error", err);
-                if (err.response && (err.response.status === 401 || err.response.status === 403)) {
-                    localStorage.clear();
-                    setUser(null);
-                }
+    // User state: populated from /api/auth/me/ — NOT from localStorage
+    const [user, setUser] = useState(null);
+
+    // ── Auth helpers ──────────────────────────────────────────────────────────
+
+    const logout = useCallback(() => {
+        clearAccessToken();
+        setUser(null);
+        // Tell the backend to blacklist the refresh cookie
+        api.post('/api/auth/logout/').catch(() => {});
+        sessionStorage.removeItem('ingrexa_current_page');
+    }, []);
+
+    const fetchUser = useCallback(async () => {
+        if (!getAccessToken()) return;
+        try {
+            const res = await api.get('/api/auth/me/');
+            if (res.data?.success) {
+                setUser(res.data.user);
+            }
+        } catch (err) {
+            if (err.response?.status === 401 || err.response?.status === 403) {
+                logout();
             }
         }
-    };
+    }, [logout]);
 
-    // Google One Tap Implementation
+    // ── Session expired event (fired by api.js interceptor) ───────────────────
+    useEffect(() => {
+        const onExpired = () => {
+            setUser(null);
+            setCurrentPage('login');
+        };
+        window.addEventListener('ingrexa:session-expired', onExpired);
+        return () => window.removeEventListener('ingrexa:session-expired', onExpired);
+    }, []);
+
+    // ── Google One Tap ────────────────────────────────────────────────────────
     useGoogleOneTapLogin({
         onSuccess: async (credentialResponse) => {
             try {
+                // Generate + send a nonce so the backend can validate it (finding #8)
+                const nonce = generateNonce();
                 const response = await api.post('/api/auth/google-login/', {
-                    credential: credentialResponse.credential
+                    credential: credentialResponse.credential,
+                    nonce,
                 });
-                
                 if (response.data.success) {
-                    localStorage.setItem('access_token', response.data.access);
-                    localStorage.setItem('refresh_token', response.data.refresh);
+                    setAccessToken(response.data.access);
                     await fetchUser();
-                    // Optional: redirect to analyzer if they were on a restricted page
                 }
             } catch (err) {
                 console.error('One Tap Login error', err);
             }
         },
         onError: () => console.log('One Tap Login Failed'),
-        disabled: !!user || !!localStorage.getItem('access_token'),
+        disabled: !!user || !!getAccessToken(),
     });
 
-    // Global auth listener — run once on mount
+    // ── On mount: try to restore session via refresh cookie ──────────────────
     useEffect(() => {
-        fetchUser();
-    }, []);
+        const restoreSession = async () => {
+            try {
+                const res = await api.post('/api/auth/token/refresh/', {}, { withCredentials: true });
+                if (res.data?.access) {
+                    setAccessToken(res.data.access);
+                    await fetchUser();
+                }
+            } catch {
+                // No valid refresh cookie; user is logged out — that's fine
+            }
+        };
+        restoreSession();
+    }, [fetchUser]);
 
-    // Scroll to top when page or view changes
+    // ── Scroll reset ──────────────────────────────────────────────────────────
     useEffect(() => {
-        // Force scroll to top on every view/page change
         window.scrollTo(0, 0);
-        // Secondary safety for mobile/delayed renders
         const timer = setTimeout(() => window.scrollTo(0, 0), 10);
         return () => clearTimeout(timer);
     }, [currentPage, showResults]);
+
+    // ── Event handlers ────────────────────────────────────────────────────────
 
     const handleAnalyze = (data, image) => {
         setAnalysisData(data);
@@ -111,7 +130,6 @@ function App() {
     };
 
     const handleHistorySelect = (item) => {
-        // Synthesize metadata for ResultsSection so it doesn't show "manual ingredients" message
         const analysisWithMeta = {
             ...item.analysis_json,
             _product_meta: {
@@ -119,8 +137,8 @@ function App() {
                 brand: item.brand || item.product_brand,
                 image_url: item.image_url,
                 nutriscore_grade: item.grade || item.nutriscore_grade,
-                nutriments: item.analysis_json?.product_info?.nutriments || null
-            }
+                nutriments: item.analysis_json?.product_info?.nutriments || null,
+            },
         };
         setAnalysisData(analysisWithMeta);
         setUploadedImage(item.image_url || null);
@@ -132,30 +150,53 @@ function App() {
     const renderContent = () => {
         const isLoggedIn = !!user;
 
-        if (currentPage === 'home') return <HomePage onNavigate={handleNavigate} />;
+        if (currentPage === 'home') return <HomePage onNavigate={handleNavigate} user={user} />;
         if (currentPage === 'contact') return <ContactPage />;
 
-        // If already logged in, don't show auth pages — redirect to analyze
         if (currentPage === 'login' || currentPage === 'signup') {
             if (isLoggedIn) {
-                // Silently fix the stuck page state
                 setTimeout(() => handleNavigate('analyze'), 0);
                 return <UploadSection onAnalyze={handleAnalyze} user={user} />;
             }
-            if (currentPage === 'login') return <LoginPage onNavigate={handleNavigate} onLoginSuccess={fetchUser} />;
-            if (currentPage === 'signup') return <SignupPage onNavigate={handleNavigate} onLoginSuccess={fetchUser} />;
+            if (currentPage === 'login')
+                return (
+                    <LoginPage
+                        onNavigate={handleNavigate}
+                        onLoginSuccess={(accessToken) => {
+                            setAccessToken(accessToken);
+                            fetchUser();
+                        }}
+                    />
+                );
+            if (currentPage === 'signup')
+                return (
+                    <SignupPage
+                        onNavigate={handleNavigate}
+                        onLoginSuccess={(accessToken) => {
+                            setAccessToken(accessToken);
+                            fetchUser();
+                        }}
+                    />
+                );
         }
 
-        if (currentPage === 'settings') return <SettingsPage onNavigate={handleNavigate} user={user} setUser={setUser} />;
-        if (currentPage === 'history') return <HistoryPage onNavigate={handleNavigate} user={user} onSelectHistoryItem={handleHistorySelect} />;
-        
-        // Enforce Login Wall for Analyzer
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-            return <LoginPage onNavigate={handleNavigate} onLoginSuccess={fetchUser} />;
+        if (currentPage === 'settings')
+            return <SettingsPage onNavigate={handleNavigate} user={user} setUser={setUser} />;
+        if (currentPage === 'history')
+            return (
+                <HistoryPage
+                    onNavigate={handleNavigate}
+                    user={user}
+                    onSelectHistoryItem={handleHistorySelect}
+                />
+            );
+
+        // Enforce Login Wall for Analyzer — check in-memory token, not localStorage
+        if (!getAccessToken()) {
+            return <LoginPage onNavigate={handleNavigate} onLoginSuccess={(tok) => { setAccessToken(tok); fetchUser(); }} />;
         }
 
-        return (!showResults || !analysisData) ? (
+        return !showResults || !analysisData ? (
             <UploadSection onAnalyze={handleAnalyze} user={user} />
         ) : (
             <ResultsSection
@@ -173,9 +214,7 @@ function App() {
             {currentPage === 'home' ? (
                 renderContent()
             ) : (
-                <main className="main-content">
-                    {renderContent()}
-                </main>
+                <main className="main-content">{renderContent()}</main>
             )}
             <Footer />
         </>

@@ -71,7 +71,6 @@ function Header({ onNavigate, currentPage, user, setUser }) {
         currency: currency,
         name: 'Ingrexa',
         description: 'Support Independent Food Analysis',
-        image: '/logo.png',
         order_id: order_id,
         handler: async function (response) {
             // Step 3: Verify Payment in Backend after success
@@ -98,7 +97,7 @@ function Header({ onNavigate, currentPage, user, setUser }) {
           contact: ''
         },
         theme: {
-          color: '#0d9488' // Teal accent color
+          color: '#1a73e8' // Google Blue accent color
         },
         modal: {
             ondismiss: function() {
@@ -121,7 +120,11 @@ function Header({ onNavigate, currentPage, user, setUser }) {
   return (
     <header className="header">
       <div className="logo" onClick={() => handleNavClick('home')} style={{ cursor: 'pointer' }}>
-        <img src="/logo.png" alt="Ingrexa Logo" className="logo-img" />
+        <div className="logo-icon-premium">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2L3 7v9c0 5 9 6 9 6s9-1 9-6V7l-9-5z"></path>
+          </svg>
+        </div>
         <span className="logo-text">Ingrexa</span>
       </div>
 
@@ -191,52 +194,34 @@ function Header({ onNavigate, currentPage, user, setUser }) {
             </div>
 
             {showProfileDropdown && (
-              <div style={{
-                position: 'absolute',
-                top: '55px',
-                right: '0',
-                backgroundColor: '#ffffff',
-                borderRadius: '16px',
-                boxShadow: '0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0,0,0,0.05)',
-                border: '1px solid #f1f5f9',
-                width: '240px',
-                zIndex: 100,
-                overflow: 'hidden',
-                animation: 'slideUpFade 0.2s ease-out'
-              }}>
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', backgroundColor: '#fdfbff' }}>
-                  <p style={{ margin: '0 0 4px 0', fontWeight: '800', color: '#0f172a', fontSize: '0.95rem' }}>
+              <div className="profile-dropdown">
+                <div className="profile-dropdown-header">
+                  <p className="profile-dropdown-name">
                     {user.first_name || 'User'}
                   </p>
-                  <p style={{ margin: '0', fontSize: '0.8rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={user.email}>
+                  <p className="profile-dropdown-email" title={user.email}>
                     {user.email}
                   </p>
                 </div>
-                <div style={{ padding: '8px' }}>
+                <div className="profile-dropdown-body">
                   <button 
                     onClick={() => { setShowProfileDropdown(false); handleNavClick('settings'); }}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', padding: '10px 12px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#334155', fontSize: '0.9rem', borderRadius: '8px', fontWeight: '500', transition: 'all 0.15s ease' }}
-                    onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.color = '#0f172a'; }}
-                    onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#334155'; }}
+                    className="profile-dropdown-item"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                     Settings
                   </button>
                   <button 
                     onClick={() => { setShowProfileDropdown(false); handleNavClick('history'); }}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', padding: '10px 12px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#334155', fontSize: '0.9rem', borderRadius: '8px', fontWeight: '500', transition: 'all 0.15s ease' }}
-                    onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.color = '#0f172a'; }}
-                    onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#334155'; }}
+                    className="profile-dropdown-item"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                     History
                   </button>
-                  <div style={{ borderTop: '1px solid #f1f5f9', margin: '6px 4px' }}></div>
+                  <div className="profile-dropdown-divider"></div>
                   <button 
                     onClick={() => { setShowProfileDropdown(false); handleLogout(); }}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', padding: '10px 12px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '0.9rem', borderRadius: '8px', fontWeight: '600', transition: 'all 0.15s ease' }}
-                    onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#fef2f2'; }}
-                    onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    className="profile-dropdown-item item-danger"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                     Sign out

@@ -70,121 +70,61 @@ function HistoryPage({ onNavigate, user, onSelectHistoryItem }) {
     };
 
     return (
-        <div className="auth-container" style={{ padding: '2rem 1rem', maxWidth: '800px', margin: '0 auto' }}>
-            <div className="auth-card" style={{ padding: '2.5rem', marginTop: '2rem', animation: 'slideUpFade 0.4s ease-out' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
-                    <div>
-                        <h2 style={{ fontSize: '2rem', margin: '0 0 0.5rem 0', fontWeight: '800', color: 'var(--color-text-primary)' }}>
-                            Analysis History
-                        </h2>
-                        <p style={{ margin: '0', color: 'var(--color-text-secondary)', fontSize: '1rem' }}>
-                            A complete log of all your ingredient and product scans.
-                        </p>
-                    </div>
-                    <div style={{
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '12px',
-                        backgroundColor: '#f0fdfa',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#00A389'
-                    }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    </div>
+        <div className="history-page-premium">
+            <div className="history-header">
+                <div className="history-title-group">
+                    <h2 className="history-main-title">Intelligence Log</h2>
+                    <p className="history-subtitle">A chronological record of clinical ingredient scans.</p>
                 </div>
+                <div className="history-icon-pill">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                </div>
+            </div>
 
-                <div className="section-divider" style={{ borderBottom: '1px solid #e2e7ff', margin: '2rem 0' }}></div>
-
-                {loading ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 0', color: '#64748b' }}>
-                        <div className="spinner" style={{ borderColor: 'rgba(13, 148, 136, 0.2)', borderTopColor: '#00A389', width: '40px', height: '40px', borderWidth: '4px', marginBottom: '1rem' }}></div>
-                        <p style={{ fontWeight: '500' }}>Retrieving your history...</p>
-                    </div>
-                ) : history.length === 0 ? (
-                    <div style={{ backgroundColor: '#f2f3ff', borderRadius: '1.5rem', padding: '3rem 2rem', textAlign: 'center', border: '1px dashed #cbd5e1' }}>
-                        <div style={{ fontSize: '3rem', marginBottom: '1rem', opacity: '0.5' }}>🔍</div>
-                        <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', color: 'var(--color-text-primary)' }}>No scans found</h3>
-                        <p style={{ color: '#64748b', margin: '0 0 2rem 0', maxWidth: '400px', marginLeft: 'auto', marginRight: 'auto' }}>
-                            You haven't analyzed any products yet. Scan an ingredient list or product barcode to begin building your history.
-                        </p>
-                        <button className="auth-btn-primary" onClick={() => onNavigate('analyze')} style={{ width: 'auto', padding: '1rem 2rem', borderRadius: '100px' }}>
-                            Start Analyzing
-                        </button>
-                    </div>
-                ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                        {history.map((item, idx) => (
-                            <div key={idx} 
-                                onClick={() => onSelectHistoryItem && onSelectHistoryItem(item)}
-                                style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                padding: '1.25rem', 
-                                backgroundColor: '#ffffff', 
-                                borderRadius: '1rem', 
-                                boxShadow: '0 4px 15px rgba(19, 27, 46, 0.04)',
-                                border: '1px solid #f1f5f9',
-                                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                                cursor: 'pointer'
-                            }}
-                            onMouseOver={(e) => {
-                                e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.boxShadow = '0 10px 25px rgba(19, 27, 46, 0.08)';
-                            }}
-                            onMouseOut={(e) => {
-                                e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = '0 4px 15px rgba(19, 27, 46, 0.04)';
-                            }}
-                            >
-                                <div style={{ 
-                                    width: '64px', 
-                                    height: '64px', 
-                                    borderRadius: '12px', 
-                                    backgroundColor: '#f8fafc', 
-                                    overflow: 'hidden', 
-                                    marginRight: '1.5rem', 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    justifyContent: 'center',
-                                    border: '1px solid #e2e8f0',
-                                    flexShrink: 0
-                                }}>
-                                    {item.image_url ? (
-                                        <img src={item.image_url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    ) : (
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-                                    )}
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                    <h4 style={{ margin: '0 0 0.3rem 0', fontSize: '1.1rem', color: '#0f172a', fontWeight: '700' }}>{item.name}</h4>
-                                    <p style={{ margin: '0', fontSize: '0.85rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                                        {item.date}
-                                    </p>
-                                </div>
-                                <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-                                    <span style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        padding: '0.4rem 0.75rem',
-                                        borderRadius: '8px',
-                                        color: '#fff',
-                                        fontWeight: '800',
-                                        fontSize: '0.9rem',
-                                        backgroundColor: gradeColorMap[item.grade.toLowerCase()] || gradeColorMap.unknown,
-                                        boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
-                                    }}>
-                                        {item.score !== 'unknown' ? item.score : item.grade.toUpperCase()}
-                                    </span>
+            {loading ? (
+                <div className="history-loading">
+                    <div className="spinner-minimal"></div>
+                    <p>Retrieving Log...</p>
+                </div>
+            ) : history.length === 0 ? (
+                <div className="history-empty-state">
+                    <div className="empty-icon">📂</div>
+                    <h3>Empty Repository</h3>
+                    <p>Your analysis history is currently empty. Start by scanning a product label.</p>
+                    <button className="btn-ultra-primary" onClick={() => onNavigate('analyze')}>
+                        Begin Analysis
+                    </button>
+                </div>
+            ) : (
+                <div className="history-list">
+                    {history.map((item, idx) => (
+                        <div key={idx} 
+                            className="history-item-card"
+                            onClick={() => onSelectHistoryItem && onSelectHistoryItem(item)}
+                        >
+                            <div className="history-item-image">
+                                {item.image_url ? (
+                                    <img src={item.image_url} alt="" loading="lazy" />
+                                ) : (
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                                )}
+                            </div>
+                            <div className="history-item-details">
+                                <h4 className="item-name">{item.name}</h4>
+                                <div className="item-meta">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                    {item.date}
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                )}
-            </div>
+                            <div className="history-item-score">
+                                <span className="score-mini-pill" style={{ background: gradeColorMap[item.grade.toLowerCase()] || gradeColorMap.unknown }}>
+                                    {item.score !== 'unknown' ? item.score : item.grade.toUpperCase()}
+                                </span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

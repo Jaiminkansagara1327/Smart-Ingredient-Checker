@@ -79,7 +79,11 @@ const SignupPage = ({ onNavigate, onLoginSuccess }) => {
       
       <div className="auth-card-premium">
         <div className="auth-brand-header">
-          <div className="auth-brand-logo">IL</div>
+          <div className="auth-brand-logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L3 7v9c0 5 9 6 9 6s9-1 9-6V7l-9-5z"></path>
+            </svg>
+          </div>
           <h1 className="auth-brand-title">Create Account</h1>
           <p className="auth-brand-subtitle">Start your journey toward nutritional truth.</p>
         </div>

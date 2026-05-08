@@ -227,15 +227,15 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon':     '100/hour',   # 100 req/hr for anonymous users
-        'user':     '1000/hour',  # Authenticated users default quota
+        'anon':     '1000/hour',   # Increased from 100 to support modern search UX
+        'user':     '5000/hour',   # Increased from 1000
         # Strict limits for credential endpoints (findings #6, #7, #12)
         # NOTE: DRF accepts only s/m/h/d as period identifiers.
         # The middleware layer enforces 5-per-15-min at the IP level;
         # these DRF throttles add a Redis-backed per-user-token limit.
-        'login':    '5/hour',   # 5 attempts per hour per IP
-        'register': '10/hour',  # Account creation limit
-        'google':   '10/hour',  # OAuth flow limit
+        'login':    '100/hour',  # Increased from 5 to support rapid testing/debugging
+        'register': '100/hour', # Increased from 10
+        'google':   '100/hour', # Increased from 10
     },
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',

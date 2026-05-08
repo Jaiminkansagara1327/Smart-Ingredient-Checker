@@ -143,10 +143,10 @@ class IPRateLimitMiddleware:
         '/api/auth/google-login/',
         '/api/auth/token/refresh/',
     )
-    AUTH_MAX_REQUESTS = 5
+    AUTH_MAX_REQUESTS = 100
     AUTH_WINDOW_SECONDS = 900   # 15 minutes
 
-    GLOBAL_MAX_REQUESTS = 200
+    GLOBAL_MAX_REQUESTS = 5000
     GLOBAL_WINDOW_SECONDS = 3600  # 1 hour
 
     # IPs that bypass rate limiting (loopback used during automated tests)

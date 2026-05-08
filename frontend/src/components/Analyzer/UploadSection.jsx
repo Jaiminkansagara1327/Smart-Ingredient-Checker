@@ -3,62 +3,36 @@ import api from '../../api';
 
 // Smart loading messages shown during analysis
 const ANALYSIS_MESSAGES = [
-    { icon: '🔬', text: 'Reading ingredient list...' },
-    { icon: '🧪', text: 'Checking for harmful additives...' },
-    { icon: '📊', text: 'Calculating health score...' },
-    { icon: '⚠️', text: 'Identifying allergens & warnings...' },
-    { icon: '✅', text: 'Preparing your report...' },
+    { text: 'Parsing molecular structure...' },
+    { text: 'Cross-referencing global databases...' },
+    { text: 'Identifying synthetic additives...' },
+    { text: 'Evaluating additive synergy...' },
+    { text: 'Finalizing clinical report...' },
 ];
 
+// Storage for background-prefetched alternatives to speed up transitions
+let prefetchStore = {
+    category: null,
+    nutriscore: null,
+    productName: null,
+    data: null
+};
 
-
-// =========== FRONTEND SEARCH CACHE ===========
-// In-memory cache for instant repeat lookups (survives within session)
-const _searchCache = new Map();
-const SEARCH_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const SEARCH_CACHE_MAX = 100;
-
-function getCachedSearch(query) {
-    const key = query.trim().toLowerCase();
-    const entry = _searchCache.get(key);
-    if (entry && Date.now() - entry.ts < SEARCH_CACHE_TTL) return entry.data;
-    if (entry) _searchCache.delete(key);
-    return null;
-}
-
-function setCachedSearch(query, data) {
-    const key = query.trim().toLowerCase();
-    if (_searchCache.size >= SEARCH_CACHE_MAX) {
-        // Evict oldest
-        const firstKey = _searchCache.keys().next().value;
-        _searchCache.delete(firstKey);
+export const getPrefetchedAlternatives = (category, nutriscore, productName) => {
+    if (prefetchStore.category === category && 
+        prefetchStore.nutriscore === nutriscore && 
+        prefetchStore.productName === productName) {
+        return prefetchStore.data;
     }
-    _searchCache.set(key, { ts: Date.now(), data });
-}
+    return null;
+};
 
-// =========== ALTERNATIVES PREFETCH CACHE ===========
-// Prefetch alternatives during analysis so they load instantly on results page
-const _altCache = new Map();
-
-function getPrefetchedAlternatives(categories, nutriscore, name) {
-    const key = `${categories}|${nutriscore}|${name}`;
-    return _altCache.get(key) || null;
-}
-
-function setPrefetchedAlternatives(categories, nutriscore, name, data) {
-    const key = `${categories}|${nutriscore}|${name}`;
-    _altCache.set(key, data);
-}
+const setPrefetchedAlternatives = (category, nutriscore, productName, data) => {
+    prefetchStore = { category, nutriscore, productName, data };
+};
 
 function UploadSection({ onAnalyze, user }) {
-    // Tab state: 'search' or 'manual'
     const [activeTab, setActiveTab] = useState('search');
-    
-    // Auth and Backend History
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [backendHistory, setBackendHistory] = useState([]);
-
-    // Search state
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -66,27 +40,18 @@ function UploadSection({ onAnalyze, user }) {
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [isAnalyzingProduct, setIsAnalyzingProduct] = useState(false);
     const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
-
-
-    // Manual text state
     const [manualText, setManualText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [validationError, setValidationError] = useState(null);
-
-    // Scoring Options State
     const [userGoal, setUserGoal] = useState('Regular');
-
-    // Dropdown open/close
     const [showDropdown, setShowDropdown] = useState(false);
 
-    // Debounce timer ref
     const searchTimerRef = useRef(null);
     const searchInputRef = useRef(null);
     const dropdownRef = useRef(null);
-    const abortControllerRef = useRef(null);  // Cancel stale API requests
-    const searchQueryRef = useRef('');  // Track current query to ignore stale responses
+    const abortControllerRef = useRef(null);
 
-    // Click outside to close dropdowns
+    // Click outside to close dropdown
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -97,7 +62,7 @@ function UploadSection({ onAnalyze, user }) {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Rotate loading messages during analysis
+    // Rotate loading messages
     useEffect(() => {
         if (!isAnalyzingProduct && !isLoading) {
             setLoadingMsgIndex(0);
@@ -109,656 +74,291 @@ function UploadSection({ onAnalyze, user }) {
         return () => clearInterval(interval);
     }, [isAnalyzingProduct, isLoading]);
 
-    // Sync with user goal from profile
+    // Sync with user goal
     useEffect(() => {
         if (user && user.health_goal) {
             setUserGoal(user.health_goal);
         }
     }, [user]);
 
-    // Fetch user history if logged in
-    useEffect(() => {
-        if (user) {
-            setIsAuthenticated(true);
-        } else {
-            setIsAuthenticated(false);
-            setBackendHistory([]);
-        }
-    }, [activeTab, user]);  // Re-fetch when switching back to tab or user changes
+    const searchProducts = useCallback(async (query) => {
+        if (abortControllerRef.current) abortControllerRef.current.abort();
 
-    // ========================================
-    //  SEARCH TAB LOGIC
-    // ========================================
-
-    const searchProducts = useCallback(async (query, isAutocomplete = true) => {
         if (!query || query.trim().length < 2) {
             setSearchResults([]);
-            setSearchError(null);
-            setIsSearching(false);
             setShowDropdown(false);
             return;
-        }
-
-        // Cancel any in-flight request
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
         }
 
         const controller = new AbortController();
         abortControllerRef.current = controller;
-        const thisQuery = query.trim();
-        searchQueryRef.current = thisQuery;
 
-        setSearchError(null);
-
-        // ⚡ Check frontend cache FIRST — instant results
-        const cacheKey = `${thisQuery}_${isAutocomplete}`;
-        const cached = getCachedSearch(cacheKey);
-        if (cached) {
-            setSearchResults(cached.products || []);
-            setShowDropdown(true);
-            setIsSearching(false);
-            if ((cached.products || []).length === 0) {
-                setSearchError({
-                    type: 'no_results',
-                    message: `No products found for "${query}". Try a different name or use the "Type Ingredients" tab.`
-                });
+        setIsSearching(true);
+        try {
+            const res = await api.get('/api/search-product/', {
+                params: { q: query },
+                signal: controller.signal
+            });
+            if (res.data.success) {
+                setSearchResults(res.data.products || []);
+                setShowDropdown(true);
+                setSearchError(null);
             }
+        } catch (err) {
+            if (err.name !== 'CanceledError') {
+                if (err.response?.status === 429) {
+                    setSearchError({ type: 'warning', message: 'You are searching a bit too fast. Please wait a moment.' });
+                } else {
+                    setSearchError({ type: 'error', message: 'Search failed. Please try again.' });
+                }
+            }
+        } finally {
+            setIsSearching(false);
+        }
+    }, []);
+
+    const handleSearchSubmit = (e) => {
+        if (e) e.preventDefault();
+        if (searchResults.length > 0) {
+            handleAnalyzeProduct(searchResults[0]);
+        }
+    };
+
+    const handleSearchChange = (e) => {
+        const val = e.target.value;
+        setSearchQuery(val);
+        
+        // Instant clear logic: if query is too short, wipe results immediately
+        if (!val.trim() || val.trim().length < 2) {
+            if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+            if (abortControllerRef.current) abortControllerRef.current.abort();
+            setSearchResults([]);
+            setShowDropdown(false);
             return;
         }
 
-        setIsSearching(true);
-
-        try {
-            const response = await api.get('/api/search-product/', {
-                params: { q: thisQuery },
-                signal: controller.signal,
-                timeout: 15000,
-            });
-
-            // Ignore if query changed while waiting (stale response)
-            if (searchQueryRef.current !== thisQuery) return;
-
-            if (response.data.success) {
-                setSearchResults(response.data.products || []);
-                setShowDropdown(true);
-                // ⚡ Cache the result for instant future lookups
-                setCachedSearch(cacheKey, response.data);
-
-                // If this isn't autocomplete, or if it is and found nothing
-                if (response.data.products.length === 0) {
-                    // not_in_db means the product simply isn't in our database yet
-                    const dbMessage = response.data.not_in_db
-                        ? `"${query}" is not in our database yet. Try the "Type Ingredients" tab.`
-                        : `No products found for "${query}". Try a different name.`;
-                    setSearchError({
-                        type: 'no_results',
-                        message: dbMessage,
-                    });
-                }
-            } else {
-                setShowDropdown(true);
-                setSearchError({
-                    type: 'error',
-                    message: response.data.message || 'Search failed. Please try again.'
-                });
-            }
-        } catch (error) {
-            // Ignore aborted requests (user typed new query)
-            if (error.name === 'AbortError' || error.name === 'CanceledError') return;
-            // Ignore if query changed
-            if (searchQueryRef.current !== thisQuery) return;
-
-            console.error('Search error:', error);
-            setShowDropdown(true);
-            setSearchError({
-                type: 'error',
-                message: 'Could not connect to server. Please check your connection and retry.'
-            });
-        } finally {
-            // Only stop spinner if this is still the active query
-            if (searchQueryRef.current === thisQuery) {
-                setIsSearching(false);
-            }
-        }
-    }, []);
-
-    // Cleanup abort controller on unmount
-    useEffect(() => {
-        return () => {
-            if (abortControllerRef.current) abortControllerRef.current.abort();
-            if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-        };
-    }, []);
-
-    // Debounced search
-    const handleSearchInput = (e) => {
-        const value = e.target.value;
-        setSearchQuery(value);
-        setSelectedProduct(null);
-
-        if (searchTimerRef.current) {
-            clearTimeout(searchTimerRef.current);
-        }
-
-        if (value.trim().length >= 2) {
-            setIsSearching(true);
-            setShowDropdown(true);
-            setSearchError(null);
-            // Don't clear old results — keep showing them while new ones load
-            // Only show skeletons if there are truly no results yet
-        } else {
-            // Cancel any pending request
-            if (abortControllerRef.current) abortControllerRef.current.abort();
-            setIsSearching(false);
-            setShowDropdown(false);
-            setSearchResults([]);
-            setSearchError(null);
-        }
-
-        searchTimerRef.current = setTimeout(() => {
-            searchProducts(value, true);
-        }, 300);  // 300ms debounce
-    };
-
-    const handleSearchSubmit = (e) => {
-        e.preventDefault();
         if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-        searchProducts(searchQuery, false);
+        // Faster debounce for "Instant" feel
+        searchTimerRef.current = setTimeout(() => searchProducts(val), 200);
     };
 
-    // Analyze selected product
     const handleAnalyzeProduct = async (product) => {
         setSelectedProduct(product);
         setIsAnalyzingProduct(true);
         setShowDropdown(false);
-        setValidationError(null);
 
         try {
-            const response = await api.post('/api/analyze-product/', {
+            const res = await api.post('/api/analyze-product/', {
                 barcode: product.barcode,
-                ingredients_text: product.ingredients_text || '',
-                user_goal: userGoal,
-                product_meta: product
+                user_goal: userGoal
             });
+            if (res.data.success) {
+                // Background prefetch alternatives
+                const meta = {
+                    name: product.name || '',
+                    categories: product.categories || '',
+                    nutriscore_grade: product.nutriscore_grade || '',
+                };
 
-            if (response.data.success === false) {
-                // Product found but no ingredients or analysis failed
-                setValidationError({
-                    title: 'Cannot Analyze',
-                    message: response.data.message || 'Could not analyze this product.',
-                    suggestion: 'Try switching to the "Type Ingredients" tab and entering the ingredients manually.'
-                });
-                setSelectedProduct(null);
-                return;
-            }
-
-            if (response.data.is_valid_ingredient_list === false) {
-                setValidationError({
-                    title: 'Invalid Ingredients',
-                    message: response.data.validation_message || 'The ingredient data for this product could not be analyzed.',
-                    suggestion: 'Try typing the ingredients manually in the other tab.'
-                });
-                setSelectedProduct(null);
-                return;
-            }
-
-            setValidationError(null);
-            // Attach product metadata for alternatives & history
-            const productInfo = response.data.product_info || {};
-            const meta = {
-                name: product.name || '',
-                brand: product.brand || '',
-                image_url: product.image_url || '',
-                categories: product.categories || '',
-                nutriscore_grade: product.nutriscore_grade || '',
-                barcode: product.barcode || '',
-                nutriments: productInfo.nutriments || product.nutriments || null,
-            };
-            response.data._product_meta = meta;
-
-            /*
-            // ⚡ Prefetch alternatives in background (non-blocking)
-            // So they're ready instantly when ResultsSection mounts
-            if (meta.categories) {
-                api.get('/api/alternatives/', {
-                    params: {
-                        category: meta.categories,
-                        nutriscore: meta.nutriscore_grade || '',
-                        name: meta.name || '',
-                    },
-                    timeout: 12000,
-                })
-                    .then(res => {
-                        if (res.data.success && res.data.alternatives) {
-                            setPrefetchedAlternatives(
-                                meta.categories, meta.nutriscore_grade, meta.name,
-                                res.data.alternatives
-                            );
+                if (meta.categories) {
+                    api.get('/api/alternatives/', {
+                        params: {
+                            category: meta.categories,
+                            nutriscore: meta.nutriscore_grade || '',
+                            name: meta.name || '',
+                        },
+                        timeout: 10000,
+                    }).then(altRes => {
+                        if (altRes.data.success) {
+                            setPrefetchedAlternatives(meta.categories, meta.nutriscore_grade, meta.name, altRes.data.alternatives);
                         }
-                    })
-                    .catch(() => { }); // Silent — ResultsSection will retry if needed
-            }
-            */
+                    }).catch(() => {});
+                }
 
-            onAnalyze(response.data, null);
-        } catch (error) {
-            console.error('Product analysis error:', error);
-            const status = error?.response?.status;
-            if (status === 429) {
-                setValidationError({
-                    title: 'Too Many Requests',
-                    message: 'You\'ve made too many analysis requests. Please wait a minute and try again.',
-                    suggestion: ''
-                });
+                onAnalyze(res.data, null);
             } else {
-                setValidationError({
-                    title: 'Analysis Failed',
-                    message: 'Could not analyze this product. Please try again.',
-                    suggestion: 'You can also try typing the ingredients manually.'
-                });
+                setValidationError({ title: 'Analysis Error', message: res.data.message });
             }
-            setSelectedProduct(null);
+        } catch (err) {
+            setValidationError({ title: 'Connection Error', message: 'Failed to analyze product.' });
         } finally {
             setIsAnalyzingProduct(false);
         }
     };
 
-    // Cleanup timer on unmount
-    useEffect(() => {
-        return () => {
-            if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-        };
-    }, []);
-
-    // ========================================
-    //  MANUAL TEXT TAB LOGIC
-    // ========================================
-
-    const handleAnalysisError = (errorData) => {
-        const { error, message, suggestions } = errorData;
-        let alertMessage = message || 'An error occurred during analysis.';
-        if (suggestions && suggestions.length > 0) {
-            alertMessage += '\n\nSuggestions:\n' + suggestions.map((s, i) => `${i + 1}. ${s}`).join('\n');
-        }
-        setValidationError({
-            title: 'Analysis Error',
-            message: alertMessage,
-            suggestion: 'Please try again or check the suggestions above.'
-        });
-    };
-
     const handleManualTextAnalyze = async () => {
-        if (!manualText.trim()) {
-            setValidationError({
-                title: 'Empty Input',
-                message: 'Please enter ingredients to analyze.',
-                suggestion: 'Type or paste the list of ingredients from the product label.'
-            });
-            return;
-        }
-
-        const text = manualText.toLowerCase();
-        const invalidPatterns = [
-            /\b(i am|i'm|my name|hello|hi there|test|lorem ipsum)\b/i,
-            /\b(student|developer|engineer|work on|interested in|building|handling)\b/i,
-            /\b(how are you|what is|please|thank you|can you)\b/i,
-            /\b(backend|frontend|full-stack|api|authentication|systems)\b/i,
-            /\b(computer science|programming|coding|development)\b/i,
-        ];
-
-        const hasInvalidPattern = invalidPatterns.some(pattern => pattern.test(text));
-        const wordCount = text.split(/\s+/).length;
-        const hasCommonVerbs = /\b(am|is|are|was|were|be|been|have|has|had|do|does|did|will|would|could|should)\b/i.test(text);
-        const looksLikeSentence = wordCount > 5 && hasCommonVerbs && !text.includes(',');
-
-        if (hasInvalidPattern || looksLikeSentence) {
-            setValidationError({
-                title: 'Not a Valid Ingredient List',
-                message: 'This doesn\'t look like a food ingredient list.',
-                suggestion: 'Please enter actual food ingredients separated by commas or line breaks.',
-                example: 'Example: "Flour, Water, Sugar, Eggs, Salt" or "Wheat Flour\nPalm Oil\nSugar\nSalt"'
-            });
-            return;
-        }
-
+        if (!manualText.trim()) return;
         setIsLoading(true);
-
         try {
-            const response = await api.post('/api/analyze/text/', {
+            const res = await api.post('/api/analyze/text/', {
                 text: manualText,
                 user_goal: userGoal
             });
-
-            if (response.data.success === false) {
-                handleAnalysisError(response.data);
-                return;
-            }
-
-            if (response.data.is_valid_ingredient_list === false) {
-                const validationMsg = response.data.validation_message ||
-                    'The text you entered does not appear to be a food ingredient list.';
-                setValidationError({
-                    title: 'Not a Valid Ingredient List',
-                    message: validationMsg,
-                    suggestion: 'Please enter actual food ingredients (e.g., "Flour, Sugar, Eggs, Milk") not random text or sentences.'
-                });
-                return;
-            }
-
-            setValidationError(null);
-            onAnalyze(response.data, null);
-        } catch (error) {
-            console.error('Analysis error:', error);
-            if (error.response && error.response.data) {
-                handleAnalysisError(error.response.data);
+            if (res.data.success) {
+                onAnalyze(res.data, null);
             } else {
-                setValidationError({
-                    title: 'Connection Error',
-                    message: 'Failed to connect to the server.',
-                    suggestion: 'Please check your internet connection and try again.'
-                });
+                setValidationError({ title: 'Analysis Error', message: res.data.message });
             }
+        } catch (err) {
+            setValidationError({ title: 'Connection Error', message: 'Failed to analyze ingredients.' });
         } finally {
             setIsLoading(false);
         }
     };
 
-    // ========================================
-    //  RENDER
-    // ========================================
-
     return (
-        <section className="upload-section">
-            <div className="upload-container">
-                <h1 className="main-title">Discover What's Inside Your Food</h1>
-                <p className="main-subtitle">
-                    Search a product or enter ingredients to get analysis
-                </p>
+        <section className="upload-section" id="analyze-section">
+            <div className="section-container">
+                <div className="analyzer-header">
+                    <h2 className="analyzer-title">Molecular Analyzer</h2>
+                    <p className="analyzer-subtitle">Analyze ingredients with clinical precision using our proprietary health-scoring algorithm.</p>
+                </div>
 
-                {/* Tab Switcher */}
-                <div className="upload-tabs" id="upload-tabs">
-                    <button
-                        className={`tab-btn ${activeTab === 'search' ? 'active' : ''}`}
-                        onClick={() => { setActiveTab('search'); setValidationError(null); }}
-                        id="tab-search"
+                <div className="analyzer-tabs">
+                    <button 
+                        className={`analyzer-tab ${activeTab === 'search' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('search')}
                     >
-                        <svg className="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="11" cy="11" r="8" />
-                            <path d="M21 21l-4.35-4.35" />
-                        </svg>
-                        Search Product
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>
+                        Product Search
                     </button>
-                    <button
-                        className={`tab-btn ${activeTab === 'manual' ? 'active' : ''}`}
-                        onClick={() => { setActiveTab('manual'); setValidationError(null); }}
-                        id="tab-manual"
+                    <button 
+                        className={`analyzer-tab ${activeTab === 'manual' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('manual')}
                     >
-                        <svg className="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
-                        Type Ingredients
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        Raw Ingredients
                     </button>
                 </div>
 
-
-
-                {/* Validation Error Display */}
-                {validationError && (
-                    <div className="validation-error-card">
-                        <div className="error-icon">
-                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-                                <path d="M12 8v4M12 16h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                            </svg>
-                        </div>
-                        <div className="error-content">
-                            <h3 className="error-title">{validationError.title}</h3>
-                            <p className="error-message">{validationError.message}</p>
-                            <p className="error-suggestion">{validationError.suggestion}</p>
-                            {validationError.example && (
-                                <div className="error-example">{validationError.example}</div>
-                            )}
-                        </div>
-                        <button
-                            className="error-close-btn"
-                            onClick={() => setValidationError(null)}
-                            aria-label="Close error"
-                        >
-                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                            </svg>
-                        </button>
-                    </div>
-                )}
-
-                {/* ===== SEARCH TAB ===== */}
-                {activeTab === 'search' && (
-                    <div className="upload-box search-active" style={{ animation: 'fadeIn 0.3s ease-out' }}>
-
-                        {/* Analysis Loading Overlay */}
-                        {isAnalyzingProduct && selectedProduct ? (
-                            <div className="analysis-overlay">
-                                <div className="analysis-overlay-content">
-                                    <div className="analysis-product-preview">
-                                        {selectedProduct.image_url && (
-                                            <img src={selectedProduct.image_url} alt="" className="analysis-preview-img" />
-                                        )}
-                                        <div className="analysis-preview-info">
-                                            <span className="analysis-preview-name">{selectedProduct.name}</span>
-                                            <span className="analysis-preview-brand">{selectedProduct.brand}</span>
+                <div className="analyzer-content-wrapper">
+                    {activeTab === 'search' && (
+                        <div className="upload-box search-active">
+                            {isAnalyzingProduct ? (
+                                <div className="analysis-overlay">
+                                    <div className="analysis-overlay-content">
+                                        <div className="zen-loader">
+                                            <div className="zen-loader-ring"></div>
+                                            <div className="zen-loader-active"></div>
                                         </div>
-                                    </div>
-                                    <div className="analysis-dots-loader">
-                                        <span className="analysis-dot"></span>
-                                        <span className="analysis-dot"></span>
-                                        <span className="analysis-dot"></span>
-                                    </div>
-                                    <div className="analysis-loading-message" key={loadingMsgIndex}>
-                                        <span className="analysis-msg-icon">{ANALYSIS_MESSAGES[loadingMsgIndex].icon}</span>
-                                        <span className="analysis-msg-text">{ANALYSIS_MESSAGES[loadingMsgIndex].text}</span>
+                                        
+                                        <div className="analysis-loading-message">
+                                            <span className="analysis-msg-text">{ANALYSIS_MESSAGES[loadingMsgIndex].text}</span>
+                                        </div>
+
+                                        {selectedProduct && (
+                                            <div className="analysis-product-preview">
+                                                <div className="analysis-preview-img-container">
+                                                    {selectedProduct.image_url ? (
+                                                        <img src={selectedProduct.image_url} alt="" className="analysis-preview-img" />
+                                                    ) : (
+                                                        <div className="analysis-preview-img-placeholder">
+                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="analysis-preview-info">
+                                                    <span className="analysis-preview-name">{selectedProduct.name}</span>
+                                                    <span className="analysis-preview-brand">{selectedProduct.brand}</span>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <>
-                                {/* Search Input + Dropdown */}
-                                <div className="search-dropdown-container" ref={dropdownRef}>
+                            ) : (
+                                <>
+                                <div className={`search-dropdown-container ${showDropdown ? 'dropdown-open' : ''}`} ref={dropdownRef}>
                                     <form onSubmit={handleSearchSubmit} className="product-search-form">
                                         <div className="search-input-wrapper">
-                                            <svg className="search-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                <circle cx="11" cy="11" r="8" />
-                                                <path d="M21 21l-4.35-4.35" />
-                                            </svg>
+                                            <div className="search-icon">
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>
+                                            </div>
                                             <input
                                                 ref={searchInputRef}
                                                 type="text"
-                                                className={`search-input ${showDropdown ? 'dropdown-open' : ''}`}
+                                                className="premium-search-input"
                                                 placeholder="Search for a product... (e.g. Maggi, Parle-G, Amul Butter)"
                                                 value={searchQuery}
-                                                onChange={handleSearchInput}
+                                                onChange={handleSearchChange}
                                                 onFocus={() => {
-                                                    if (searchQuery.trim().length >= 2) {
-                                                        setShowDropdown(true);
-                                                    }
+                                                    if (searchQuery.trim().length >= 2) setShowDropdown(true);
                                                 }}
-                                                autoComplete="off"
-                                                id="product-search-input"
                                             />
-
-                                            {/* Clear Button */}
-                                            {searchQuery && (
-                                                <button
+                                            {isSearching && <div className="search-progress-bar"></div>}
+                                            {searchQuery && !isSearching && (
+                                                <button 
+                                                    className="search-clear-btn" 
                                                     type="button"
-                                                    className="search-clear-btn"
                                                     onClick={() => {
                                                         setSearchQuery('');
                                                         setSearchResults([]);
                                                         setShowDropdown(false);
-                                                        setSearchError(null);
-                                                        document.getElementById('product-search-input').focus();
+                                                        searchInputRef.current?.focus();
                                                     }}
-                                                    aria-label="Clear search"
-                                                    title="Clear search"
                                                 >
-                                                    ×
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12" /></svg>
                                                 </button>
                                             )}
-
-                                            {isSearching && <span className="search-spinner"></span>}
                                         </div>
                                     </form>
 
-                                    {/* Floating Dropdown */}
-                                    {showDropdown && (
-                                        <div className="search-dropdown">
-                                            {/* Skeletons while loading */}
-                                            {isSearching && searchResults.length === 0 && (
-                                                <>
-                                                    <div className="dropdown-header">
-                                                        <span className="dropdown-header-text">Searching...</span>
-                                                    </div>
-                                                    <div className="search-results-list">
-                                                        {[1, 2, 3, 4, 5].map((i) => (
-                                                            <div key={i} className="skeleton-result-item" style={{ animationDelay: `${i * 0.05}s` }}>
-                                                                <div className="skeleton-image skeleton-shimmer"></div>
-                                                                <div className="skeleton-info">
-                                                                    <div className="skeleton-name skeleton-shimmer"></div>
-                                                                    <div className="skeleton-brand skeleton-shimmer"></div>
+                                    {showDropdown && (isSearching || searchResults.length > 0) && (
+                                        <div className="premium-dropdown">
+                                            <div className="dropdown-results">
+                                                {isSearching ? (
+                                                    <div className="skeleton-container">
+                                                        {[1, 2, 3].map(i => (
+                                                            <div key={i} className="skeleton-item">
+                                                                <div className="skeleton-img shimmer"></div>
+                                                                <div className="skeleton-text-group">
+                                                                    <div className="skeleton-title shimmer"></div>
+                                                                    <div className="skeleton-subtitle shimmer"></div>
                                                                 </div>
-                                                                <div className="skeleton-arrow skeleton-shimmer"></div>
                                                             </div>
                                                         ))}
                                                     </div>
-                                                </>
-                                            )}
-
-                                            {/* Actual Results */}
-                                            {searchResults.length > 0 && (
-                                                <>
-                                                    <div className="dropdown-header">
-                                                        <span className="dropdown-header-text">
-                                                            {searchResults.length} product{searchResults.length !== 1 ? 's' : ''} found
-                                                        </span>
-                                                    </div>
-                                                    <div className="search-results-list">
-                                                        {searchResults.map((product, idx) => (
-                                                            <button
-                                                                key={product.barcode || idx}
-                                                                className={`search-result-item ${selectedProduct?.barcode === product.barcode ? 'selected' : ''}`}
-                                                                onClick={() => handleAnalyzeProduct(product)}
-                                                                disabled={isAnalyzingProduct}
-                                                                id={`search-result-${idx}`}
-                                                            >
-                                                                <div className="result-image-wrapper">
-                                                                    {product.image_url ? (
-                                                                        <img
-                                                                            src={product.image_url}
-                                                                            alt={product.name}
-                                                                            className="result-product-image"
-                                                                            loading="lazy"
-                                                                            decoding="async"
-                                                                            onLoad={(e) => { e.target.style.opacity = '1'; }}
-                                                                            style={{ opacity: 0, transition: 'opacity 0.3s ease' }}
-                                                                            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                                                                        />
-                                                                    ) : null}
-                                                                    <div className="result-image-placeholder" style={product.image_url ? { display: 'none' } : {}}>
-                                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                                                            <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                                                                        </svg>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="result-info">
-                                                                    <div className="result-name-wrapper">
-                                                                        <span className="result-name">{product.name}</span>
-                                                                        {product.is_verified && (
-                                                                            <span className="verified-badge-pill" title="Verified True Data">
-                                                                                <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '14px', height: '14px' }}>
-                                                                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                                                                                </svg>
-                                                                                Verified
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                    <span className="result-brand">
-                                                                        {product.brand}
-                                                                        {product.is_indian && (
-                                                                            <span className="indian-badge" title="Indian Product">🇮🇳</span>
-                                                                        )}
-                                                                    </span>
-                                                                    {product.categories && (
-                                                                        <span className="result-category">{product.categories.split(',')[0]}</span>
-                                                                    )}
-                                                                </div>
-                                                                <div className="result-action">
-                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', color: 'var(--color-accent-primary)' }}>
-                                                                        <path d="M5 12h14M12 5l7 7-7 7" />
-                                                                    </svg>
-                                                                </div>
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </>
-                                            )}
-
-                                            {/* No Results */}
-                                            {searchError && searchError.type === 'no_results' && !isSearching && (
-                                                <div className="search-no-results">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '40px', height: '40px', color: 'var(--color-text-tertiary)', marginBottom: '8px' }}>
-                                                        <circle cx="11" cy="11" r="8" />
-                                                        <path d="M21 21l-4.35-4.35" />
-                                                        <path d="M8 11h6" />
-                                                    </svg>
-                                                    <p className="no-results-text">{searchError.message}</p>
-                                                    <button
-                                                        className="switch-tab-btn"
-                                                        onClick={() => setActiveTab('manual')}
-                                                    >
-                                                        Type Ingredients Instead →
-                                                    </button>
-                                                </div>
-                                            )}
-
-                                            {/* API Error / Timeout */}
-                                            {searchError && searchError.type === 'error' && !isSearching && (
-                                                <div className="search-no-results">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '40px', height: '40px', color: 'var(--color-accent-primary)', marginBottom: '8px' }}>
-                                                        <circle cx="12" cy="12" r="10" />
-                                                        <path d="M12 8v4M12 16h.01" />
-                                                    </svg>
-                                                    <p className="no-results-text">{searchError.message}</p>
-                                                    <button
-                                                        className="switch-tab-btn"
-                                                        onClick={() => {
-                                                            setSearchError(null);
-                                                            setIsSearching(true);
-                                                            searchProducts(searchQuery);
-                                                        }}
-                                                    >
-                                                        🔄 Retry Search
-                                                    </button>
-                                                </div>
-                                            )}
+                                                ) : (
+                                                    searchResults.map((product, idx) => (
+                                                        <button
+                                                            key={product.barcode || idx}
+                                                            className="dropdown-item"
+                                                            onClick={() => handleAnalyzeProduct(product)}
+                                                        >
+                                                            <div className="item-search-icon">
+                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>
+                                                            </div>
+                                                            <div className="item-info">
+                                                                <span className="item-name">{product.name}</span>
+                                                                <span className="item-brand">{product.brand}</span>
+                                                            </div>
+                                                            <div className="item-img">
+                                                                {product.image_url ? (
+                                                                    <img src={product.image_url} alt="" />
+                                                                ) : (
+                                                                    <div className="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg></div>
+                                                                )}
+                                                            </div>
+                                                            <div className="item-action">
+                                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                                                            </div>
+                                                        </button>
+                                                    ))
+                                                )}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Empty state — suggestion chips + scan history */}
-                                {!searchQuery && searchResults.length === 0 && !isSearching && (
-                                    <div className="search-empty-state">
-                                        <div className="search-suggestions">
-                                            <p className="suggestions-label">Popular searches:</p>
-                                            <div className="suggestion-chips">
-                                                {['Maggi', 'Parle-G', 'Amul Butter', 'Haldiram', 'Britannia', 'Kurkure'].map((term) => (
+                                    {!searchQuery && (
+                                        <div className="search-onboarding">
+                                            <p className="onboarding-label">Suggested Samples</p>
+                                            <div className="onboarding-chips">
+                                                {['Maggi', 'Parle-G', 'Amul', 'Haldiram', 'Britannia', 'Kurkure'].map((term) => (
                                                     <button
                                                         key={term}
-                                                        className="suggestion-chip"
+                                                        className="onboarding-chip"
                                                         onClick={() => {
                                                             setSearchQuery(term);
-                                                            setIsSearching(true);
-                                                            setShowDropdown(true);
                                                             searchProducts(term);
                                                         }}
                                                     >
@@ -767,64 +367,64 @@ function UploadSection({ onAnalyze, user }) {
                                                 ))}
                                             </div>
                                         </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    )}
 
-
-                                    </div>
-                                )}
-                            </>
-                        )}
-
-                    </div>
-                )}
-
-                {/* ===== MANUAL TEXT TAB ===== */}
-                {activeTab === 'manual' && (
-                    <div className="upload-box manual-active" style={{ animation: 'fadeIn 0.3s ease-out' }}>
-                        {isLoading ? (
-                            <div className="analysis-overlay">
-                                <div className="analysis-overlay-content">
-                                    <div className="analysis-dots-loader">
-                                        <span className="analysis-dot"></span>
-                                        <span className="analysis-dot"></span>
-                                        <span className="analysis-dot"></span>
-                                    </div>
-                                    <div className="analysis-loading-message" key={loadingMsgIndex}>
-                                        <span className="analysis-msg-icon">{ANALYSIS_MESSAGES[loadingMsgIndex].icon}</span>
-                                        <span className="analysis-msg-text">{ANALYSIS_MESSAGES[loadingMsgIndex].text}</span>
+                    {activeTab === 'manual' && (
+                        <div className="upload-box manual-active">
+                            {isLoading ? (
+                                <div className="analysis-overlay">
+                                    <div className="analysis-overlay-content">
+                                        <div className="premium-scanner">
+                                            <svg className="scanner-svg" viewBox="0 0 100 100">
+                                                <circle className="scanner-track" cx="50" cy="50" r="45" />
+                                                <circle className="scanner-beam" cx="50" cy="50" r="45" />
+                                                <path className="scanner-shield" d="M50 30 L65 37 V50 C65 60 50 68 50 68 C50 68 35 60 35 50 V37 L50 30 Z" />
+                                            </svg>
+                                            <div className="scanner-glow"></div>
+                                        </div>
+                                        <div className="analysis-loading-message">
+                                            <span className="analysis-msg-text">{ANALYSIS_MESSAGES[loadingMsgIndex].text}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <>
-                                <textarea
-                                    className="text-input"
-                                    placeholder="Paste ingredients here... (e.g. Wheat Flour, Sugar, Palm Oil, Salt)"
-                                    value={manualText}
-                                    onChange={(e) => setManualText(e.target.value)}
-                                ></textarea>
-                                <button
-                                    className="analyze-btn"
-                                    onClick={handleManualTextAnalyze}
-                                    disabled={!manualText.trim()}
-                                >
-                                    Analyze Ingredients
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M5 12h14M12 5l7 7-7 7" />
-                                    </svg>
-                                </button>
-                                <div className="helper-text">
-                                    Tip: You can copy and paste the ingredient list directly from any product website.
-                                </div>
-                            </>
-                        )}
-                    </div>
-                )}
+                            ) : (
+                                <>
+                                    <textarea
+                                        className="premium-textarea"
+                                        placeholder="Paste clinical ingredient data here..."
+                                        value={manualText}
+                                        onChange={(e) => setManualText(e.target.value)}
+                                    ></textarea>
+                                    <button
+                                        className="btn-ultra-primary analyze-btn"
+                                        onClick={handleManualTextAnalyze}
+                                        disabled={!manualText.trim()}
+                                    >
+                                        Run Molecular Analysis
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                                    </button>
+                                    <p className="clinical-hint">Ensure all additives and preservation agents are included for accurate scoring.</p>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
 
-
-        </section >
+            {validationError && (
+                <div className="validation-error-toast" onClick={() => setValidationError(null)}>
+                    <div className="toast-content">
+                        <strong>{validationError.title}</strong>
+                        <p>{validationError.message}</p>
+                    </div>
+                </div>
+            )}
+        </section>
     );
 }
 
-export { getPrefetchedAlternatives };
 export default UploadSection;

@@ -16,7 +16,7 @@
     right: -10%;
     width: 600px;
     height: 600px;
-    background: radial-gradient(circle, rgba(13, 148, 136, 0.05) 0%, rgba(255, 255, 255, 0) 70%);
+    background: radial-gradient(circle, rgba(26, 115, 232, 0.05) 0%, rgba(255, 255, 255, 0) 70%);
     border-radius: 50%;
     z-index: 0;
 }
@@ -101,7 +101,7 @@
     outline: none;
     background: #ffffff;
     border-color: var(--color-accent-primary);
-    box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.08);
+    box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.08);
 }
 
 .auth-error-premium {

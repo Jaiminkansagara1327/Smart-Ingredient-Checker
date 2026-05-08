@@ -38,11 +38,11 @@ class AuthenticatedOnlyUserRateThrottle(UserRateThrottle):
 
 # Analysis throttles for anonymous vs authenticated users
 class AnalysisAnonRateThrottle(AnonRateThrottle):
-    rate = '200/hour'  # 200 analysis requests per hour for anonymous users
+    rate = '500/hour'  # Increased to support deeper exploration
 
 
 class AnalysisUserRateThrottle(AuthenticatedOnlyUserRateThrottle):
-    rate = '2000/hour'  # 10x higher for authenticated users
+    rate = '5000/hour'  # Increased for power users
 
 
 def get_client_ip(request):
@@ -378,11 +378,11 @@ def contact_submit(request):
 # ========================================
 
 class SearchAnonRateThrottle(AnonRateThrottle):
-    rate = '3000/hour'  # 3000 search requests per hour to support instant autocomplete
+    rate = '120/minute'  # Supports 2 requests per second for instant autocomplete
 
 
 class SearchUserRateThrottle(AuthenticatedOnlyUserRateThrottle):
-    rate = '10000/hour'  # higher limit for authenticated users
+    rate = '300/minute'  # Even higher burst capacity for authenticated users
 
 
 @api_view(['GET'])

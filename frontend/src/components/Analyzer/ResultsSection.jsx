@@ -63,6 +63,12 @@ function highlightIngredients(text) {
 }
 
 // --- Helper Functions ---
+function stripEmojis(text) {
+    if (!text) return '';
+    // Strip common emojis like 🔴, 🟢, 🟡, ❌, ✅, etc.
+    return text.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]/gu, '').trim();
+}
+
 function renderOverviewValue(val) {
     if (!val) return 'Unknown';
     const s = String(val).trim();
@@ -367,45 +373,35 @@ function ResultsSection({ data, image, onAnalyzeNew, onNavigate }) {
                                 <span className="product-identity-name">{meta.name}</span>
                                 {meta.brand && <span className="product-identity-brand">{meta.brand}</span>}
                                 {data.details && data.details.goal_used && (
-                                    <div className="product-config-badges" style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                                        <span className="config-badge goal-badge" style={{ fontSize: '0.75rem', background: 'var(--color-bg-tertiary)', padding: '2px 8px', borderRadius: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
+                                    <div className="product-config-badges">
+                                        <span className="config-badge">
                                             🎯 {data.details.goal_used}
                                         </span>
-                                        <span className="config-badge type-badge" style={{ fontSize: '0.75rem', background: 'var(--color-bg-tertiary)', padding: '2px 8px', borderRadius: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
+                                        <span className="config-badge">
                                             🥣 {data.details.type_used}
                                         </span>
                                     </div>
                                 )}
                             </div>
-                            <div>
+                            <div className="score-wrapper">
                                 <ScoreBadge score={data.score} grade={meta.nutriscore_grade} />
                                 <div
                                     className="score-math-link"
                                     onClick={() => onNavigate('scoring')}
-                                    style={{
-                                        fontSize: '0.85rem',
-                                        color: 'var(--color-text-tertiary)',
-                                        cursor: 'pointer',
-                                        marginTop: '0.5rem',
-                                        textDecoration: 'underline',
-                                        textAlign: 'right'
-                                    }}
                                 >
-                                    How this score is calculated
+                                    Methodology
                                 </div>
                             </div>
                         </div>
                     ) : (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)' }}>
-                            <p style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
-                                Analyzed from manually entered ingredients
-                            </p>
+                        <div className="manual-ingredients-notice">
+                            <p>Analyzed from manually entered ingredients</p>
                             {data.details && data.details.goal_used && (
-                                <div className="product-config-badges" style={{ display: 'flex', gap: '8px' }}>
-                                    <span className="config-badge goal-badge" style={{ fontSize: '0.75rem', background: 'var(--color-bg-tertiary)', padding: '2px 8px', borderRadius: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
+                                <div className="product-config-badges">
+                                    <span className="config-badge">
                                         🎯 {data.details.goal_used}
                                     </span>
-                                    <span className="config-badge type-badge" style={{ fontSize: '0.75rem', background: 'var(--color-bg-tertiary)', padding: '2px 8px', borderRadius: '12px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
+                                    <span className="config-badge">
                                         🥣 {data.details.type_used}
                                     </span>
                                 </div>
@@ -413,13 +409,9 @@ function ResultsSection({ data, image, onAnalyzeNew, onNavigate }) {
                         </div>
                     )}
 
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                        gap: 'var(--spacing-lg)'
-                    }}>
+                    <div className="overview-stats-grid">
                         <div className="overview-stat-card">
-                            <p className="overview-stat-label">Processing Level</p>
+                            <p className="overview-stat-label">Processing</p>
                             <p className="overview-stat-value">{renderOverviewValue(data.overview.processing_level)}</p>
                         </div>
                         <div className="overview-stat-card">
@@ -435,20 +427,14 @@ function ResultsSection({ data, image, onAnalyzeNew, onNavigate }) {
 
                 {/* SECTION 2: Frequency Verdict */}
                 <div className="verdict-card">
-                    <h3 className="results-section-title" style={{ color: 'var(--color-accent-secondary)' }}>
-                        Frequency Verdict
-                    </h3>
-                    <p className="verdict-text">{data.frequency_verdict}</p>
+                    <h3 className="results-section-title">Verdict</h3>
+                    <p className="verdict-text">{stripEmojis(data.frequency_verdict)}</p>
                 </div>
 
                 {/* SECTION 3: Key Signals */}
                 <div className="results-card">
                     <h3 className="results-section-title">Key Signals</h3>
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-                        gap: 'var(--spacing-md)'
-                    }}>
+                    <div className="signals-grid">
                         {[
                             { label: 'Added Sugar', value: data.key_signals.added_sugar },
                             { label: 'Refined Flour', value: data.key_signals.refined_flour_starch },
@@ -456,7 +442,7 @@ function ResultsSection({ data, image, onAnalyzeNew, onNavigate }) {
                             { label: 'Preservatives', value: data.key_signals.preservatives },
                             { label: 'Artificial Flavors', value: data.key_signals.artificial_flavors }
                         ].map((signal, idx) => (
-                            <div key={idx} className="overview-stat-card" style={{ border: '1px solid var(--color-border)' }}>
+                            <div key={idx} className="overview-stat-card">
                                 <p className="overview-stat-label">{signal.label}</p>
                                 <p className="overview-stat-value">{renderOverviewValue(signal.value)}</p>
                             </div>
@@ -467,17 +453,17 @@ function ResultsSection({ data, image, onAnalyzeNew, onNavigate }) {
                 {/* SECTION 3.5: Nutrition Facts */}
                 <NutritionPanel nutriments={meta.nutriments} />
 
-                {/* SECTION 4: Ingredient Breakdown (with color highlighting) */}
+                {/* SECTION 4: Ingredient Breakdown */}
                 <div className="results-card">
-                    <h3 className="results-section-title">Ingredient Breakdown</h3>
+                    <h3 className="results-section-title">Ingredient Intelligence</h3>
 
-                    {/* Color legend */}
-                    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-tertiary)', marginBottom: 'var(--spacing-md)' }}>
-                        Click on an ingredient to see what it actually is in layman's terms.
+                    <p className="breakdown-hint">
+                        Click an ingredient to understand its clinical role.
                     </p>
-                    <div className="ingredient-legend">
-                        <span className="legend-item"><span className="legend-dot red"></span> Concerning</span>
-                        <span className="legend-item"><span className="legend-dot green"></span> Positive</span>
+                    
+                    <div className="ingredient-legend-premium">
+                        <span className="legend-item"><span className="legend-dot red"></span> Concern</span>
+                        <span className="legend-item"><span className="legend-dot green"></span> Healthful</span>
                         <span className="legend-item"><span className="legend-dot neutral"></span> Neutral</span>
                     </div>
 
@@ -487,42 +473,25 @@ function ResultsSection({ data, image, onAnalyzeNew, onNavigate }) {
                                 <div
                                     className={`ingredient-row ${expandedIngIdx === idx ? 'expanded' : ''}`}
                                     onClick={() => setExpandedIngIdx(expandedIngIdx === idx ? null : idx)}
-                                    style={{ cursor: 'pointer' }}
                                 >
-                                    <div className="ingredient-main-info" style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '12px' }}>
-                                        <span className="expand-icon" style={{
-                                            fontSize: '0.8rem',
-                                            color: 'var(--color-text-tertiary)',
-                                            transition: 'transform 0.2s ease',
-                                            transform: expandedIngIdx === idx ? 'rotate(180deg)' : 'rotate(0deg)'
-                                        }}>
-                                            ▼
-                                        </span>
+                                    <div className={`risk-indicator ${item.risk === '🔴' ? 'risk-high' : item.risk === '🟡' ? 'risk-mod' : 'risk-low'}`}></div>
+                                    
+                                    <div className="ingredient-main-info">
                                         <span className={`ingredient-name ${item.risk === '🔴' || item.risk === '🟡' ? 'flagged-red' :
                                             item.risk === '🟢' ? 'flagged-green' : ''
-                                            }`} style={{ flex: 1 }}>
+                                            }`}>
                                             {item.name}
                                         </span>
                                     </div>
-                                    <span className="ingredient-role" style={{ fontSize: '0.85rem', color: 'var(--color-text-tertiary)', marginRight: '8px' }}>
+                                    <span className="ingredient-role">
                                         {item.role}
                                     </span>
-                                    <span className="ingredient-risk">{item.risk}</span>
+                                    <span className="expand-icon">{expandedIngIdx === idx ? '▲' : '▼'}</span>
                                 </div>
                                 {expandedIngIdx === idx && (
-                                    <div className="ingredient-explanation" style={{
-                                        padding: 'var(--spacing-md) var(--spacing-lg) var(--spacing-md) calc(var(--spacing-md) + 24px)',
-                                        background: 'var(--color-bg-tertiary)',
-                                        fontSize: '0.9rem',
-                                        color: 'var(--color-text-secondary)',
-                                        borderBottom: '1px solid var(--color-border)',
-                                        lineHeight: '1.5',
-                                        animation: 'fadeIn 0.2s ease'
-                                    }}>
-                                        <div style={{ fontWeight: '600', marginBottom: '2px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-tertiary)' }}>
-                                            Layman's Terms:
-                                        </div>
-                                        {item.description || "A common food ingredient used for texture, flavor, or preservation."}
+                                    <div className="ingredient-explanation">
+                                        <div className="explanation-label">Intelligence:</div>
+                                        {item.description || "Common food component."}
                                     </div>
                                 )}
                             </div>

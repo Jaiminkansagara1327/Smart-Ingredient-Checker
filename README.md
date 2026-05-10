@@ -37,12 +37,20 @@ Make sure you have [Python](https://www.python.org/) and [Node.js](https://nodej
 #### 2. Setup the Backend (The Brain)
 ```bash
 cd backend
-python3 -m venv venv           # Create a virtual environment
-source venv/bin/activate       # Activate it (Windows users: venv\Scripts\activate)
-pip install -r requirements.txt # Install dependencies
-cp .env.example .env           # Create your environment file
-python3 manage.py migrate      # Prepare the database
-python3 manage.py runserver    # Start the engine!
+
+# Create a virtual environment
+python3 -m venv venv
+
+# Activate it
+# Mac/Linux:
+source venv/bin/activate
+# Windows:
+venv\Scripts\activate
+
+pip install -r requirements.txt
+cp .env.example .env
+python3 manage.py migrate
+python3 manage.py runserver
 ```
 
 #### 3. Setup the Frontend (The Interface)

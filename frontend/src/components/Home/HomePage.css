@@ -288,6 +288,12 @@
     z-index: 1000;
 }
 
+@media (max-width: 768px) {
+    .scroll-top-btn {
+        display: none !important;
+    }
+}
+
 .scroll-top-btn.is-visible {
     opacity: 1;
     visibility: visible;

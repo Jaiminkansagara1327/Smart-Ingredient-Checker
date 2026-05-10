@@ -9,29 +9,22 @@ import SignupPage from './components/Auth/SignupPage';
 import SettingsPage from './components/Other/SettingsPage';
 import HistoryPage from './components/Other/HistoryPage';
 import Footer from './components/Layout/Footer';
-
 import api, { setAccessToken, clearAccessToken, getAccessToken } from './api';
-
 import { useGoogleOneTapLogin } from '@react-oauth/google';
 import { generateNonce } from './utils/nonce';
 
 function App() {
-    const [currentPage, setCurrentPage] = useState(() =>
-        sessionStorage.getItem('ingrexa_current_page') || 'home'
+    const [currentPage, setCurrentPage] = useState(
+        () => sessionStorage.getItem('ingrexa_current_page') || 'home'
     );
     const [showResults, setShowResults] = useState(false);
     const [analysisData, setAnalysisData] = useState(null);
     const [uploadedImage, setUploadedImage] = useState(null);
-
-    // User state: populated from /api/auth/me/ — NOT from localStorage
     const [user, setUser] = useState(null);
-
-    // ── Auth helpers ──────────────────────────────────────────────────────────
 
     const logout = useCallback(() => {
         clearAccessToken();
         setUser(null);
-        // Tell the backend to blacklist the refresh cookie
         api.post('/api/auth/logout/').catch(() => {});
         sessionStorage.removeItem('ingrexa_current_page');
     }, []);
@@ -40,17 +33,12 @@ function App() {
         if (!getAccessToken()) return;
         try {
             const res = await api.get('/api/auth/me/');
-            if (res.data?.success) {
-                setUser(res.data.user);
-            }
+            if (res.data?.success) setUser(res.data.user);
         } catch (err) {
-            if (err.response?.status === 401 || err.response?.status === 403) {
-                logout();
-            }
+            if (err.response?.status === 401 || err.response?.status === 403) logout();
         }
     }, [logout]);
 
-    // ── Session expired event (fired by api.js interceptor) ───────────────────
     useEffect(() => {
         const onExpired = () => {
             setUser(null);
@@ -60,11 +48,9 @@ function App() {
         return () => window.removeEventListener('ingrexa:session-expired', onExpired);
     }, []);
 
-    // ── Google One Tap ────────────────────────────────────────────────────────
     useGoogleOneTapLogin({
         onSuccess: async (credentialResponse) => {
             try {
-                // Generate + send a nonce so the backend can validate it (finding #8)
                 const nonce = generateNonce();
                 const response = await api.post('/api/auth/google-login/', {
                     credential: credentialResponse.credential,
@@ -75,14 +61,13 @@ function App() {
                     await fetchUser();
                 }
             } catch (err) {
-                console.error('One Tap Login error', err);
+                console.error('One Tap login failed', err);
             }
         },
-        onError: () => console.log('One Tap Login Failed'),
+        onError: () => console.error('One Tap login failed'),
         disabled: !!user || !!getAccessToken(),
     });
 
-    // ── On mount: try to restore session via refresh cookie ──────────────────
     useEffect(() => {
         const restoreSession = async () => {
             try {
@@ -92,20 +77,17 @@ function App() {
                     await fetchUser();
                 }
             } catch {
-                // No valid refresh cookie; user is logged out — that's fine
+                // no refresh cookie, user stays logged out
             }
         };
         restoreSession();
     }, [fetchUser]);
 
-    // ── Scroll reset ──────────────────────────────────────────────────────────
     useEffect(() => {
         window.scrollTo(0, 0);
-        const timer = setTimeout(() => window.scrollTo(0, 0), 10);
-        return () => clearTimeout(timer);
+        const t = setTimeout(() => window.scrollTo(0, 0), 10);
+        return () => clearTimeout(t);
     }, [currentPage, showResults]);
-
-    // ── Event handlers ────────────────────────────────────────────────────────
 
     const handleAnalyze = (data, image) => {
         setAnalysisData(data);
@@ -148,50 +130,22 @@ function App() {
     };
 
     const renderContent = () => {
-        const isLoggedIn = !!user;
-
         if (currentPage === 'home') return <HomePage onNavigate={handleNavigate} user={user} />;
         if (currentPage === 'contact') return <ContactPage />;
 
         if (currentPage === 'login' || currentPage === 'signup') {
-            if (isLoggedIn) {
+            if (user) {
                 setTimeout(() => handleNavigate('analyze'), 0);
                 return <UploadSection onAnalyze={handleAnalyze} user={user} />;
             }
-            if (currentPage === 'login')
-                return (
-                    <LoginPage
-                        onNavigate={handleNavigate}
-                        onLoginSuccess={(accessToken) => {
-                            setAccessToken(accessToken);
-                            fetchUser();
-                        }}
-                    />
-                );
-            if (currentPage === 'signup')
-                return (
-                    <SignupPage
-                        onNavigate={handleNavigate}
-                        onLoginSuccess={(accessToken) => {
-                            setAccessToken(accessToken);
-                            fetchUser();
-                        }}
-                    />
-                );
+            const onLoginSuccess = (token) => { setAccessToken(token); fetchUser(); };
+            if (currentPage === 'login') return <LoginPage onNavigate={handleNavigate} onLoginSuccess={onLoginSuccess} />;
+            return <SignupPage onNavigate={handleNavigate} onLoginSuccess={onLoginSuccess} />;
         }
 
-        if (currentPage === 'settings')
-            return <SettingsPage onNavigate={handleNavigate} user={user} setUser={setUser} />;
-        if (currentPage === 'history')
-            return (
-                <HistoryPage
-                    onNavigate={handleNavigate}
-                    user={user}
-                    onSelectHistoryItem={handleHistorySelect}
-                />
-            );
+        if (currentPage === 'settings') return <SettingsPage onNavigate={handleNavigate} user={user} setUser={setUser} />;
+        if (currentPage === 'history') return <HistoryPage onNavigate={handleNavigate} user={user} onSelectHistoryItem={handleHistorySelect} />;
 
-        // Enforce Login Wall for Analyzer — check in-memory token, not localStorage
         if (!getAccessToken()) {
             return <LoginPage onNavigate={handleNavigate} onLoginSuccess={(tok) => { setAccessToken(tok); fetchUser(); }} />;
         }

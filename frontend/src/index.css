@@ -1,24 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700&display=swap');
 
-/* ===================================
-   Design System & CSS Variables
-   Premium Light Theme
-   =================================== */
+/* Design System */
 :root {
-    /* Color Palette - Minimalist Premium (The 'Clinical Sanctuary' Palette) */
+    /* Colors */
     --color-bg-primary: #ffffff;
     --color-bg-secondary: #fdfdfe; /* Even lighter */
     --color-bg-tertiary: #f8f9fa;
     --color-bg-card: #ffffff;
     --color-bg-elevated: #ffffff;
 
-    /* Accent Colors - Sophisticated Blue */
+    /* Accents */
     --color-accent-primary: #1a73e8;
     --color-accent-secondary: #1557b0;
     --color-accent-gradient: linear-gradient(180deg, #1a73e8 0%, #1557b0 100%);
     --color-accent-light: #f0f6ff;
 
-    /* Status Colors - Muted Material */
+    /* Status */
     --color-success: #1e8e3e;
     --color-success-bg: #f3fcf5;
     --color-success-border: #e6f4ea;
@@ -29,22 +26,22 @@
     --color-danger-bg: #fff5f4;
     --color-danger-border: #fce8e6;
 
-    /* Text Colors - High tonal hierarchy */
+    /* Typography Hierarchy */
     --color-text-primary: #111111; /* Deeper black for headlines */
     --color-text-secondary: #444444;
     --color-text-tertiary: #666666;
 
-    /* Border & Divider - Paper thin */
+    /* Borders */
     --color-border: #eeeeee;
     --color-border-hover: #e0e0e0;
 
-    /* Shadows - 'Ambient Glow' Elevation */
+    /* Shadows */
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.02);
     --shadow-md: 0 4px 20px -5px rgba(0,0,0,0.03);
     --shadow-lg: 0 10px 40px -10px rgba(0,0,0,0.04);
     --shadow-xl: 0 20px 60px -15px rgba(0,0,0,0.05);
 
-    /* Spacing - Increased base unit */
+    /* Spacing */
     --spacing-xs: 0.5rem;
     --spacing-sm: 0.75rem;
     --spacing-md: 1rem;
@@ -52,14 +49,14 @@
     --spacing-xl: 2.5rem;
     --spacing-2xl: 4rem;
 
-    /* Border Radius - Fully rounded aesthetic */
+    /* Radii */
     --radius-sm: 8px;
     --radius-md: 16px;
     --radius-lg: 24px;
     --radius-xl: 32px;
     --radius-full: 9999px;
 
-    /* Typography - Optimized for 'Inter' */
+    /* Fonts */
     --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-size-xs: 0.75rem;
     --font-size-sm: 0.875rem;
@@ -70,15 +67,13 @@
     --font-size-3xl: 2.5rem;
     --font-size-4xl: 4rem;
 
-    /* Transitions - Snappier but smooth */
+    /* Transitions */
     --transition-fast: 150ms cubic-bezier(0.2, 0, 0, 1);
     --transition-base: 300ms cubic-bezier(0.2, 0, 0, 1);
     --transition-slow: 500ms cubic-bezier(0.2, 0, 0, 1);
 }
 
-/* ===================================
-   Reset & Base Styles
-   =================================== */
+/* Base Reset */
 * {
     margin: 0;
     padding: 0;
@@ -105,9 +100,7 @@ body {
     z-index: 1;
 }
 
-/* ===================================
-   Utility Classes
-   =================================== */
+/* Utilities */
 .container {
     max-width: 1200px;
     margin: 0 auto;
@@ -118,9 +111,7 @@ body {
     display: none !important;
 }
 
-/* ===================================
-   Header
-   =================================== */
+/* Header */
 .header {
     display: flex;
     justify-content: space-between;
@@ -412,9 +403,7 @@ body {
     margin: 6px 4px;
 }
 
-/* ===================================
-   Main Content
-   =================================== */
+/* Layout */
 .main-content {
     flex: 1;
     max-width: 1200px;
@@ -423,9 +412,7 @@ body {
     width: 100%;
 }
 
-/* ===================================
-   Upload Section (Minimalist Premium)
-   =================================== */
+/* Analyzer View */
 .upload-section {
     padding: var(--spacing-2xl) 0;
     min-height: 80vh;
@@ -618,9 +605,7 @@ body {
     }
 }
 
-/* ===================================
-   Results Section (Minimalist Premium)
-   =================================== */
+/* Results View */
 .results-section {
     animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -630,15 +615,14 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* --- Results Cards --- */
+
 .results-card {
     background: white;
-    padding: var(--spacing-2xl);
-    border-radius: var(--radius-xl);
+    padding: 1.5rem;
+    border-radius: 16px;
     border: 1px solid var(--color-border);
     box-shadow: var(--shadow-md);
     margin-bottom: var(--spacing-xl);
-    transition: box-shadow var(--transition-base);
 }
 
 .results-section-title {
@@ -651,43 +635,57 @@ body {
     text-align: center;
 }
 
-/* Product Identity */
-.product-identity-row {
+.product-header-top {
     display: flex;
     align-items: center;
-    gap: var(--spacing-lg);
-    margin-bottom: var(--spacing-2xl);
-    padding-bottom: var(--spacing-xl);
-    border-bottom: 1px solid var(--color-border);
+    gap: 1rem;
 }
 
-.product-identity-img {
-    width: 80px;
-    height: 80px;
-    border-radius: var(--radius-md);
-    object-fit: cover;
-    background: var(--color-bg-tertiary);
+.product-img-box {
+    width: 72px;
+    height: 72px;
     flex-shrink: 0;
+    border-radius: 12px;
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
 }
 
-.product-identity-info {
+.product-header-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.product-header-info {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
 }
 
-.product-identity-name {
-    font-size: 1.5rem;
+.product-header-brand {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-accent-primary);
+    display: block;
+}
+
+.product-header-name {
+    font-size: 1.25rem;
     font-weight: 800;
     color: var(--color-text-primary);
     letter-spacing: -0.02em;
-}
-
-.product-identity-brand {
-    font-size: 1rem;
-    color: var(--color-text-tertiary);
-    font-weight: 500;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Overview Stats */
@@ -984,9 +982,15 @@ body {
 /* Premium Key Signals Grid */
 .signals-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 1rem;
     margin-top: 1.5rem;
+}
+
+@media (min-width: 769px) {
+    .signals-grid {
+        grid-template-columns: repeat(5, 1fr);
+    }
 }
 
 .overview-stat-card {
@@ -1021,7 +1025,7 @@ body {
     color: var(--color-text-primary);
 }
 
-/* Precise Grid Alignment for Ingredients */
+
 .ingredient-list {
     display: flex;
     flex-direction: column;
@@ -1167,6 +1171,59 @@ body {
     .nt-value {
         padding: 8px 10px;
     }
+
+    .product-identity-row {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: var(--spacing-md);
+    }
+
+    .product-identity-info {
+        align-items: center;
+    }
+
+    .score-wrapper {
+        align-items: center;
+    }
+
+    .verdict-card {
+        padding: 1.5rem 1rem;
+    }
+
+    .verdict-text {
+        font-size: 1.3rem;
+    }
+
+    .ingredient-row {
+        grid-template-columns: 8px 1fr 40px;
+        row-gap: 6px;
+        padding: 1rem 1rem 1rem 0;
+    }
+
+    .ingredient-main-info {
+        grid-column: 2 / 3;
+    }
+
+    .ingredient-role {
+        grid-column: 2 / 3;
+        grid-row: 2;
+        margin: 0;
+        margin-left: 24px;
+        font-size: 0.6rem;
+    }
+
+    .expand-icon {
+        grid-column: 3 / 4;
+        grid-row: 1 / 3;
+        align-self: center;
+    }
+
+    .ingredient-legend-premium {
+        flex-wrap: wrap;
+        justify-content: center;
+        border-radius: var(--radius-md);
+    }
 }
 
 @media (max-width: 480px) {
@@ -1181,9 +1238,17 @@ body {
     .nutrition-table {
         font-size: 0.75rem;
     }
+
+    .signals-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .overview-stats-grid {
+        grid-template-columns: 1fr 1fr;
+    }
 }
 
-/* --- Ingredient Highlighting --- */
+
 .ingredient-legend {
     display: flex;
     gap: var(--spacing-lg);
@@ -1291,7 +1356,7 @@ body {
     font-weight: 700;
 }
 
-/* --- Healthier Alternatives --- */
+
 .alternatives-card {
     border: 1px solid rgba(34, 197, 94, 0.3);
     background: linear-gradient(180deg, rgba(34, 197, 94, 0.04) 0%, var(--color-bg-card) 100%);
@@ -3906,47 +3971,60 @@ html {
 .analysis-product-preview {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
-    padding: 1rem 2rem;
-    background: rgba(255, 255, 255, 0.5);
-    border-radius: 99px;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+    animation: zenFadeSlideUp 0.5s ease forwards;
+    opacity: 0;
+    transform: translateY(10px);
 }
 
-.analysis-preview-img-container {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    overflow: hidden;
-    flex-shrink: 0;
+@keyframes zenFadeSlideUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.analysis-overlay-content {
+.analysis-preview-info {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    max-width: 500px;
-    margin: 0 auto;
+    gap: 2px;
+    min-width: 0;
 }
 
-.analysis-product-preview {
-    margin-top: 2.5rem;
-    padding-top: 2.5rem;
-    border-top: 1px solid var(--color-border);
-    width: 100%;
+.analysis-preview-brand {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-accent-primary);
+    margin: 0;
+}
+
+.analysis-preview-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .analysis-preview-img-container {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto 1.5rem;
-    border-radius: var(--radius-md);
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
     overflow: hidden;
+    flex-shrink: 0;
     background: var(--color-bg-tertiary);
     border: 1px solid var(--color-border);
 }
+
 
 .analysis-preview-img {
     width: 100%;
@@ -4189,19 +4267,6 @@ html {
         padding: var(--spacing-xl) var(--spacing-md);
     }
 
-    .analysis-overlay-content {
-        max-width: 280px;
-    }
-
-    .analysis-preview-img {
-        width: 36px;
-        height: 36px;
-    }
-
-    .analysis-preview-name {
-        font-size: var(--font-size-sm);
-    }
-
     /* Dropdown mobile */
     .search-dropdown {
         border-radius: 0 0 var(--radius-md) var(--radius-md);
@@ -4291,10 +4356,6 @@ html {
         font-size: 0.7rem;
     }
 
-    .analysis-overlay-content {
-        max-width: 100%;
-    }
-
     .skeleton-image {
         width: 36px;
         height: 36px;
@@ -4317,10 +4378,6 @@ html {
     .upload-box.search-active {
         padding: 0 2px;
     }
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .5; }
 }
 /* ===================================
    MOBILE-FIRST RESPONSIVE ENHANCEMENTS
@@ -4419,6 +4476,74 @@ html {
 
     .nav.nav-open .nav-link:nth-child(4) {
         transition-delay: 0.4s;
+    }
+
+    .profile-menu-container {
+        margin-left: 0 !important;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    .nav.nav-open .profile-menu-container {
+        opacity: 1;
+        transform: translateY(0);
+        transition-delay: 0.5s;
+    }
+
+    .login-pill {
+        margin-left: 0 !important;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    .nav.nav-open .login-pill {
+        opacity: 1;
+        transform: translateY(0);
+        transition-delay: 0.5s;
+    }
+
+    .profile-pill {
+        width: fit-content;
+        margin: 0 auto;
+    }
+
+    .profile-dropdown {
+        position: relative;
+        top: 0;
+        right: auto;
+        left: 0;
+        transform: none;
+        width: 100vw;
+        max-width: 100vw;
+        box-shadow: none;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        margin-top: 2rem;
+    }
+
+    .profile-dropdown-header {
+        background: transparent;
+        border-bottom: none;
+        text-align: center;
+        padding: 1rem 0;
+    }
+    
+    .profile-dropdown-name {
+        font-size: 1.2rem;
+    }
+
+    .profile-dropdown-item {
+        justify-content: center;
+        background: transparent;
+        font-size: 1.1rem;
+        padding: 1rem;
+    }
+    
+    .profile-dropdown-divider {
+        display: none;
     }
 
     /* Main Content - Breathing Room */

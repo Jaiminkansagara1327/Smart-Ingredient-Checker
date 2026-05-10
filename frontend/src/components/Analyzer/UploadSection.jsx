@@ -1,33 +1,25 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import api from '../../api';
 
-// Smart loading messages shown during analysis
-const ANALYSIS_MESSAGES = [
-    { text: 'Parsing molecular structure...' },
-    { text: 'Cross-referencing global databases...' },
-    { text: 'Identifying synthetic additives...' },
-    { text: 'Evaluating additive synergy...' },
-    { text: 'Finalizing clinical report...' },
+const LOADING_MESSAGES = [
+    'Parsing molecular structure...',
+    'Cross-referencing global databases...',
+    'Identifying synthetic additives...',
+    'Evaluating additive synergy...',
+    'Finalizing clinical report...',
 ];
 
-// Storage for background-prefetched alternatives to speed up transitions
-let prefetchStore = {
-    category: null,
-    nutriscore: null,
-    productName: null,
-    data: null
-};
+let prefetchStore = { category: null, nutriscore: null, productName: null, data: null };
 
 export const getPrefetchedAlternatives = (category, nutriscore, productName) => {
-    if (prefetchStore.category === category && 
-        prefetchStore.nutriscore === nutriscore && 
-        prefetchStore.productName === productName) {
-        return prefetchStore.data;
+    const s = prefetchStore;
+    if (s.category === category && s.nutriscore === nutriscore && s.productName === productName) {
+        return s.data;
     }
     return null;
 };
 
-const setPrefetchedAlternatives = (category, nutriscore, productName, data) => {
+const savePrefetch = (category, nutriscore, productName, data) => {
     prefetchStore = { category, nutriscore, productName, data };
 };
 
@@ -38,52 +30,44 @@ function UploadSection({ onAnalyze, user }) {
     const [isSearching, setIsSearching] = useState(false);
     const [searchError, setSearchError] = useState(null);
     const [selectedProduct, setSelectedProduct] = useState(null);
-    const [isAnalyzingProduct, setIsAnalyzingProduct] = useState(false);
-    const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [msgIndex, setMsgIndex] = useState(0);
     const [manualText, setManualText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [validationError, setValidationError] = useState(null);
+    const [error, setError] = useState(null);
     const [userGoal, setUserGoal] = useState('Regular');
     const [showDropdown, setShowDropdown] = useState(false);
 
-    const searchTimerRef = useRef(null);
+    const searchTimer = useRef(null);
     const searchInputRef = useRef(null);
     const dropdownRef = useRef(null);
-    const abortControllerRef = useRef(null);
+    const abortRef = useRef(null);
 
-    // Click outside to close dropdown
     useEffect(() => {
-        const handleClickOutside = (e) => {
+        const handleClick = (e) => {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
                 setShowDropdown(false);
             }
         };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
     }, []);
 
-    // Rotate loading messages
     useEffect(() => {
-        if (!isAnalyzingProduct && !isLoading) {
-            setLoadingMsgIndex(0);
+        if (!isAnalyzing && !isLoading) {
+            setMsgIndex(0);
             return;
         }
-        const interval = setInterval(() => {
-            setLoadingMsgIndex(prev => (prev + 1) % ANALYSIS_MESSAGES.length);
-        }, 1800);
+        const interval = setInterval(() => setMsgIndex(i => (i + 1) % LOADING_MESSAGES.length), 1800);
         return () => clearInterval(interval);
-    }, [isAnalyzingProduct, isLoading]);
+    }, [isAnalyzing, isLoading]);
 
-    // Sync with user goal
     useEffect(() => {
-        if (user && user.health_goal) {
-            setUserGoal(user.health_goal);
-        }
+        if (user?.health_goal) setUserGoal(user.health_goal);
     }, [user]);
 
     const searchProducts = useCallback(async (query) => {
-        if (abortControllerRef.current) abortControllerRef.current.abort();
-
+        if (abortRef.current) abortRef.current.abort();
         if (!query || query.trim().length < 2) {
             setSearchResults([]);
             setShowDropdown(false);
@@ -91,13 +75,13 @@ function UploadSection({ onAnalyze, user }) {
         }
 
         const controller = new AbortController();
-        abortControllerRef.current = controller;
-
+        abortRef.current = controller;
         setIsSearching(true);
+
         try {
             const res = await api.get('/api/search-product/', {
                 params: { q: query },
-                signal: controller.signal
+                signal: controller.signal,
             });
             if (res.data.success) {
                 setSearchResults(res.data.products || []);
@@ -106,101 +90,80 @@ function UploadSection({ onAnalyze, user }) {
             }
         } catch (err) {
             if (err.name !== 'CanceledError') {
-                if (err.response?.status === 429) {
-                    setSearchError({ type: 'warning', message: 'You are searching a bit too fast. Please wait a moment.' });
-                } else {
-                    setSearchError({ type: 'error', message: 'Search failed. Please try again.' });
-                }
+                const msg = err.response?.status === 429
+                    ? 'Searching too fast, please wait a moment.'
+                    : 'Search failed. Please try again.';
+                setSearchError({ type: err.response?.status === 429 ? 'warning' : 'error', message: msg });
             }
         } finally {
             setIsSearching(false);
         }
     }, []);
 
-    const handleSearchSubmit = (e) => {
-        if (e) e.preventDefault();
-        if (searchResults.length > 0) {
-            handleAnalyzeProduct(searchResults[0]);
-        }
-    };
-
     const handleSearchChange = (e) => {
         const val = e.target.value;
         setSearchQuery(val);
-        
-        // Instant clear logic: if query is too short, wipe results immediately
+
         if (!val.trim() || val.trim().length < 2) {
-            if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-            if (abortControllerRef.current) abortControllerRef.current.abort();
+            clearTimeout(searchTimer.current);
+            if (abortRef.current) abortRef.current.abort();
             setSearchResults([]);
             setShowDropdown(false);
             return;
         }
 
-        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-        // Faster debounce for "Instant" feel
-        searchTimerRef.current = setTimeout(() => searchProducts(val), 200);
+        clearTimeout(searchTimer.current);
+        searchTimer.current = setTimeout(() => searchProducts(val), 200);
+    };
+
+    const handleSearchSubmit = (e) => {
+        if (e) e.preventDefault();
+        if (searchResults.length > 0) handleAnalyzeProduct(searchResults[0]);
     };
 
     const handleAnalyzeProduct = async (product) => {
         setSelectedProduct(product);
-        setIsAnalyzingProduct(true);
+        setIsAnalyzing(true);
         setShowDropdown(false);
 
         try {
             const res = await api.post('/api/analyze-product/', {
                 barcode: product.barcode,
-                user_goal: userGoal
+                user_goal: userGoal,
             });
-            if (res.data.success) {
-                // Background prefetch alternatives
-                const meta = {
-                    name: product.name || '',
-                    categories: product.categories || '',
-                    nutriscore_grade: product.nutriscore_grade || '',
-                };
 
-                if (meta.categories) {
+            if (res.data.success) {
+                if (product.categories) {
                     api.get('/api/alternatives/', {
-                        params: {
-                            category: meta.categories,
-                            nutriscore: meta.nutriscore_grade || '',
-                            name: meta.name || '',
-                        },
+                        params: { category: product.categories, nutriscore: product.nutriscore_grade || '', name: product.name || '' },
                         timeout: 10000,
-                    }).then(altRes => {
-                        if (altRes.data.success) {
-                            setPrefetchedAlternatives(meta.categories, meta.nutriscore_grade, meta.name, altRes.data.alternatives);
-                        }
+                    }).then(alt => {
+                        if (alt.data.success) savePrefetch(product.categories, product.nutriscore_grade, product.name, alt.data.alternatives);
                     }).catch(() => {});
                 }
-
                 onAnalyze(res.data, null);
             } else {
-                setValidationError({ title: 'Analysis Error', message: res.data.message });
+                setError({ title: 'Analysis Error', message: res.data.message });
             }
-        } catch (err) {
-            setValidationError({ title: 'Connection Error', message: 'Failed to analyze product.' });
+        } catch {
+            setError({ title: 'Connection Error', message: 'Failed to analyze product.' });
         } finally {
-            setIsAnalyzingProduct(false);
+            setIsAnalyzing(false);
         }
     };
 
-    const handleManualTextAnalyze = async () => {
+    const handleManualAnalyze = async () => {
         if (!manualText.trim()) return;
         setIsLoading(true);
         try {
-            const res = await api.post('/api/analyze/text/', {
-                text: manualText,
-                user_goal: userGoal
-            });
+            const res = await api.post('/api/analyze/text/', { text: manualText, user_goal: userGoal });
             if (res.data.success) {
                 onAnalyze(res.data, null);
             } else {
-                setValidationError({ title: 'Analysis Error', message: res.data.message });
+                setError({ title: 'Analysis Error', message: res.data.message });
             }
-        } catch (err) {
-            setValidationError({ title: 'Connection Error', message: 'Failed to analyze ingredients.' });
+        } catch {
+            setError({ title: 'Connection Error', message: 'Failed to analyze ingredients.' });
         } finally {
             setIsLoading(false);
         }
@@ -215,17 +178,11 @@ function UploadSection({ onAnalyze, user }) {
                 </div>
 
                 <div className="analyzer-tabs">
-                    <button 
-                        className={`analyzer-tab ${activeTab === 'search' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('search')}
-                    >
+                    <button className={`analyzer-tab ${activeTab === 'search' ? 'active' : ''}`} onClick={() => setActiveTab('search')}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>
                         Product Search
                     </button>
-                    <button 
-                        className={`analyzer-tab ${activeTab === 'manual' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('manual')}
-                    >
+                    <button className={`analyzer-tab ${activeTab === 'manual' ? 'active' : ''}`} onClick={() => setActiveTab('manual')}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                         Raw Ingredients
                     </button>
@@ -234,18 +191,16 @@ function UploadSection({ onAnalyze, user }) {
                 <div className="analyzer-content-wrapper">
                     {activeTab === 'search' && (
                         <div className="upload-box search-active">
-                            {isAnalyzingProduct ? (
+                            {isAnalyzing ? (
                                 <div className="analysis-overlay">
                                     <div className="analysis-overlay-content">
                                         <div className="zen-loader">
                                             <div className="zen-loader-ring"></div>
                                             <div className="zen-loader-active"></div>
                                         </div>
-                                        
                                         <div className="analysis-loading-message">
-                                            <span className="analysis-msg-text">{ANALYSIS_MESSAGES[loadingMsgIndex].text}</span>
+                                            <span className="analysis-msg-text">{LOADING_MESSAGES[msgIndex]}</span>
                                         </div>
-
                                         {selectedProduct && (
                                             <div className="analysis-product-preview">
                                                 <div className="analysis-preview-img-container">
@@ -258,8 +213,8 @@ function UploadSection({ onAnalyze, user }) {
                                                     )}
                                                 </div>
                                                 <div className="analysis-preview-info">
-                                                    <span className="analysis-preview-name">{selectedProduct.name}</span>
-                                                    <span className="analysis-preview-brand">{selectedProduct.brand}</span>
+                                                    <p className="analysis-preview-brand">{selectedProduct.brand}</p>
+                                                    <p className="analysis-preview-name">{selectedProduct.name}</p>
                                                 </div>
                                             </div>
                                         )}
@@ -280,22 +235,16 @@ function UploadSection({ onAnalyze, user }) {
                                                 placeholder="Search for a product... (e.g. Maggi, Parle-G, Amul Butter)"
                                                 value={searchQuery}
                                                 onChange={handleSearchChange}
-                                                onFocus={() => {
-                                                    if (searchQuery.trim().length >= 2) setShowDropdown(true);
-                                                }}
+                                                onFocus={() => { if (searchQuery.trim().length >= 2) setShowDropdown(true); }}
                                             />
                                             {isSearching && <div className="search-progress-bar"></div>}
                                             {searchQuery && !isSearching && (
-                                                <button 
-                                                    className="search-clear-btn" 
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setSearchQuery('');
-                                                        setSearchResults([]);
-                                                        setShowDropdown(false);
-                                                        searchInputRef.current?.focus();
-                                                    }}
-                                                >
+                                                <button className="search-clear-btn" type="button" onClick={() => {
+                                                    setSearchQuery('');
+                                                    setSearchResults([]);
+                                                    setShowDropdown(false);
+                                                    searchInputRef.current?.focus();
+                                                }}>
                                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12" /></svg>
                                                 </button>
                                             )}
@@ -319,11 +268,7 @@ function UploadSection({ onAnalyze, user }) {
                                                     </div>
                                                 ) : (
                                                     searchResults.map((product, idx) => (
-                                                        <button
-                                                            key={product.barcode || idx}
-                                                            className="dropdown-item"
-                                                            onClick={() => handleAnalyzeProduct(product)}
-                                                        >
+                                                        <button key={product.barcode || idx} className="dropdown-item" onClick={() => handleAnalyzeProduct(product)}>
                                                             <div className="item-search-icon">
                                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>
                                                             </div>
@@ -349,25 +294,18 @@ function UploadSection({ onAnalyze, user }) {
                                     )}
                                 </div>
 
-                                    {!searchQuery && (
-                                        <div className="search-onboarding">
-                                            <p className="onboarding-label">Suggested Samples</p>
-                                            <div className="onboarding-chips">
-                                                {['Maggi', 'Parle-G', 'Amul', 'Haldiram', 'Britannia', 'Kurkure'].map((term) => (
-                                                    <button
-                                                        key={term}
-                                                        className="onboarding-chip"
-                                                        onClick={() => {
-                                                            setSearchQuery(term);
-                                                            searchProducts(term);
-                                                        }}
-                                                    >
-                                                        {term}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                {!searchQuery && (
+                                    <div className="search-onboarding">
+                                        <p className="onboarding-label">Suggested Samples</p>
+                                        <div className="onboarding-chips">
+                                            {['Maggi', 'Parle-G', 'Amul', 'Haldiram', 'Britannia', 'Kurkure'].map((term) => (
+                                                <button key={term} className="onboarding-chip" onClick={() => { setSearchQuery(term); searchProducts(term); }}>
+                                                    {term}
+                                                </button>
+                                            ))}
                                         </div>
-                                    )}
+                                    </div>
+                                )}
                                 </>
                             )}
                         </div>
@@ -387,7 +325,7 @@ function UploadSection({ onAnalyze, user }) {
                                             <div className="scanner-glow"></div>
                                         </div>
                                         <div className="analysis-loading-message">
-                                            <span className="analysis-msg-text">{ANALYSIS_MESSAGES[loadingMsgIndex].text}</span>
+                                            <span className="analysis-msg-text">{LOADING_MESSAGES[msgIndex]}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -401,7 +339,7 @@ function UploadSection({ onAnalyze, user }) {
                                     ></textarea>
                                     <button
                                         className="btn-ultra-primary analyze-btn"
-                                        onClick={handleManualTextAnalyze}
+                                        onClick={handleManualAnalyze}
                                         disabled={!manualText.trim()}
                                     >
                                         Run Molecular Analysis
@@ -415,11 +353,11 @@ function UploadSection({ onAnalyze, user }) {
                 </div>
             </div>
 
-            {validationError && (
-                <div className="validation-error-toast" onClick={() => setValidationError(null)}>
+            {error && (
+                <div className="validation-error-toast" onClick={() => setError(null)}>
                     <div className="toast-content">
-                        <strong>{validationError.title}</strong>
-                        <p>{validationError.message}</p>
+                        <strong>{error.title}</strong>
+                        <p>{error.message}</p>
                     </div>
                 </div>
             )}

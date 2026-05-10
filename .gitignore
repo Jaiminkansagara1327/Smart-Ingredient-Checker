@@ -1,9 +1,22 @@
+# ============================================
+# Ingrexa Gitignore
+# Prevents accidental commits of sensitive files
+# ============================================
+
+# Environment variables & secrets
+.env
+.env.local
+.env.production
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+env/
+venv/
+ENV/
 build/
 develop-eggs/
 dist/
@@ -19,53 +32,35 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# Virtual Environment
-venv/
-env/
-ENV/
-.venv
-.gemini/
+db.sqlite3
+db.sqlite3-journal
 
 # Django
 *.log
-db.sqlite3
-db.sqlite3-journal
-/media
-/staticfiles
 local_settings.py
+media/
+staticfiles/
 
-# Node
+# Node/React
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
-package-lock.json
-
-# Build
-dist/
+.pnp/
+.pnp.js
 build/
-.vite/
+dist/
+coverage/
 
-# IDE
+# IDEs & OS
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 .DS_Store
-
-# Environment
-.env
-.env.local
-.env.*.local
-
-# Misc
-*.bak
-*.tmp
-.cache/
-
-# System
-.DS_Store
 Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp

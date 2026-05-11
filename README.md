@@ -38,7 +38,12 @@ Make sure you have [Python](https://www.python.org/) and [Node.js](https://nodej
 ```bash
 cd backend
 python3 -m venv venv           # Create a virtual environment
-source venv/bin/activate       # Activate it (Windows users: venv\Scripts\activate)
+# Activate it:
+# Mac/Linux:
+source venv/bin/activate
+
+# Windows:
+venv\Scripts\activate
 pip install -r requirements.txt # Install dependencies
 cp .env.example .env           # Create your environment file
 python3 manage.py migrate      # Prepare the database

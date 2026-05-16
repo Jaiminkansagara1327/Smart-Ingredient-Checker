@@ -87,20 +87,20 @@ function HomePage({ onNavigate, user }) {
                         </div>
                     </div>
                     <div className="feature-story-visual">
-                         <div className="code-block-premium">
-                             <div className="code-header">
-                                 <span className="code-title">INGREDIENTS LIST</span>
-                                 <span className="code-tag">ENGINE V3.4</span>
-                             </div>
-                             <div className="code-content">
-                                Sugar, Wheat Flour, <span className="highlight-danger">Palm Oil</span>, 
-                                Milk Solids, <span className="highlight-danger">E150c</span>, 
-                                <span className="highlight-danger">INS 503(ii)</span>, 
-                                Salt, <span className="highlight-success">Natural Vanilla</span>, 
+                        <div className="code-block-premium">
+                            <div className="code-header">
+                                <span className="code-title">INGREDIENTS LIST</span>
+                                <span className="code-tag">ENGINE V3.4</span>
+                            </div>
+                            <div className="code-content">
+                                Sugar, Wheat Flour, <span className="highlight-danger">Palm Oil</span>,
+                                Milk Solids, <span className="highlight-danger">E150c</span>,
+                                <span className="highlight-danger">INS 503(ii)</span>,
+                                Salt, <span className="highlight-success">Natural Vanilla</span>,
                                 Lecithin, <span className="highlight-danger">Synthethic Flavor</span>.
-                             </div>
-                         </div>
-                         <p className="visual-caption">Real-time highlighting engine.</p>
+                            </div>
+                        </div>
+                        <p className="visual-caption">Real-time highlighting engine.</p>
                     </div>
                 </div>
             </section>

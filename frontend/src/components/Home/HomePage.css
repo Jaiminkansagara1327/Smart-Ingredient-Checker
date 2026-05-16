@@ -59,8 +59,13 @@
     transform: translateY(60px);
 }
 
-.title-block:nth-child(1) { animation-delay: 0.1s; }
-.title-block:nth-child(2) { animation-delay: 0.2s; }
+.title-block:nth-child(1) {
+    animation-delay: 0.1s;
+}
+
+.title-block:nth-child(2) {
+    animation-delay: 0.2s;
+}
 
 .text-accent {
     color: var(--color-accent-primary);
@@ -92,7 +97,7 @@
     padding: 1.5rem 3.5rem;
     border-radius: var(--radius-full);
     background: var(--color-text-primary);
-    color: white;
+    color: var(--color-bg-primary);
     font-size: 1.25rem;
     font-weight: 700;
     border: none;
@@ -104,7 +109,6 @@
 .btn-ultra-primary:hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow-xl);
-    background: #000000;
 }
 
 .btn-ultra-primary .arrow-wrapper {
@@ -193,17 +197,35 @@
 
 .story-feature-item:hover {
     transform: translateX(12px);
-    background: white;
+    background: rgb(34, 88, 238);
     box-shadow: var(--shadow-md);
     border-color: var(--color-border);
 }
 
-.story-feature-item.danger:hover { border-color: #feb2b2; }
-.story-feature-item.success:hover { border-color: #9ae6b4; }
+.story-feature-item.danger:hover {
+    border-color: #feb2b2;
+}
 
-.feature-item-icon { font-size: 2rem; }
-.feature-item-text h4 { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.4rem; color: var(--color-text-primary); }
-.feature-item-text p { font-size: 0.95rem; color: var(--color-text-secondary); opacity: 0.9; }
+.story-feature-item.success:hover {
+    border-color: #9ae6b4;
+}
+
+.feature-item-icon {
+    font-size: 2rem;
+}
+
+.feature-item-text h4 {
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 0.4rem;
+    color: var(--color-text-primary);
+}
+
+.feature-item-text p {
+    font-size: 0.95rem;
+    color: var(--color-text-secondary);
+    opacity: 0.9;
+}
 
 /* Code Block Premium Visual */
 .code-block-premium {
@@ -225,12 +247,40 @@
     border-bottom: 1px solid var(--color-border);
 }
 
-.code-title { font-weight: 800; font-size: 0.8rem; color: var(--color-text-tertiary); letter-spacing: 0.1em; }
-.code-tag { font-size: 0.7rem; color: var(--color-accent-primary); font-weight: 800; }
+.code-title {
+    font-weight: 800;
+    font-size: 0.8rem;
+    color: var(--color-text-tertiary);
+    letter-spacing: 0.1em;
+}
 
-.code-content { font-size: 1.1rem; line-height: 2.2; color: var(--color-text-primary); }
-.highlight-danger { background: #fee2e2; color: #dc2626; padding: 3px 8px; border-radius: 6px; font-weight: 700; }
-.highlight-success { background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 6px; font-weight: 700; }
+.code-tag {
+    font-size: 0.7rem;
+    color: var(--color-accent-primary);
+    font-weight: 800;
+}
+
+.code-content {
+    font-size: 1.1rem;
+    line-height: 2.2;
+    color: var(--color-text-tertiary);
+}
+
+.highlight-danger {
+    background: #fee2e2;
+    color: #dc2626;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+}
+
+.highlight-success {
+    background: #dcfce7;
+    color: #166534;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+}
 
 .visual-caption {
     text-align: center;
@@ -263,8 +313,18 @@
     border-color: var(--color-accent-primary);
 }
 
-.data-mini-card h3 { font-size: 1.5rem; font-weight: 800; margin-bottom: 1.25rem; color: var(--color-text-primary); }
-.data-mini-card p { font-size: 1.1rem; line-height: 1.7; color: var(--color-text-secondary); }
+.data-mini-card h3 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 1.25rem;
+    color: var(--color-text-primary);
+}
+
+.data-mini-card p {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    color: var(--color-text-secondary);
+}
 
 /* ---------------- SCROLL TO TOP ---------------- */
 .scroll-top-btn {
@@ -310,6 +370,7 @@
         opacity: 0;
         transform: translateY(60px);
     }
+
     100% {
         opacity: 1;
         transform: translateY(0);
@@ -317,7 +378,17 @@
 }
 
 @media (max-width: 1000px) {
-    .feature-story-content { grid-template-columns: 1fr; gap: 6rem; }
-    .feature-story { padding: 8rem 5%; }
-    .data-cards-grid { grid-template-columns: 1fr; gap: 2rem; }
+    .feature-story-content {
+        grid-template-columns: 1fr;
+        gap: 6rem;
+    }
+
+    .feature-story {
+        padding: 8rem 5%;
+    }
+
+    .data-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
 }

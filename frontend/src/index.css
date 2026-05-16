@@ -2100,7 +2100,7 @@ body {
         justify-content: center;
         margin-top: var(--spacing-md);
         background: var(--color-text-primary) !important;
-        color: rgb(45, 42, 42) !important;
+        color: white !important;
         padding: 1.1rem 2.5rem !important;
         border-radius: 100px !important;
         font-size: 1rem !important;

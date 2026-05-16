@@ -1,0 +1,148 @@
+:root {
+  /* Brand palette */
+  --brand-primary: #00FF87;
+  --brand-secondary: #60EFFF;
+  --brand-accent: #9B5DE5;
+  --brand-danger: #FF4757;
+  --brand-warning: #FFA502;
+  --brand-success: #2ED573;
+
+  /* Surfaces */
+  --surface-0: #080B12;
+  --surface-1: #0D1117;
+  --surface-2: #111827;
+  --surface-3: #1C2333;
+  --surface-4: #252D3D;
+  --surface-glass: rgba(255,255,255,0.04);
+  --surface-glass-hover: rgba(255,255,255,0.07);
+
+  /* Text */
+  --text-primary: #F0F6FC;
+  --text-secondary: #8B949E;
+  --text-tertiary: #484F58;
+  --text-inverse: #0D1117;
+
+  /* Borders */
+  --border-subtle: rgba(255,255,255,0.06);
+  --border-default: rgba(255,255,255,0.10);
+  --border-strong: rgba(255,255,255,0.18);
+  --border-brand: rgba(0,255,135,0.35);
+
+  /* Gradients */
+  --gradient-brand: linear-gradient(135deg, #00FF87 0%, #60EFFF 100%);
+  --gradient-accent: linear-gradient(135deg, #9B5DE5 0%, #60EFFF 100%);
+  --gradient-danger: linear-gradient(135deg, #FF4757 0%, #FFA502 100%);
+  --gradient-surface: linear-gradient(180deg, #0D1117 0%, #080B12 100%);
+  --gradient-hero: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(0,255,135,0.12) 0%, transparent 65%);
+  --gradient-glow-green: radial-gradient(circle, rgba(0,255,135,0.15) 0%, transparent 70%);
+  --gradient-glow-blue: radial-gradient(circle, rgba(96,239,255,0.12) 0%, transparent 70%);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.5);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.6);
+  --shadow-xl: 0 20px 60px rgba(0,0,0,0.7);
+  --shadow-brand: 0 0 24px rgba(0,255,135,0.25), 0 0 60px rgba(0,255,135,0.08);
+  --shadow-blue: 0 0 24px rgba(96,239,255,0.2);
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+  --space-32: 128px;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+  --radius-full: 9999px;
+
+  /* Typography */
+  --font-sans: 'Inter', 'SF Pro Display', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+  --text-6xl: 3.75rem;
+  --text-7xl: 4.5rem;
+  --text-8xl: 6rem;
+
+  /* Transitions */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+  --duration-slower: 600ms;
+
+  /* Layout */
+  --max-width: 1200px;
+  --header-h: 64px;
+}
+
+[data-theme="light"] {
+  /* Brand palette */
+  --brand-primary: #00C853;
+  --brand-secondary: #00B4D8;
+  --brand-accent: #7209B7;
+  --brand-danger: #D32F2F;
+  --brand-warning: #F57C00;
+  --brand-success: #2E7D32;
+
+  /* Surfaces */
+  --surface-0: #F8FAFC;
+  --surface-1: #FFFFFF;
+  --surface-2: #F1F5F9;
+  --surface-3: #E2E8F0;
+  --surface-4: #CBD5E1;
+  --surface-glass: rgba(0, 0, 0, 0.03);
+  --surface-glass-hover: rgba(0, 0, 0, 0.06);
+
+  /* Text */
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-tertiary: #64748B;
+  --text-inverse: #FFFFFF;
+
+  /* Borders */
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-default: rgba(0, 0, 0, 0.12);
+  --border-strong: rgba(0, 0, 0, 0.22);
+  --border-brand: rgba(0, 200, 83, 0.35);
+
+  /* Gradients */
+  --gradient-brand: linear-gradient(135deg, #00C853 0%, #00B4D8 100%);
+  --gradient-accent: linear-gradient(135deg, #7209B7 0%, #00B4D8 100%);
+  --gradient-danger: linear-gradient(135deg, #D32F2F 0%, #F57C00 100%);
+  --gradient-surface: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+  --gradient-hero: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(0,200,83,0.12) 0%, transparent 65%);
+  --gradient-glow-green: radial-gradient(circle, rgba(0,200,83,0.12) 0%, transparent 70%);
+  --gradient-glow-blue: radial-gradient(circle, rgba(0,180,216,0.10) 0%, transparent 70%);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.06);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.08);
+  --shadow-xl: 0 20px 60px rgba(0,0,0,0.12);
+  --shadow-brand: 0 0 24px rgba(0,200,83,0.2), 0 0 60px rgba(0,200,83,0.05);
+  --shadow-blue: 0 0 24px rgba(0,180,216,0.15);
+}

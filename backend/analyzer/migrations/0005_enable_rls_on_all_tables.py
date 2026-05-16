@@ -33,7 +33,7 @@ Analyzer app tables:
   analyzer_contactmessage, analyzer_product, analyzer_userprofile,
   analyzer_searchevent, analyzer_productfavorite, analyzer_analysisrecord
 """
-
+from django.db import connection
 from django.db import migrations
 
 
@@ -62,6 +62,9 @@ _TABLES = [
 
 
 def enable_rls(apps, schema_editor):
+    if connection.vendor == "sqlite":
+       return
+
     """
     Enable RLS on every Django-managed table in the public schema.
 
@@ -72,6 +75,7 @@ def enable_rls(apps, schema_editor):
     Django itself connects as the database owner (or a role with BYPASSRLS),
     so it is unaffected.
     """
+    
     with schema_editor.connection.cursor() as cursor:
         for table in _TABLES:
             # Check table exists before enabling RLS (safety guard for

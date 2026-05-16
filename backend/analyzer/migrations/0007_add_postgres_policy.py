@@ -15,7 +15,7 @@ This migration adds a specific policy to every table that allows the
 This keeps RLS 'Enabled' (solving Supabase security warnings) but allows
 Django to function correctly through the pooler.
 """
-
+from django.db import connection
 from django.db import migrations
 import os
 
@@ -39,6 +39,8 @@ _TABLES = [
 ]
 
 def add_owner_policies(apps, schema_editor):
+    if connection.vendor == "sqlite":
+        return
     # Use 'postgres' role which is the default owner/superuser for Supabase.
     role_name = 'postgres'
 

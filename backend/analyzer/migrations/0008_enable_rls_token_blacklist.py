@@ -14,7 +14,7 @@ This migration:
    the Supabase PostgREST API will be denied access by default, satisfying 
    the security requirement.
 """
-
+from django.db import connection
 from django.db import migrations
 
 _TABLES = [
@@ -23,6 +23,8 @@ _TABLES = [
 ]
 
 def enable_rls_and_add_policy(apps, schema_editor):
+    if connection.vendor == "sqlite":
+        return
     role_name = 'postgres'
 
     with schema_editor.connection.cursor() as cursor:

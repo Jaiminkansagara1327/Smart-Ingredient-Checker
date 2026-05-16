@@ -12,7 +12,7 @@ This migration removes the FORCE flag. Standard ENABLE RLS remains active,
 which continues to block Supabase's anonymous PostgREST API (solving the 
 security warnings) while allowing Django's direct connection to work.
 """
-
+from django.db import connection
 from django.db import migrations
 
 _TABLES = [
@@ -35,6 +35,8 @@ _TABLES = [
 ]
 
 def unforce_rls(apps, schema_editor):
+    if connection.vendor == "sqlite":
+        return
     with schema_editor.connection.cursor() as cursor:
         for table in _TABLES:
             # Check table exists

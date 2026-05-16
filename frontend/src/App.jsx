@@ -48,6 +48,12 @@ function App() {
         return () => window.removeEventListener('ingrexa:session-expired', onExpired);
     }, []);
 
+    useEffect(() => {
+        const theme = localStorage.getItem('ingrexa_theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', theme);
+    }, []);
+
+
     useGoogleOneTapLogin({
         onSuccess: async (credentialResponse) => {
             try {

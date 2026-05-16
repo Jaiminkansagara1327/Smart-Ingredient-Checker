@@ -22,6 +22,19 @@ function App() {
     const [uploadedImage, setUploadedImage] = useState(null);
     const [user, setUser] = useState(null);
 
+    // Dark mode — persists in localStorage
+    const [isDark, setIsDark] = useState(() => {
+        const saved = localStorage.getItem('ingrexa_theme');
+        return saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    });
+
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        localStorage.setItem('ingrexa_theme', isDark ? 'dark' : 'light');
+    }, [isDark]);
+
+    const toggleDarkMode = () => setIsDark(prev => !prev);
+
     const logout = useCallback(() => {
         clearAccessToken();
         setUser(null);
@@ -164,7 +177,7 @@ function App() {
 
     return (
         <>
-            <Header onNavigate={handleNavigate} currentPage={currentPage} user={user} setUser={setUser} />
+            <Header onNavigate={handleNavigate} currentPage={currentPage} user={user} setUser={setUser} isDark={isDark} toggleDarkMode={toggleDarkMode} />
             {currentPage === 'home' ? (
                 renderContent()
             ) : (

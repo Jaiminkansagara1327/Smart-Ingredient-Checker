@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Layout/Header';
 import HomePage from './components/Home/HomePage';
+import VerifyEmailPage from './components/Auth/VerifyEmailPage';
 import UploadSection from './components/Analyzer/UploadSection';
 import ResultsSection from './components/Analyzer/ResultsSection';
 import ContactPage from './components/Other/ContactPage';
@@ -12,6 +13,7 @@ import Footer from './components/Layout/Footer';
 import api, { setAccessToken, clearAccessToken, getAccessToken } from './api';
 import { useGoogleOneTapLogin } from '@react-oauth/google';
 import { generateNonce } from './utils/nonce';
+
 
 function App() {
     const [currentPage, setCurrentPage] = useState(
@@ -128,8 +130,11 @@ function App() {
         setCurrentPage('analyze');
         sessionStorage.setItem('ingrexa_current_page', 'analyze');
     };
-
+    
     const renderContent = () => {
+        if (window.location.pathname.startsWith('/verify-email/')) {
+        return <VerifyEmailPage onNavigate={handleNavigate} />;
+        }
         if (currentPage === 'home') return <HomePage onNavigate={handleNavigate} user={user} />;
         if (currentPage === 'contact') return <ContactPage />;
 

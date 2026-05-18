@@ -10,6 +10,7 @@ const SignupPage = ({ onNavigate, onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
@@ -48,15 +49,7 @@ const SignupPage = ({ onNavigate, onLoginSuccess }) => {
         name: firstName
       });
 
-      const response = await api.post('/api/auth/token/', {
-        email,
-        password
-      });
-
-      if (onLoginSuccess) {
-        onLoginSuccess(response.data.access);
-      }
-      onNavigate('analyze');
+      setSubmitted(true);
     } catch (err) {
       console.error('Registration error', err);
       const errData = err.response?.data;
@@ -72,6 +65,32 @@ const SignupPage = ({ onNavigate, onLoginSuccess }) => {
       setLoading(false);
     }
   };
+
+  if (submitted) {
+    return (
+      <div className="auth-page-premium">
+        <div className="auth-bg-accent"></div>
+        <div className="auth-card-premium">
+          <div className="auth-brand-header">
+            <div className="auth-brand-logo">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2L3 7v9c0 5 9 6 9 6s9-1 9-6V7l-9-5z"></path>
+              </svg>
+            </div>
+            <h1 className="auth-brand-title">Check Your Email</h1>
+            <p className="auth-brand-subtitle">We sent a verification link to <strong>{email}</strong>. Click it to activate your account.</p>
+          </div>
+          <button className="auth-submit-btn" onClick={() => onNavigate('login')}>
+            Go to Login
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-page-premium">

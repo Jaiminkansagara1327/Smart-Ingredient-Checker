@@ -17,6 +17,8 @@ import secrets
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.core.mail import send_mail
+from .models import EmailVerificationToken
 
 from rest_framework import serializers as drf_serializers, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -92,7 +94,13 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         if attrs.get("email") and not attrs.get("username"):
             attrs["username"] = attrs["email"].lower()
-        return super().validate(attrs)
+        data = super().validate(attrs)
+        try:
+            if not self.user.emailverificationtoken.verified:
+                raise drf_serializers.ValidationError("Please verify your email before logging in.")
+        except EmailVerificationToken.DoesNotExist:
+            pass
+        return data
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -146,6 +154,16 @@ class RegisterAPIView(APIView):
 
         try:
             user = serializer.save()
+            frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+            token_obj, _ = EmailVerificationToken.objects.get_or_create(user=user)
+            verify_link = f"{frontend_url}/verify-email/{token_obj.token}/"
+            send_mail(
+                subject="Verify your Ingrexa account",
+                message=f"Click the link to verify your account: {verify_link}",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=False,
+                )
         except Exception:
             logger.error("Registration error", exc_info=True)
             return _generic_error("Registration failed. Please try again.")
@@ -374,11 +392,44 @@ class GoogleLoginAPIView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
+@extend_schema(tags=["Auth"], summary="Verify email address via token")
+class VerifyEmailAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, token):
+        try:
+            token_obj = EmailVerificationToken.objects.get(token=token)
+        except EmailVerificationToken.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Invalid verification link."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if token_obj.verified:
+            return Response(
+                {"success": True, "message": "Email already verified."},
+                status=status.HTTP_200_OK,
+            )
+
+        if token_obj.is_expired():
+            return Response(
+                {"success": False, "message": "Verification link has expired."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        token_obj.verified = True
+        token_obj.save()
+
+        return Response(
+            {"success": True, "message": "Email verified successfully. You can now log in."},
+            status=status.HTTP_200_OK,
+        )
 
 __all__ = [
     "RegisterAPIView",
     "MeAPIView",
     "EmailTokenObtainPairView",
+    "VerifyEmailAPIView",
     "CookieTokenRefreshView",
     "LogoutAPIView",
     "GoogleLoginAPIView",

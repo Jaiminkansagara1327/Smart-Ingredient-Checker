@@ -52,9 +52,16 @@ const LoginPage = ({ onNavigate, onLoginSuccess }) => {
         onLoginSuccess(response.data.access);
       }
       onNavigate('analyze');
-    } catch (err) {
-      console.error('Login error', err);
-      setError(err.response?.data?.detail || 'Invalid email or password. Please try again.');
+      } catch (err) {
+  console.error('Login error', err);
+  const errData = err.response?.data;
+  if (errData?.non_field_errors) {
+    setError(errData.non_field_errors[0]);
+  } else if (errData?.errors?.non_field_errors) {
+    setError(errData.errors.non_field_errors[0]);
+  } else {
+    setError(errData?.message || errData?.detail || 'Invalid email or password. Please try again.');
+  }
     } finally {
       setLoading(false);
     }

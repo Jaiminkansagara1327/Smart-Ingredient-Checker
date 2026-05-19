@@ -9,7 +9,7 @@ from rest_framework.throttling import AnonRateThrottle
 
 
 class LoginRateThrottle(AnonRateThrottle):
-    """5 login attempts per 15 minutes per IP (finding #6)."""
+    """Throttle for login attempts per IP."""
     scope = 'login'
 
 

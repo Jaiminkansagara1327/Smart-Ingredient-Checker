@@ -1,14 +1,5 @@
 """
-accounts/views.py — Authentication Views
-
-Security fixes applied:
-  [CRITICAL] #1  – Refresh token moved from localStorage → HttpOnly cookie
-  [HIGH]     #2  – Auth no longer relies on JS-accessible storage for refresh
-  [HIGH]     #3/4 – Access token is short-lived (15 min, configured via SIMPLE_JWT)
-  [HIGH]     #6/7 – Per-endpoint throttle classes applied
-  [MEDIUM]   #8  – Google nonce parameter validated end-to-end
-  [MEDIUM]   #10 – Internal exception detail is logged server-side, never returned
-  [MEDIUM]   #11 – HttpOnly, Secure, SameSite=Lax on the refresh cookie
+Authentication Views for Accounts.
 """
 import logging
 import os
@@ -42,29 +33,22 @@ from .throttles import (
 logger = logging.getLogger("accounts")
 User = get_user_model()
 
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Helpers
-# ──────────────────────────────────────────────────────────────────────────────
-
 def _set_refresh_cookie(response, refresh_token_str: str) -> None:
     """
-    Attach the refresh token as an HttpOnly cookie (finding #1).
-    The browser stores it transparently; JavaScript cannot read it.
+    Attach the refresh token as an HttpOnly cookie.
     """
     response.set_cookie(
         key=settings.JWT_AUTH_COOKIE,
         value=refresh_token_str,
         max_age=settings.JWT_AUTH_COOKIE_MAX_AGE,
-        httponly=settings.JWT_AUTH_COOKIE_HTTPONLY,   # True always
-        secure=settings.JWT_AUTH_COOKIE_SECURE,       # True in prod
-        samesite=settings.JWT_AUTH_COOKIE_SAMESITE,   # 'Lax'
+        httponly=settings.JWT_AUTH_COOKIE_HTTPONLY,
+        secure=settings.JWT_AUTH_COOKIE_SECURE,
+        samesite=settings.JWT_AUTH_COOKIE_SAMESITE,
         path='/',
     )
 
 
 def _clear_refresh_cookie(response) -> None:
-    """Delete the refresh cookie on logout / rotation failure."""
     response.delete_cookie(
         key=settings.JWT_AUTH_COOKIE,
         path='/',
@@ -73,16 +57,10 @@ def _clear_refresh_cookie(response) -> None:
 
 
 def _generic_error(msg="A server error occurred.", http_status=status.HTTP_500_INTERNAL_SERVER_ERROR):
-    """Return a sanitized error response that never leaks internal details."""
     return Response({"success": False, "message": msg}, status=http_status)
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Serializers
-# ──────────────────────────────────────────────────────────────────────────────
-
 class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """Accept `email` OR `username` for login."""
     email = drf_serializers.EmailField(required=False, write_only=True)
 
     def __init__(self, *args, **kwargs):
@@ -103,18 +81,10 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Views
-# ──────────────────────────────────────────────────────────────────────────────
-
-@extend_schema(tags=["Auth"], summary="JWT login (access + refresh)")
+@extend_schema(tags=["Auth"], summary="JWT login")
 class EmailTokenObtainPairView(TokenObtainPairView):
-    """
-    POST /api/auth/token/
-    Returns access token in JSON body, refresh token in HttpOnly cookie.
-    """
     serializer_class = EmailTokenObtainPairSerializer
-    throttle_classes = [LoginRateThrottle]  # 5 attempts / 15 min (finding #6)
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -142,7 +112,7 @@ class EmailTokenObtainPairView(TokenObtainPairView):
 @extend_schema(tags=["Auth"], summary="Register a new user")
 class RegisterAPIView(APIView):
     permission_classes = [AllowAny]
-    throttle_classes = [RegisterRateThrottle]  # 10 attempts / hr
+    throttle_classes = [RegisterRateThrottle]
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -158,12 +128,13 @@ class RegisterAPIView(APIView):
                 frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
                 token_obj, _ = EmailVerificationToken.objects.get_or_create(user=user)
                 verify_link = f"{frontend_url}/verify-email/{token_obj.token}/"
+                print(f"[VERIFICATION LINK] User: {user.email} -> {verify_link}", flush=True)
+                logger.info("[VERIFICATION LINK] User: %s -> %s", user.email, verify_link)
                 
                 subject = "Verify your Ingrexa account"
                 body = f"Click the link to verify your account: {verify_link}"
                 email_sent = False
                 
-                # Primary: SMTP
                 try:
                     send_mail(
                         subject=subject,
@@ -177,7 +148,6 @@ class RegisterAPIView(APIView):
                 except Exception as smtp_err:
                     logger.warning("SMTP verification email failed: %s. Trying Resend API...", smtp_err)
                 
-                # Fallback: Resend API (HTTP-based, works when Render blocks SMTP ports)
                 if not email_sent:
                     import requests as http_requests
                     resend_api_key = os.environ.get('RESEND_API_KEY', '')
@@ -203,9 +173,6 @@ class RegisterAPIView(APIView):
                             logger.error("Resend API failed with status %s: %s", resp.status_code, resp.text)
                     else:
                         logger.warning("No Resend API key configured for fallback.")
-                        
-                if not email_sent:
-                    raise RuntimeError("Verification email could not be sent via SMTP or Resend API.")
         except Exception as e:
             logger.error("Registration error: %s", str(e), exc_info=True)
             return _generic_error("Registration failed. Please try again.")
@@ -224,12 +191,11 @@ class RegisterAPIView(APIView):
         )
 
 
-@extend_schema(tags=["Auth"], summary="Refresh access token via HttpOnly cookie")
+@extend_schema(tags=["Auth"], summary="Refresh access token")
 class CookieTokenRefreshView(APIView):
     """
     POST /api/auth/token/refresh/
-    Reads the refresh token from the HttpOnly cookie (NOT the request body).
-    Returns a new access token; rotates the refresh cookie (finding #1).
+    Reads the refresh token from cookie and returns a new access token.
     """
     permission_classes = [AllowAny]
 
@@ -243,8 +209,7 @@ class CookieTokenRefreshView(APIView):
         try:
             refresh = RefreshToken(refresh_str)
             access_str = str(refresh.access_token)
-            # Rotate: blacklist old, issue new (BLACKLIST_AFTER_ROTATION = True)
-            new_refresh_str = str(refresh)  # rotating refresh returns a new token
+            new_refresh_str = str(refresh)
         except TokenError as e:
             logger.info("Refresh token invalid/expired: %s", str(e))
             response = Response(
@@ -317,29 +282,19 @@ class MeAPIView(APIView):
             return _generic_error("Unable to update profile.")
 
 
-@extend_schema(tags=["Auth"], summary="Login with Google (ID Token or Access Token)")
+@extend_schema(tags=["Auth"], summary="Login with Google")
 class GoogleLoginAPIView(APIView):
     """
-    POST /api/auth/google-login/
-
-    Supports:
-      - `credential`   — ID Token from Google One Tap / standard btn (preferred)
-      - `access_token` — Access Token from implicit flow
-
-    Security (finding #8 — nonce):
-      When using ID Token flow, the client should generate a random nonce,
-      send it in the request body as `nonce`, and this view validates that
-      the `nonce` in the verified ID-token matches what was supplied.
-      The nonce value itself is NOT stored server-side; Google's library
-      embeds it in the signed token so we just compare after verification.
+    Handle Google OAuth login.
+    Supports credential ID tokens and access tokens.
     """
     permission_classes = [AllowAny]
-    throttle_classes = [GoogleLoginRateThrottle]  # 10/hr (findings #6, #7)
+    throttle_classes = [GoogleLoginRateThrottle]
 
     def post(self, request):
-        credential = request.data.get("credential")   # ID Token
-        access_token = request.data.get("access_token")  # implicit flow
-        nonce = request.data.get("nonce", "")         # client-supplied nonce
+        credential = request.data.get("credential")
+        access_token = request.data.get("access_token")
+        nonce = request.data.get("nonce", "")
 
         if not credential and not access_token:
             return Response(
@@ -351,7 +306,6 @@ class GoogleLoginAPIView(APIView):
             email, first_name, last_name = None, "", ""
 
             if credential:
-                # ── Flow A: Verify ID Token ────────────────────────────────
                 import requests as py_requests
                 from google.oauth2 import id_token
                 from google.auth.transport import requests as google_requests
@@ -361,8 +315,6 @@ class GoogleLoginAPIView(APIView):
                     credential, google_requests.Request(), client_id
                 )
 
-                # Nonce validation (finding #8)
-                # The nonce in the verified token MUST match what the client sent.
                 if nonce:
                     token_nonce = idinfo.get("nonce", "")
                     if not secrets.compare_digest(nonce, token_nonce):
@@ -377,7 +329,6 @@ class GoogleLoginAPIView(APIView):
                 last_name = idinfo.get("family_name", "")
 
             else:
-                # ── Flow B: Access Token → UserInfo endpoint ───────────────
                 import requests as py_requests
                 userinfo_res = py_requests.get(
                     "https://www.googleapis.com/oauth2/v3/userinfo",

@@ -13,8 +13,6 @@ logger = logging.getLogger('django.security')
 class SecurityHeadersMiddleware:
     """
     Add comprehensive security headers to all responses.
-    Covers findings: CSP (HIGH), Referrer-Policy (LOW), X-Frame-Options (LOW),
-    Permissions-Policy (INFO).
     """
     # Auth endpoints that issue tokens — need strict SameSite cookie policy
     _AUTH_PATHS = (
@@ -128,10 +126,7 @@ class RequestValidationMiddleware:
 
 class IPRateLimitMiddleware:
     """
-    IP-based rate limiting (global across all endpoints).
-    Prevents brute force and DDoS attacks.
-    Adds X-RateLimit-Limit / X-RateLimit-Remaining headers (finding #16).
-    Uses in-memory storage — Redis is used by DRF throttles for auth paths.
+    IP-based rate limiting across all endpoints.
     """
     # Class-level storage (in-memory, worker-local)
     _requests = {}

@@ -1,9 +1,5 @@
 """
-Secure DRF exception handler (finding #10 – Error Leakage).
-
-In DEBUG mode full detail is preserved for developers.
-In production every 5xx is returned as a generic message so stack traces
-and query details are never exposed to the client.
+Secure DRF exception handler.
 """
 import logging
 from django.conf import settings
@@ -17,10 +13,6 @@ logger = logging.getLogger("django.security")
 def safe_exception_handler(exc, context):
     """
     Drop-in replacement for rest_framework.views.exception_handler.
-
-    * 4xx errors pass through unchanged (client errors are fine to show).
-    * 5xx errors in production are replaced with a generic message so
-      exception messages / tracebacks are never leaked (OWASP A09:2021).
     """
     response = drf_exception_handler(exc, context)
 

@@ -1,8 +1,6 @@
 /**
- * utils/nonce.js
- *
- * Cryptographically-strong nonce generator for OAuth flows (finding #8).
- * Uses Web Crypto API — available in all modern browsers and Node ≥ 15.
+ * Cryptographically-strong nonce generator for OAuth flows.
+ * Uses Web Crypto API.
  */
 
 /**

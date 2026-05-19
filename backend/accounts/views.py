@@ -153,17 +153,18 @@ class RegisterAPIView(APIView):
             )
 
         try:
-            user = serializer.save()
-            frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
-            token_obj, _ = EmailVerificationToken.objects.get_or_create(user=user)
-            verify_link = f"{frontend_url}/verify-email/{token_obj.token}/"
-            send_mail(
-                subject="Verify your Ingrexa account",
-                message=f"Click the link to verify your account: {verify_link}",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=False,
-                )
+            with transaction.atomic():
+                user = serializer.save()
+                frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+                token_obj, _ = EmailVerificationToken.objects.get_or_create(user=user)
+                verify_link = f"{frontend_url}/verify-email/{token_obj.token}/"
+                send_mail(
+                    subject="Verify your Ingrexa account",
+                    message=f"Click the link to verify your account: {verify_link}",
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    fail_silently=False,
+                    )
         except Exception:
             logger.error("Registration error", exc_info=True)
             return _generic_error("Registration failed. Please try again.")

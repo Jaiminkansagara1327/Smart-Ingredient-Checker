@@ -27,6 +27,29 @@ function App() {
     const [uploadedImage, setUploadedImage] = useState(null);
     const [user, setUser] = useState(null);
 
+<<<<<<< HEAD
+=======
+    // Theme — 'light' | 'dark' | 'system', persists in localStorage
+    const [theme, setTheme] = useState(() => {
+        return localStorage.getItem('ingrexa_theme') || 'system';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('ingrexa_theme', theme);
+        if (theme === 'system') {
+            const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+            // Also listen for OS-level changes when in system mode
+            const mq = window.matchMedia('(prefers-color-scheme: dark)');
+            const handler = (e) => document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+            mq.addEventListener('change', handler);
+            return () => mq.removeEventListener('change', handler);
+        } else {
+            document.documentElement.setAttribute('data-theme', theme);
+        }
+    }, [theme]);
+
+>>>>>>> ab20ac2 (Fix navbar and home page UI alignment and responsiveness)
     const logout = useCallback(() => {
         clearAccessToken();
         setUser(null);
@@ -167,7 +190,7 @@ function App() {
             );
         }
 
-        if (currentPage === 'settings') return <SettingsPage onNavigate={handleNavigate} user={user} setUser={setUser} />;
+        if (currentPage === 'settings') return <SettingsPage onNavigate={handleNavigate} user={user} setUser={setUser} theme={theme} setTheme={setTheme} />;
         if (currentPage === 'history') return <HistoryPage onNavigate={handleNavigate} user={user} onSelectHistoryItem={handleHistorySelect} />;
 
         if (!getAccessToken()) {
@@ -196,7 +219,11 @@ function App() {
 
     return (
         <>
+<<<<<<< HEAD
             <Header onNavigate={handleNavigate} currentPage={currentPage} user={user} setUser={setUser} />
+=======
+            <Header onNavigate={handleNavigate} currentPage={currentPage} user={user} setUser={setUser} theme={theme} setTheme={setTheme} />
+>>>>>>> ab20ac2 (Fix navbar and home page UI alignment and responsiveness)
             {currentPage === 'home' ? (
                 renderContent()
             ) : (

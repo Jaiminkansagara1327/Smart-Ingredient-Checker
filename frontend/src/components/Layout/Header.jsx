@@ -2,10 +2,15 @@ import React, { useState, useEffect } from 'react';
 import api, { clearAccessToken } from '../../api';
 import { loadRazorpay } from '../../utils/razorpay';
 
+<<<<<<< HEAD
 function Header({ onNavigate, currentPage, user, setUser }) {
+=======
+function Header({ onNavigate, currentPage, user, setUser, theme, setTheme }) {
+>>>>>>> ab20ac2 (Fix navbar and home page UI alignment and responsiveness)
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProcessingSupport, setIsProcessingSupport] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -13,11 +18,14 @@ function Header({ onNavigate, currentPage, user, setUser }) {
       if (!e.target.closest('.profile-menu-container')) {
         setShowProfileDropdown(false);
       }
+      if (!e.target.closest('.theme-menu-container')) {
+        setShowThemeMenu(false);
+      }
     };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
-  
+
   const handleLogout = async () => {
     try {
       // Invalidate on backend (blacklists refresh token and clears cookie)
@@ -28,12 +36,12 @@ function Header({ onNavigate, currentPage, user, setUser }) {
       // Clear local memory
       clearAccessToken();
       setUser(null);
-      
+
       // Clear legacy/cached items
       localStorage.removeItem('ingrexa_cached_user');
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
-      
+
       onNavigate('home');
       setIsMenuOpen(false);
     }
@@ -47,7 +55,7 @@ function Header({ onNavigate, currentPage, user, setUser }) {
   const handleSupport = async (e) => {
     e.preventDefault();
     if (isProcessingSupport) return;
-    
+
     setIsProcessingSupport(true);
     try {
       // Step 1: Create Order in Backend
@@ -73,23 +81,23 @@ function Header({ onNavigate, currentPage, user, setUser }) {
         description: 'Support Independent Food Analysis',
         order_id: order_id,
         handler: async function (response) {
-            // Step 3: Verify Payment in Backend after success
-            try {
-              const verifyResponse = await api.post('/api/razorpay/verify-payment/', {
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-              });
-              
-              if (verifyResponse.data.success) {
-                  alert('Thank you for your support! Payment verified successfully.');
-              } else {
-                  alert('Payment verification failed. Please contact us if money was deducted.');
-              }
-            } catch (err) {
-              console.error('Verification error:', err);
-              alert('Error verifying payment. Please contact support.');
+          // Step 3: Verify Payment in Backend after success
+          try {
+            const verifyResponse = await api.post('/api/razorpay/verify-payment/', {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+
+            if (verifyResponse.data.success) {
+              alert('Thank you for your support! Payment verified successfully.');
+            } else {
+              alert('Payment verification failed. Please contact us if money was deducted.');
             }
+          } catch (err) {
+            console.error('Verification error:', err);
+            alert('Error verifying payment. Please contact support.');
+          }
         },
         prefill: {
           name: '',
@@ -100,9 +108,9 @@ function Header({ onNavigate, currentPage, user, setUser }) {
           color: '#1a73e8' // Google Blue accent color
         },
         modal: {
-            ondismiss: function() {
-                setIsProcessingSupport(false);
-            }
+          ondismiss: function () {
+            setIsProcessingSupport(false);
+          }
         }
       };
 
@@ -150,8 +158,8 @@ function Header({ onNavigate, currentPage, user, setUser }) {
         <a
           href="#"
           className={`nav-link ${currentPage === 'analyze' ? 'active' : ''}`}
-          onClick={(e) => { 
-            e.preventDefault(); 
+          onClick={(e) => {
+            e.preventDefault();
             if (user) {
               handleNavClick('analyze');
             } else {
@@ -169,7 +177,7 @@ function Header({ onNavigate, currentPage, user, setUser }) {
         >
           Contact
         </a>
-        
+
         <button
           onClick={handleSupport}
           className="nav-link btn-support"
@@ -182,6 +190,65 @@ function Header({ onNavigate, currentPage, user, setUser }) {
           {isProcessingSupport ? 'Connecting...' : 'Support Ingrexa'}
         </button>
 
+<<<<<<< HEAD
+=======
+        {/* ── Appearance / Theme quick-picker ── */}
+        <div className="theme-menu-container" style={{ position: 'relative' }}>
+          <button
+            className="theme-toggle-btn"
+            onClick={() => setShowThemeMenu(prev => !prev)}
+            title="Appearance"
+            aria-label="Change theme"
+          >
+            {/* Gear icon */}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <span className="theme-toggle-label">Appearance</span>
+          </button>
+
+          {showThemeMenu && (
+            <div style={{
+              position: 'absolute', top: 'calc(100% + 10px)', right: 0,
+              background: 'var(--color-bg-card)', border: '1px solid var(--color-border)',
+              borderRadius: '16px', padding: '0.75rem', boxShadow: 'var(--shadow-xl)',
+              display: 'flex', flexDirection: 'column', gap: '0.4rem',
+              minWidth: '160px', zIndex: 1000,
+            }}>
+              <p style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 0.4rem 0.5rem' }}>Theme</p>
+              {[
+                { id: 'light', label: 'Light', icon: '☀️' },
+                { id: 'dark',  label: 'Dark',  icon: '🌙' },
+                { id: 'system', label: 'System', icon: '🖥️' },
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => { setTheme(opt.id); setShowThemeMenu(false); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.6rem',
+                    padding: '0.55rem 0.75rem', borderRadius: '10px', border: 'none',
+                    cursor: 'pointer', fontSize: '0.9rem', fontWeight: (theme || 'system') === opt.id ? '700' : '500',
+                    background: (theme || 'system') === opt.id ? 'var(--color-accent-light)' : 'transparent',
+                    color: (theme || 'system') === opt.id ? 'var(--color-accent-primary)' : 'var(--color-text-primary)',
+                    width: '100%', textAlign: 'left',
+                  }}
+                >
+                  <span>{opt.icon}</span>
+                  <span>{opt.label}</span>
+                  {(theme || 'system') === opt.id && (
+                    <svg style={{ marginLeft: 'auto' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+
+>>>>>>> ab20ac2 (Fix navbar and home page UI alignment and responsiveness)
         {user ? (
           <div className="profile-menu-container" style={{ position: 'relative', marginLeft: '10px' }}>
             <div className="profile-pill" onClick={() => setShowProfileDropdown(!showProfileDropdown)}>
@@ -204,14 +271,14 @@ function Header({ onNavigate, currentPage, user, setUser }) {
                   </p>
                 </div>
                 <div className="profile-dropdown-body">
-                  <button 
+                  <button
                     onClick={() => { setShowProfileDropdown(false); handleNavClick('settings'); }}
                     className="profile-dropdown-item"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                     Settings
                   </button>
-                  <button 
+                  <button
                     onClick={() => { setShowProfileDropdown(false); handleNavClick('history'); }}
                     className="profile-dropdown-item"
                   >
@@ -219,7 +286,7 @@ function Header({ onNavigate, currentPage, user, setUser }) {
                     History
                   </button>
                   <div className="profile-dropdown-divider"></div>
-                  <button 
+                  <button
                     onClick={() => { setShowProfileDropdown(false); handleLogout(); }}
                     className="profile-dropdown-item item-danger"
                   >

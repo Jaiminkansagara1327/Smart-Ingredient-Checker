@@ -278,3 +278,31 @@
         font-size: 1.75rem;
     }
 }
+
+.auth-password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.auth-password-wrapper .auth-field-premium {
+  width: 100%;
+  padding-right: 44px; /* make room for the toggle button */
+}
+
+.auth-password-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  color: #94a3b8;
+  transition: color 0.2s;
+}
+
+.auth-password-toggle:hover {
+  color: #e2e8f0;
+}

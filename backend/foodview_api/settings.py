@@ -173,8 +173,8 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 CONTACT_EMAIL_RECIPIENT = os.getenv('CONTACT_EMAIL_RECIPIENT', EMAIL_HOST_USER)
 EMAIL_TIMEOUT = 10  # 10 second timeout for SMTP connections
 
-# Fallback to console for development
-if not EMAIL_HOST_USER or not EMAIL_HOST_PASSWORD:
+# Fallback to console ONLY in development
+if DEBUG and (not EMAIL_HOST_USER or not EMAIL_HOST_PASSWORD):
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Production Security Settings

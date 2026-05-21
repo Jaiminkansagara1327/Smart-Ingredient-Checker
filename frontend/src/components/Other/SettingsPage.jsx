@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../../api';
 import '../Auth/AuthPremium.css'; // Utilizing the existing Clinical Sanctuary styles
 
-function SettingsPage({ onNavigate, user, setUser }) {
+function SettingsPage({ onNavigate, user, setUser, theme, setTheme }) {
     const [goal, setGoal] = useState('Regular');
     const [loading, setLoading] = useState(true);
 
@@ -15,11 +15,53 @@ function SettingsPage({ onNavigate, user, setUser }) {
         { id: 'Diabetic', label: 'Diabetic', icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.59-9.21l-5.42 5.42"></path></svg> }
     ];
 
+    // Theme options for Appearance section
+    const themeOptions = [
+        {
+            id: 'light',
+            label: 'Light',
+            description: 'Clean white interface',
+            icon: (
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+            )
+        },
+        {
+            id: 'dark',
+            label: 'Dark',
+            description: 'Easy on the eyes',
+            icon: (
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            )
+        },
+        {
+            id: 'system',
+            label: 'System',
+            description: 'Follows your OS setting',
+            icon: (
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+            )
+        }
+    ];
+
     useEffect(() => {
-        // Fetch user profile info (including goal) and history
         const fetchSettingsData = async () => {
             try {
-                // Get goal
                 if (user && user.health_goal) {
                     setGoal(user.health_goal);
                 } else {
@@ -36,7 +78,6 @@ function SettingsPage({ onNavigate, user, setUser }) {
                 setLoading(false);
             }
         };
-
         fetchSettingsData();
     }, [user]);
 
@@ -44,7 +85,6 @@ function SettingsPage({ onNavigate, user, setUser }) {
         setGoal(selectedGoal);
         try {
             await api.patch('/api/auth/me/', { health_goal: selectedGoal });
-            // Update app-level user state if needed
             if (user) {
                 setUser({ ...user, health_goal: selectedGoal });
             }
@@ -53,22 +93,32 @@ function SettingsPage({ onNavigate, user, setUser }) {
         }
     };
 
+    const cardBase = {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '0.6rem',
+        padding: '1.25rem 1rem',
+        borderRadius: '16px',
+        border: '2px solid',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+        flex: '1',
+        minWidth: '110px',
+        textAlign: 'center',
+    };
+
     return (
         <div className="auth-container" style={{ padding: '2rem 1rem', maxWidth: '800px', margin: '0 auto' }}>
             <div className="auth-card" style={{ padding: '2rem', marginTop: '2rem' }}>
+
+                {/* ── Profile Header ── */}
                 <div style={{ display: 'flex', alignItems: 'center', marginBottom: '2rem' }}>
                     <div style={{
-                        width: '64px',
-                        height: '64px',
-                        borderRadius: '50%',
-                        backgroundColor: 'var(--color-primary, #00A389)',
-                        color: 'white',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '1.5rem',
-                        fontWeight: '600',
-                        marginRight: '1rem'
+                        width: '64px', height: '64px', borderRadius: '50%',
+                        backgroundColor: 'var(--color-accent-primary)', color: 'white',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '1.5rem', fontWeight: '600', marginRight: '1rem'
                     }}>
                         {user?.first_name ? user.first_name[0].toUpperCase() : 'U'}
                     </div>
@@ -76,13 +126,60 @@ function SettingsPage({ onNavigate, user, setUser }) {
                         <h2 style={{ fontSize: '1.5rem', margin: '0', fontWeight: 'bold', color: 'var(--color-text-primary)' }}>
                             {user?.first_name || 'User'} {user?.last_name || ''}
                         </h2>
-                        <p style={{ margin: '0', color: 'var(--color-text-secondary, #666)' }}>{user?.email || 'user@example.com'}</p>
-                        <span style={{ fontSize: '0.75rem', backgroundColor: '#eef0ff', color: '#00A389', padding: '0.2rem 0.6rem', borderRadius: '1rem', fontWeight: 'bold', display: 'inline-block', marginTop: '0.5rem' }}>Premium Profile</span>
+                        <p style={{ margin: '0', color: 'var(--color-text-secondary)' }}>{user?.email || 'user@example.com'}</p>
+                        <span style={{
+                            fontSize: '0.75rem', backgroundColor: 'var(--color-accent-light)',
+                            color: 'var(--color-accent-primary)', padding: '0.2rem 0.6rem',
+                            borderRadius: '1rem', fontWeight: 'bold', display: 'inline-block', marginTop: '0.5rem'
+                        }}>Premium Profile</span>
                     </div>
                 </div>
 
-                <div className="section-divider" style={{ borderBottom: '1px solid #e2e7ff', margin: '2rem 0' }}></div>
+                <div style={{ borderBottom: '1px solid var(--color-border)', margin: '2rem 0' }}></div>
 
+                {/* ── Appearance ── */}
+                <h3 style={{ fontSize: '1.2rem', marginBottom: '0.4rem', color: 'var(--color-text-primary)' }}>
+                    Appearance
+                </h3>
+                <p style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', marginBottom: '1.2rem' }}>
+                    Choose how Ingrexa looks for you.
+                </p>
+
+                <div style={{ display: 'flex', gap: '1rem', marginBottom: '2.5rem', flexWrap: 'wrap' }}>
+                    {themeOptions.map(opt => {
+                        const isActive = (theme || 'system') === opt.id;
+                        return (
+                            <button
+                                key={opt.id}
+                                onClick={() => setTheme(opt.id)}
+                                style={{
+                                    ...cardBase,
+                                    borderColor: isActive ? 'var(--color-accent-primary)' : 'var(--color-border)',
+                                    backgroundColor: isActive ? 'var(--color-accent-light)' : 'var(--color-bg-tertiary)',
+                                    color: isActive ? 'var(--color-accent-primary)' : 'var(--color-text-primary)',
+                                    fontWeight: isActive ? '700' : '500',
+                                    boxShadow: isActive ? '0 0 0 3px rgba(26,115,232,0.12)' : 'none',
+                                }}
+                            >
+                                <span style={{ color: isActive ? 'var(--color-accent-primary)' : 'var(--color-text-secondary)' }}>
+                                    {opt.icon}
+                                </span>
+                                <span style={{ fontSize: '0.95rem' }}>{opt.label}</span>
+                                <span style={{
+                                    fontSize: '0.75rem',
+                                    color: isActive ? 'var(--color-accent-primary)' : 'var(--color-text-tertiary)',
+                                    fontWeight: '400'
+                                }}>
+                                    {opt.description}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+
+                <div style={{ borderBottom: '1px solid var(--color-border)', margin: '2rem 0' }}></div>
+
+                {/* ── Health Goal ── */}
                 <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem', color: 'var(--color-text-primary)' }}>Current Goal</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
                     {goals.map(g => (
@@ -90,16 +187,12 @@ function SettingsPage({ onNavigate, user, setUser }) {
                             key={g.id}
                             onClick={() => handleGoalChange(g.id)}
                             style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                padding: '1rem',
-                                borderRadius: '1rem',
-                                backgroundColor: goal === g.id ? '#f4fffa' : '#f2f3ff',
-                                border: goal === g.id ? '2px solid #00A389' : '2px solid transparent',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                color: goal === g.id ? '#006857' : 'var(--color-text-primary)',
+                                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                                padding: '1rem', borderRadius: '1rem',
+                                backgroundColor: goal === g.id ? 'var(--color-accent-light)' : 'var(--color-bg-tertiary)',
+                                border: goal === g.id ? '2px solid var(--color-accent-primary)' : '2px solid transparent',
+                                cursor: 'pointer', transition: 'all 0.2s',
+                                color: goal === g.id ? 'var(--color-accent-primary)' : 'var(--color-text-primary)',
                                 fontWeight: goal === g.id ? 'bold' : 'normal'
                             }}
                         >
@@ -108,6 +201,7 @@ function SettingsPage({ onNavigate, user, setUser }) {
                         </button>
                     ))}
                 </div>
+
             </div>
         </div>
     );

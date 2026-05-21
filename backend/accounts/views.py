@@ -176,8 +176,8 @@ class RegisterAPIView(APIView):
                         else:
                             logger.warning("No Resend API key configured for fallback.")
                 
-                import threading
-                threading.Thread(target=send_email_bg, args=(user.email, subject, body)).start()
+                # Send email synchronously to prevent thread death in serverless environments
+                send_email_bg(user.email, subject, body)
         except Exception as e:
             logger.error("Registration error: %s", str(e), exc_info=True)
             return _generic_error("Registration failed. Please try again.")
@@ -521,8 +521,8 @@ class ResendOTPAPIView(APIView):
                 else:
                     logger.warning("No Resend API key configured for fallback.")
                 
-        import threading
-        threading.Thread(target=send_email_bg, args=(user.email, subject, body)).start()
+        # Send email synchronously
+        send_email_bg(user.email, subject, body)
 
         return Response({"success": True, "message": "OTP resent successfully."}, status=status.HTTP_200_OK)
 

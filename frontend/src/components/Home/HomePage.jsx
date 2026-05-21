@@ -41,11 +41,7 @@ function HomePage({ onNavigate, user }) {
                         <button
                             className="btn-ultra-primary"
                             onClick={() => {
-                                if (user) {
-                                    onNavigate('analyze');
-                                } else {
-                                    onNavigate('login');
-                                }
+                                onNavigate('analyze');
                             }}
                         >
                             <span>Start Analyzing</span>

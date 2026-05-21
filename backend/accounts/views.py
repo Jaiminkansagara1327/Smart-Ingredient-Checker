@@ -125,54 +125,59 @@ class RegisterAPIView(APIView):
         try:
             with transaction.atomic():
                 user = serializer.save()
-                frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
                 token_obj, _ = EmailVerificationToken.objects.get_or_create(user=user)
-                verify_link = f"{frontend_url}/verify-email/{token_obj.token}/"
-                print(f"[VERIFICATION LINK] User: {user.email} -> {verify_link}", flush=True)
-                logger.info("[VERIFICATION LINK] User: %s -> %s", user.email, verify_link)
+                otp_code = token_obj.code
+                print(f"[VERIFICATION CODE] User: {user.email} -> {otp_code}", flush=True)
+                logger.info("[VERIFICATION CODE] User: %s -> %s", user.email, otp_code)
                 
-                subject = "Verify your Ingrexa account"
-                body = f"Click the link to verify your account: {verify_link}"
-                email_sent = False
+                subject = "Your Ingrexa verification code"
+                body = f"Your 6-digit verification code is: {otp_code}"
                 
-                try:
-                    send_mail(
-                        subject=subject,
-                        message=body,
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=[user.email],
-                        fail_silently=False,
-                    )
-                    email_sent = True
-                    logger.info("Verification email sent via SMTP to %s", user.email)
-                except Exception as smtp_err:
-                    logger.warning("SMTP verification email failed: %s. Trying Resend API...", smtp_err)
-                
-                if not email_sent:
-                    import requests as http_requests
-                    resend_api_key = os.environ.get('RESEND_API_KEY', '')
-                    if resend_api_key:
-                        resp = http_requests.post(
-                            'https://api.resend.com/emails',
-                            headers={
-                                'Authorization': f'Bearer {resend_api_key}',
-                                'Content-Type': 'application/json'
-                            },
-                            json={
-                                'from': 'Ingrexa Verification <onboarding@resend.dev>',
-                                'to': [user.email],
-                                'subject': subject,
-                                'text': body
-                            },
-                            timeout=10,
+                def send_email_bg(email_to, subj, msg):
+                    email_sent = False
+                    try:
+                        send_mail(
+                            subject=subj,
+                            message=msg,
+                            from_email=settings.DEFAULT_FROM_EMAIL,
+                            recipient_list=[email_to],
+                            fail_silently=False,
                         )
-                        if resp.status_code in [200, 201, 202]:
-                            email_sent = True
-                            logger.info("Verification email sent via Resend API to %s", user.email)
+                        email_sent = True
+                        logger.info("Verification email sent via SMTP to %s", email_to)
+                    except Exception as smtp_err:
+                        logger.warning("SMTP verification email failed: %s. Trying Resend API...", smtp_err)
+                    
+                    if not email_sent:
+                        import requests as http_requests
+                        resend_api_key = os.environ.get('RESEND_API_KEY', '')
+                        if resend_api_key:
+                            try:
+                                resp = http_requests.post(
+                                    'https://api.resend.com/emails',
+                                    headers={
+                                        'Authorization': f'Bearer {resend_api_key}',
+                                        'Content-Type': 'application/json'
+                                    },
+                                    json={
+                                        'from': 'Ingrexa Verification <onboarding@resend.dev>',
+                                        'to': [email_to],
+                                        'subject': subj,
+                                        'text': msg
+                                    },
+                                    timeout=10,
+                                )
+                                if resp.status_code in [200, 201, 202]:
+                                    logger.info("Verification email sent via Resend API to %s", email_to)
+                                else:
+                                    logger.error("Resend API failed with status %s: %s", resp.status_code, resp.text)
+                            except Exception as e:
+                                logger.error("Resend API error: %s", str(e))
                         else:
-                            logger.error("Resend API failed with status %s: %s", resp.status_code, resp.text)
-                    else:
-                        logger.warning("No Resend API key configured for fallback.")
+                            logger.warning("No Resend API key configured for fallback.")
+                
+                import threading
+                threading.Thread(target=send_email_bg, args=(user.email, subject, body)).start()
         except Exception as e:
             logger.error("Registration error: %s", str(e), exc_info=True)
             return _generic_error("Registration failed. Please try again.")
@@ -385,16 +390,26 @@ class GoogleLoginAPIView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-@extend_schema(tags=["Auth"], summary="Verify email address via token")
+@extend_schema(tags=["Auth"], summary="Verify email address via OTP code")
 class VerifyEmailAPIView(APIView):
     permission_classes = [AllowAny]
 
-    def get(self, request, token):
-        try:
-            token_obj = EmailVerificationToken.objects.get(token=token)
-        except EmailVerificationToken.DoesNotExist:
+    def post(self, request):
+        email = request.data.get("email")
+        code = request.data.get("code")
+
+        if not email or not code:
             return Response(
-                {"success": False, "message": "Invalid verification link."},
+                {"success": False, "message": "Email and code are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user = User.objects.get(email=email)
+            token_obj = EmailVerificationToken.objects.get(user=user)
+        except (User.DoesNotExist, EmailVerificationToken.DoesNotExist):
+            return Response(
+                {"success": False, "message": "Invalid email or verification code."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -406,17 +421,72 @@ class VerifyEmailAPIView(APIView):
 
         if token_obj.is_expired():
             return Response(
-                {"success": False, "message": "Verification link has expired."},
+                {"success": False, "message": "Verification code has expired."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if str(token_obj.code) != str(code):
+            return Response(
+                {"success": False, "message": "Invalid verification code."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         token_obj.verified = True
         token_obj.save()
 
-        return Response(
-            {"success": True, "message": "Email verified successfully. You can now log in."},
+        # Generate tokens so the user is immediately logged in
+        refresh = RefreshToken.for_user(user)
+        access_str = str(refresh.access_token)
+        refresh_str = str(refresh)
+
+        response = Response(
+            {"success": True, "message": "Email verified successfully.", "access": access_str},
             status=status.HTTP_200_OK,
         )
+        _set_refresh_cookie(response, refresh_str)
+        return response
+
+@extend_schema(tags=["Auth"], summary="Resend verification OTP code")
+class ResendOTPAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get("email")
+        if not email:
+            return Response({"success": False, "message": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+            token_obj = EmailVerificationToken.objects.get(user=user)
+        except (User.DoesNotExist, EmailVerificationToken.DoesNotExist):
+            return Response({"success": True, "message": "If the email exists, a new code has been sent."}, status=status.HTTP_200_OK)
+
+        if token_obj.verified:
+            return Response({"success": False, "message": "Email already verified."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Generate new code
+        import random
+        from django.utils import timezone
+        token_obj.code = ''.join(random.choices('0123456789', k=6))
+        token_obj.created_at = timezone.now()
+        token_obj.save()
+
+        otp_code = token_obj.code
+        print(f"[VERIFICATION CODE RESENT] User: {user.email} -> {otp_code}", flush=True)
+        
+        subject = "Your new Ingrexa verification code"
+        body = f"Your new 6-digit verification code is: {otp_code}"
+        
+        def send_email_bg(email_to, subj, msg):
+            try:
+                send_mail(subj, msg, settings.DEFAULT_FROM_EMAIL, [email_to], fail_silently=False)
+            except Exception as e:
+                logger.error("Failed to resend verification email: %s", e)
+                
+        import threading
+        threading.Thread(target=send_email_bg, args=(user.email, subject, body)).start()
+
+        return Response({"success": True, "message": "OTP resent successfully."}, status=status.HTTP_200_OK)
 
 __all__ = [
     "RegisterAPIView",
@@ -426,4 +496,5 @@ __all__ = [
     "CookieTokenRefreshView",
     "LogoutAPIView",
     "GoogleLoginAPIView",
+    "ResendOTPAPIView",
 ]

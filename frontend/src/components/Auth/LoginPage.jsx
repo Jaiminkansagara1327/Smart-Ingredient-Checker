@@ -22,7 +22,6 @@ const LoginPage = ({ onNavigate, onLoginSuccess }) => {
         });
 
         if (onLoginSuccess) {
-          // Pass only the access token — refresh is now in HttpOnly cookie
           onLoginSuccess(response.data.access);
         }
         onNavigate('analyze');
@@ -48,30 +47,32 @@ const LoginPage = ({ onNavigate, onLoginSuccess }) => {
       });
 
       if (onLoginSuccess) {
-        // Pass only the access token — refresh is in HttpOnly cookie
         onLoginSuccess(response.data.access);
       }
       onNavigate('analyze');
-      } catch (err) {
-  console.error('Login error', err);
-  const errData = err.response?.data;
-  if (errData?.non_field_errors) {
-    setError(errData.non_field_errors[0]);
-  } else if (errData?.errors?.non_field_errors) {
-    setError(errData.errors.non_field_errors[0]);
-  } else {
-    setError(errData?.message || errData?.detail || 'Invalid email or password. Please try again.');
-  }
+    } catch (err) {
+      console.error('Login error', err);
+      const errData = err.response?.data;
+      if (err.message === 'Network Error') {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        setError(`Network Error: Cannot connect to the server. ${isLocal ? 'Please ensure the Django backend is running.' : 'Please check your connection and try again.'}`);
+      } else if (errData?.non_field_errors) {
+        setError(errData.non_field_errors[0]);
+      } else if (errData?.errors?.non_field_errors) {
+        setError(errData.errors.non_field_errors[0]);
+      } else {
+        setError(errData?.message || errData?.detail || 'Invalid email or password. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-page-premium">
-      <div className="auth-bg-accent"></div>
-      
       <div className="auth-card-premium">
+        <button className="auth-close-btn" onClick={() => onNavigate('home')} aria-label="Close">
+           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
         <div className="auth-brand-header">
           <div className="auth-brand-logo">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -146,7 +147,6 @@ const LoginPage = ({ onNavigate, onLoginSuccess }) => {
           <span className="auth-switch-link" onClick={() => onNavigate('signup')}>Create Account</span>
         </div>
       </div>
-    </div>
   );
 };
 

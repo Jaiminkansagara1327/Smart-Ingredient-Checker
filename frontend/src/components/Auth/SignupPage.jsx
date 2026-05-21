@@ -1,16 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './AuthPremium.css';
+import './VerifyEmail.css'; // Reuse success animation styles
 import api from '../../api';
 import { useGoogleLogin } from '@react-oauth/google';
 import { generateNonce } from '../../utils/nonce';
 
 const SignupPage = ({ onNavigate, onLoginSuccess }) => {
+  const [step, setStep] = useState('form'); // 'form' | 'otp' | 'success'
+  const [timer, setTimer] = useState(0);
   const [firstName, setFirstName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [exiting, setExiting] = useState(false);
 
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
@@ -23,12 +27,9 @@ const SignupPage = ({ onNavigate, onLoginSuccess }) => {
           nonce,
         });
 
-        if (onLoginSuccess) {
-          onLoginSuccess(response.data.access);
-        }
+        if (onLoginSuccess) onLoginSuccess(response.data.access);
         onNavigate('analyze');
       } catch (err) {
-        console.error('Google login error', err);
         setError(err.response?.data?.message || 'Google authentication failed.');
       } finally {
         setLoading(false);
@@ -37,40 +38,98 @@ const SignupPage = ({ onNavigate, onLoginSuccess }) => {
     onError: () => setError('Google Authentication Failed.')
   });
 
-  const handleSubmit = async (e) => {
+  useEffect(() => {
+    let interval = null;
+    if (step === 'otp' && timer > 0) {
+      interval = setInterval(() => setTimer((t) => t - 1), 1000);
+    } else if (timer === 0 && interval) {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [step, timer]);
+
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      await api.post('/api/auth/register/', {
-        email,
-        password,
-        name: firstName
-      });
-
-      setSubmitted(true);
+      await api.post('/api/auth/register/', { email, password, name: firstName });
+      setStep('otp');
+      setTimer(60);
     } catch (err) {
-      console.error('Registration error', err);
       const errData = err.response?.data;
-      if (errData && errData.errors) {
-        const messages = Object.values(errData.errors).flat().join(' ');
-        setError(messages);
-      } else if (err.message === 'Network Error') {
-        setError('Network Error: Cannot connect to the server.');
+      if (err.message === 'Network Error') {
+        setError('Network Error. Please check your connection.');
+      } else if (errData && errData.errors) {
+        setError(Object.values(errData.errors).flat().join(' '));
       } else {
-        setError(err.response?.data?.message || 'Failed to create account. Please try again.');
+        setError(err.response?.data?.message || 'Failed to create account.');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  if (submitted) {
+  const handleOtpSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await api.post('/api/auth/verify-email/', { email, code: otp });
+      setStep('success');
+      
+      // Auto-login and redirect after 1.5s success animation
+      setTimeout(() => {
+        setExiting(true);
+        setTimeout(() => {
+          if (onLoginSuccess) onLoginSuccess(res.data.access);
+          onNavigate('analyze');
+        }, 600);
+      }, 1500);
+
+    } catch (err) {
+      setError(err.response?.data?.message || 'Invalid verification code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setTimer(60); // Optimistic UI update
+    setError('');
+    try {
+      await api.post('/api/auth/resend-otp/', { email });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to resend code.');
+      setTimer(0);
+    }
+  };
+
+  if (step === 'success') {
     return (
-      <div className="auth-page-premium">
-        <div className="auth-bg-accent"></div>
+        <div className="verify-card verify-card--success" style={{ margin: 'auto' }}>
+          <div className="verify-state verify-state--success">
+            <div className="verify-check-wrap">
+              <svg className="verify-check-svg" viewBox="0 0 52 52">
+                <circle className="verify-check-circle" cx="26" cy="26" r="25" fill="none" />
+                <path className="verify-check-mark" fill="none" d="M14 27l8 8 16-16" />
+              </svg>
+            </div>
+            <h1 className="verify-title">Email verified!</h1>
+            <p className="verify-subtitle">You're all set. Logging you in automatically…</p>
+          </div>
+        </div>
+    );
+  }
+
+  if (step === 'otp') {
+    return (
         <div className="auth-card-premium">
+          <button className="auth-close-btn" onClick={() => onNavigate('home')} aria-label="Close">
+             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
           <div className="auth-brand-header">
             <div className="auth-brand-logo">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -78,25 +137,46 @@ const SignupPage = ({ onNavigate, onLoginSuccess }) => {
               </svg>
             </div>
             <h1 className="auth-brand-title">Check Your Email</h1>
-            <p className="auth-brand-subtitle">We sent a verification link to <strong>{email}</strong>. Click it to activate your account.</p>
+            <p className="auth-brand-subtitle">We sent a 6-digit code to <strong>{email}</strong>.</p>
           </div>
-          <button className="auth-submit-btn" onClick={() => onNavigate('login')}>
-            Go to Login
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-              <polyline points="12 5 19 12 12 19"></polyline>
-            </svg>
-          </button>
+
+          {error && <div className="auth-error-premium">{error}</div>}
+
+          <form className="auth-form-premium" onSubmit={handleOtpSubmit}>
+            <div className="auth-input-wrapper">
+              <label className="auth-label-premium">Verification Code</label>
+              <input 
+                type="text" 
+                className="auth-field-premium" 
+                placeholder="000000"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                required
+                maxLength={6}
+                style={{ letterSpacing: '8px', textAlign: 'center', fontSize: '1.5rem', fontWeight: 'bold' }}
+              />
+            </div>
+            <button type="submit" className="auth-submit-btn" disabled={loading}>
+              {loading ? 'Verifying...' : 'Verify & Continue'}
+            </button>
+          </form>
+          <div className="auth-footer-premium" style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between' }}>
+             <span className="auth-switch-link" onClick={() => setStep('form')} style={{ marginLeft: 0 }}>Change email</span>
+             {timer > 0 ? (
+               <span style={{ color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600 }}>Resend in {timer}s</span>
+             ) : (
+               <span className="auth-switch-link" onClick={handleResendOtp} style={{ marginLeft: 0 }}>Resend code</span>
+             )}
+          </div>
         </div>
-      </div>
     );
   }
 
   return (
-    <div className="auth-page-premium">
-      <div className="auth-bg-accent"></div>
-      
       <div className="auth-card-premium">
+        <button className="auth-close-btn" onClick={() => onNavigate('home')} aria-label="Close">
+           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
         <div className="auth-brand-header">
           <div className="auth-brand-logo">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -109,7 +189,7 @@ const SignupPage = ({ onNavigate, onLoginSuccess }) => {
 
         {error && <div className="auth-error-premium">{error}</div>}
 
-        <form className="auth-form-premium" onSubmit={handleSubmit}>
+        <form className="auth-form-premium" onSubmit={handleRegisterSubmit}>
           <div className="auth-input-wrapper">
             <label className="auth-label-premium">Full Name</label>
             <input 
@@ -121,7 +201,6 @@ const SignupPage = ({ onNavigate, onLoginSuccess }) => {
               required
             />
           </div>
-
           <div className="auth-input-wrapper">
             <label className="auth-label-premium">Email Address</label>
             <input 
@@ -133,7 +212,6 @@ const SignupPage = ({ onNavigate, onLoginSuccess }) => {
               required
             />
           </div>
-          
           <div className="auth-input-wrapper">
             <label className="auth-label-premium">Password</label>
             <input 
@@ -146,29 +224,14 @@ const SignupPage = ({ onNavigate, onLoginSuccess }) => {
               minLength={8}
             />
           </div>
-
           <button type="submit" className="auth-submit-btn" disabled={loading}>
-            {loading ? 'Creating...' : (
-               <>
-                 Get Started
-                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                    <polyline points="12 5 19 12 12 19"></polyline>
-                 </svg>
-               </>
-            )}
+            {loading ? 'Creating...' : 'Get Started'}
           </button>
         </form>
         <div className="auth-social-divider">
           <span>OR</span>
         </div>
-
-        <button 
-          className="auth-google-btn" 
-          onClick={() => googleLogin()}
-          type="button"
-          disabled={loading}
-        >
+        <button className="auth-google-btn" onClick={() => googleLogin()} type="button" disabled={loading}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -177,13 +240,10 @@ const SignupPage = ({ onNavigate, onLoginSuccess }) => {
           </svg>
           Join with Google
         </button>
-
         <div className="auth-footer-premium">
-          Already have an account? 
-          <span className="auth-switch-link" onClick={() => onNavigate('login')}>Sign in</span>
+          Already have an account? <span className="auth-switch-link" onClick={() => onNavigate('login')}>Sign in</span>
         </div>
       </div>
-    </div>
   );
 };
 

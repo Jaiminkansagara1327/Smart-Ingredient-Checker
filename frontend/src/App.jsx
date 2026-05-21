@@ -16,9 +16,12 @@ import { generateNonce } from './utils/nonce';
 
 
 function App() {
-    const [currentPage, setCurrentPage] = useState(
-        () => sessionStorage.getItem('ingrexa_current_page') || 'home'
-    );
+    const [currentPage, setCurrentPage] = useState(() => {
+        if (window.location.pathname.startsWith('/verify-email/')) {
+            return 'verify-email';
+        }
+        return 'home';
+    });
     const [showResults, setShowResults] = useState(false);
     const [analysisData, setAnalysisData] = useState(null);
     const [uploadedImage, setUploadedImage] = useState(null);
@@ -44,7 +47,10 @@ function App() {
     useEffect(() => {
         const onExpired = () => {
             setUser(null);
-            setCurrentPage('login');
+            setCurrentPage((prev) => {
+                const publicPages = ['home', 'contact', 'login', 'signup', 'verify-email'];
+                return publicPages.includes(prev) ? prev : 'login';
+            });
         };
         window.addEventListener('ingrexa:session-expired', onExpired);
         return () => window.removeEventListener('ingrexa:session-expired', onExpired);
@@ -108,6 +114,9 @@ function App() {
             handleHistorySelect(page.item);
             return;
         }
+        if (window.location.pathname.startsWith('/verify-email/') || currentPage === 'verify-email') {
+            window.history.pushState({}, '', '/');
+        }
         setCurrentPage(page);
         sessionStorage.setItem('ingrexa_current_page', page);
         setShowResults(false);
@@ -132,8 +141,8 @@ function App() {
     };
     
     const renderContent = () => {
-        if (window.location.pathname.startsWith('/verify-email/')) {
-        return <VerifyEmailPage onNavigate={handleNavigate} />;
+        if (currentPage === 'verify-email') {
+            return <VerifyEmailPage onNavigate={handleNavigate} />;
         }
         if (currentPage === 'home') return <HomePage onNavigate={handleNavigate} user={user} />;
         if (currentPage === 'contact') return <ContactPage />;
@@ -144,15 +153,33 @@ function App() {
                 return <UploadSection onAnalyze={handleAnalyze} user={user} />;
             }
             const onLoginSuccess = (token) => { setAccessToken(token); fetchUser(); };
-            if (currentPage === 'login') return <LoginPage onNavigate={handleNavigate} onLoginSuccess={onLoginSuccess} />;
-            return <SignupPage onNavigate={handleNavigate} onLoginSuccess={onLoginSuccess} />;
+            return (
+                <>
+                    <UploadSection onAnalyze={handleAnalyze} user={user} />
+                    <div className="auth-page-premium is-modal">
+                        <div className="auth-bg-accent"></div>
+                        {currentPage === 'login' 
+                            ? <LoginPage onNavigate={handleNavigate} onLoginSuccess={onLoginSuccess} />
+                            : <SignupPage onNavigate={handleNavigate} onLoginSuccess={onLoginSuccess} />
+                        }
+                    </div>
+                </>
+            );
         }
 
         if (currentPage === 'settings') return <SettingsPage onNavigate={handleNavigate} user={user} setUser={setUser} />;
         if (currentPage === 'history') return <HistoryPage onNavigate={handleNavigate} user={user} onSelectHistoryItem={handleHistorySelect} />;
 
         if (!getAccessToken()) {
-            return <LoginPage onNavigate={handleNavigate} onLoginSuccess={(tok) => { setAccessToken(tok); fetchUser(); }} />;
+            return (
+                <>
+                    <UploadSection onAnalyze={handleAnalyze} user={user} />
+                    <div className="auth-page-premium is-modal">
+                        <div className="auth-bg-accent"></div>
+                        <LoginPage onNavigate={handleNavigate} onLoginSuccess={(tok) => { setAccessToken(tok); fetchUser(); }} />
+                    </div>
+                </>
+            );
         }
 
         return !showResults || !analysisData ? (

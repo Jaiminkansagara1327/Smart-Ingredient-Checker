@@ -1,0 +1,311 @@
+/* ═══════════════════════════════════════════
+   VERIFY EMAIL PAGE — Professional Animations
+   ═══════════════════════════════════════════ */
+
+/* ── Page wrapper ── */
+.verify-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+  animation: verify-page-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.verify-page.is-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background-color: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  min-height: auto;
+  height: 100vh;
+}
+
+.verify-page--exit {
+  animation: verify-page-out 0.55s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes verify-page-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes verify-page-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.97); }
+}
+
+/* ── Decorative blobs ── */
+.verify-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.verify-blob--1 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+  top: -15%;
+  right: -10%;
+  animation: blob-drift 12s ease-in-out infinite alternate;
+}
+
+.verify-blob--2 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.12) 0%, transparent 70%);
+  bottom: -10%;
+  left: -8%;
+  animation: blob-drift 15s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes blob-drift {
+  from { transform: translate(0, 0) scale(1);   }
+  to   { transform: translate(30px, 20px) scale(1.05); }
+}
+
+/* ── Card ── */
+.verify-card {
+  width: 100%;
+  max-width: 440px;
+  background: #ffffff;
+  border-radius: 28px;
+  padding: 3rem 3rem 2.5rem;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.04),
+    0 8px 24px rgba(0,0,0,0.06),
+    0 24px 56px rgba(0,0,0,0.04);
+  position: relative;
+  z-index: 1;
+  animation: card-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+  text-align: center;
+}
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+/* ── State container ── */
+.verify-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ══════════════════════════════
+   VERIFYING — Spinner
+══════════════════════════════ */
+.verify-spinner {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 1rem;
+}
+
+.verify-spinner-svg {
+  width: 100%;
+  height: 100%;
+  animation: spinner-rotate 1.4s linear infinite;
+}
+
+@keyframes spinner-rotate {
+  to { transform: rotate(360deg); }
+}
+
+.verify-spinner-track {
+  stroke: #e2e8f0;
+}
+
+.verify-spinner-arc {
+  stroke: #6366f1;
+  stroke-linecap: round;
+  stroke-dasharray: 80 200;
+  stroke-dashoffset: 0;
+  animation: spinner-dash 1.4s ease-in-out infinite;
+}
+
+@keyframes spinner-dash {
+  0%   { stroke-dasharray: 1  200; stroke-dashoffset:   0; }
+  50%  { stroke-dasharray: 90 200; stroke-dashoffset: -35px; }
+  100% { stroke-dasharray: 90 200; stroke-dashoffset: -125px; }
+}
+
+/* ══════════════════════════════
+   SUCCESS — Checkmark
+══════════════════════════════ */
+.verify-check-wrap {
+  margin-bottom: 1.25rem;
+  animation: check-wrap-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes check-wrap-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1);   }
+}
+
+.verify-check-svg {
+  width: 72px;
+  height: 72px;
+  overflow: visible;
+}
+
+.verify-check-circle {
+  stroke: #22c55e;
+  stroke-width: 2;
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-linecap: round;
+  animation: circle-draw 0.6s cubic-bezier(0.65, 0, 0.45, 1) 0.1s forwards;
+}
+
+@keyframes circle-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.verify-check-mark {
+  stroke: #22c55e;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: check-draw 0.35s cubic-bezier(0.65, 0, 0.45, 1) 0.65s forwards;
+}
+
+@keyframes check-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* ══════════════════════════════
+   ERROR — Icon
+══════════════════════════════ */
+.verify-error-icon {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fef2f2;
+  border-radius: 50%;
+  color: #ef4444;
+  margin-bottom: 1.25rem;
+  animation: error-icon-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.verify-error-icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+@keyframes error-icon-in {
+  from { opacity: 0; transform: scale(0.6) rotate(-15deg); }
+  to   { opacity: 1; transform: scale(1)   rotate(0deg);   }
+}
+
+/* ══════════════════════════════
+   SHARED TEXT
+══════════════════════════════ */
+.verify-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.03em;
+  margin: 0 0 0.4rem;
+  animation: text-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+
+.verify-subtitle {
+  font-size: 0.95rem;
+  color: #64748b;
+  line-height: 1.6;
+  max-width: 300px;
+  margin: 0 auto;
+  animation: text-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+}
+
+@keyframes text-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ══════════════════════════════
+   PROGRESS BAR
+══════════════════════════════ */
+.verify-progress-track {
+  width: 100%;
+  max-width: 280px;
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 1.5rem auto 0.75rem;
+  animation: text-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
+}
+
+.verify-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  border-radius: 999px;
+  transition: width 0.1s linear;
+}
+
+.verify-redirect-hint {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  letter-spacing: 0.01em;
+  animation: text-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.6s both;
+}
+
+/* ══════════════════════════════
+   ERROR BUTTON
+══════════════════════════════ */
+.verify-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 1.75rem;
+  padding: 0.85rem 1.75rem;
+  background: #0f172a;
+  color: #ffffff;
+  border: none;
+  border-radius: 100px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: text-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+}
+
+.verify-btn:hover {
+  background: #1e293b;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(15,23,42,0.2);
+}
+
+.verify-btn:active {
+  transform: translateY(0);
+}
+
+/* ══════════════════════════════
+   RESPONSIVE
+══════════════════════════════ */
+@media (max-width: 480px) {
+  .verify-card {
+    padding: 2.25rem 1.75rem 2rem;
+    border-radius: 22px;
+  }
+
+  .verify-title {
+    font-size: 1.45rem;
+  }
+}

@@ -27,19 +27,28 @@ function ContactPage() {
         setStatus({ submitting: true, success: false, error: null });
 
         try {
-            const response = await api.post('/api/contact/', formData);
-            if (response.data.success) {
+            // Send directly to Formspree endpoint provided by user
+            const formspreeUrl = "https://formspree.io/f/xpqndpbe";
+            
+            const response = await fetch(formspreeUrl, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
                 setStatus({ submitting: false, success: true, error: null });
                 setFormData({ name: '', email: '', message: '' });
             } else {
-                setStatus({ submitting: false, success: false, error: response.data.message || 'Something went wrong.' });
+                const data = await response.json();
+                setStatus({ submitting: false, success: false, error: data.error || 'Something went wrong.' });
             }
         } catch (err) {
             console.error('Contact error:', err);
-            const errorMsg = err.response?.data?.message || err.response?.data?.errors
-                ? Object.values(err.response.data.errors).flat().join(', ')
-                : 'Failed to send message. Please try again later.';
-            setStatus({ submitting: false, success: false, error: errorMsg });
+            setStatus({ submitting: false, success: false, error: 'Failed to send message. Please try again later.' });
         }
     };
 

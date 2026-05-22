@@ -73,6 +73,40 @@
     --transition-slow: 500ms cubic-bezier(0.2, 0, 0, 1);
 }
 
+/* ─── Dark Mode ──────────────────────────────────────────────────────────────
+   Overrides CSS variables when data-theme="dark" is set on <html>.
+   All components using var(--color-*) automatically adapt — no changes needed.
+   ─────────────────────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+    --color-bg-primary: #0f0f0f;
+    --color-bg-secondary: #141414;
+    --color-bg-tertiary: #1a1a1a;
+    --color-bg-card: #1c1c1e;
+    --color-bg-elevated: #252528;
+
+    --color-text-primary: #f1f1f1;
+    --color-text-secondary: #a8a8b3;
+    --color-text-tertiary: #6e6e80;
+
+    --color-border: #2a2a2e;
+    --color-border-hover: #3a3a3e;
+
+    --color-accent-light: rgba(26, 115, 232, 0.12);
+
+    --color-success-bg: #0d2818;
+    --color-success-border: #1a4230;
+    --color-warning-bg: #1f1a00;
+    --color-warning-border: #3d3200;
+    --color-danger-bg: #2a0d0a;
+    --color-danger-border: #4a1a15;
+
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 20px -5px rgba(0,0,0,0.4);
+    --shadow-lg: 0 10px 40px -10px rgba(0,0,0,0.5);
+    --shadow-xl: 0 20px 60px -15px rgba(0,0,0,0.6);
+}
+
+
 /* Base Reset */
 * {
     margin: 0;
@@ -244,6 +278,35 @@ body {
     transform: translateY(-1px);
     background: var(--color-accent-secondary);
     filter: brightness(1.1);
+}
+
+/* ── Appearance / Theme toggle button ── */
+.theme-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: 100px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    white-space: nowrap;
+}
+
+.theme-toggle-btn:hover {
+    background: var(--color-bg-elevated);
+    color: var(--color-text-primary);
+    border-color: var(--color-border-hover);
+    box-shadow: var(--shadow-sm);
+}
+
+.theme-toggle-label {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
 }
 
 .nav-actions {

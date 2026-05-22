@@ -2,11 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api, { clearAccessToken } from '../../api';
 import { loadRazorpay } from '../../utils/razorpay';
 
-<<<<<<< HEAD
-function Header({ onNavigate, currentPage, user, setUser }) {
-=======
 function Header({ onNavigate, currentPage, user, setUser, theme, setTheme }) {
->>>>>>> ab20ac2 (Fix navbar and home page UI alignment and responsiveness)
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProcessingSupport, setIsProcessingSupport] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -190,8 +186,7 @@ function Header({ onNavigate, currentPage, user, setUser, theme, setTheme }) {
           {isProcessingSupport ? 'Connecting...' : 'Support Ingrexa'}
         </button>
 
-<<<<<<< HEAD
-=======
+
         {/* ── Appearance / Theme quick-picker ── */}
         <div className="theme-menu-container" style={{ position: 'relative' }}>
           <button
@@ -248,7 +243,6 @@ function Header({ onNavigate, currentPage, user, setUser, theme, setTheme }) {
         </div>
 
 
->>>>>>> ab20ac2 (Fix navbar and home page UI alignment and responsiveness)
         {user ? (
           <div className="profile-menu-container" style={{ position: 'relative', marginLeft: '10px' }}>
             <div className="profile-pill" onClick={() => setShowProfileDropdown(!showProfileDropdown)}>

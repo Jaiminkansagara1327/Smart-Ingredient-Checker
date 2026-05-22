@@ -27,8 +27,6 @@ function App() {
     const [uploadedImage, setUploadedImage] = useState(null);
     const [user, setUser] = useState(null);
 
-<<<<<<< HEAD
-=======
     // Theme — 'light' | 'dark' | 'system', persists in localStorage
     const [theme, setTheme] = useState(() => {
         return localStorage.getItem('ingrexa_theme') || 'system';
@@ -49,11 +47,10 @@ function App() {
         }
     }, [theme]);
 
->>>>>>> ab20ac2 (Fix navbar and home page UI alignment and responsiveness)
     const logout = useCallback(() => {
         clearAccessToken();
         setUser(null);
-        api.post('/api/auth/logout/').catch(() => {});
+        api.post('/api/auth/logout/').catch(() => { });
         sessionStorage.removeItem('ingrexa_current_page');
     }, []);
 
@@ -162,7 +159,7 @@ function App() {
         setCurrentPage('analyze');
         sessionStorage.setItem('ingrexa_current_page', 'analyze');
     };
-    
+
     const renderContent = () => {
         if (currentPage === 'verify-email') {
             return <VerifyEmailPage onNavigate={handleNavigate} />;
@@ -181,7 +178,7 @@ function App() {
                     <UploadSection onAnalyze={handleAnalyze} user={user} />
                     <div className="auth-page-premium is-modal">
                         <div className="auth-bg-accent"></div>
-                        {currentPage === 'login' 
+                        {currentPage === 'login'
                             ? <LoginPage onNavigate={handleNavigate} onLoginSuccess={onLoginSuccess} />
                             : <SignupPage onNavigate={handleNavigate} onLoginSuccess={onLoginSuccess} />
                         }
@@ -219,11 +216,7 @@ function App() {
 
     return (
         <>
-<<<<<<< HEAD
-            <Header onNavigate={handleNavigate} currentPage={currentPage} user={user} setUser={setUser} />
-=======
             <Header onNavigate={handleNavigate} currentPage={currentPage} user={user} setUser={setUser} theme={theme} setTheme={setTheme} />
->>>>>>> ab20ac2 (Fix navbar and home page UI alignment and responsiveness)
             {currentPage === 'home' ? (
                 renderContent()
             ) : (
@@ -233,5 +226,6 @@ function App() {
         </>
     );
 }
+
 
 export default App;

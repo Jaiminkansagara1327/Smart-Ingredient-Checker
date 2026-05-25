@@ -1,13 +1,44 @@
-# 🛡️ Ingrexa: Smart Ingredient Analysis
+<div align="center">
 
-**Decode what you eat.** Ingrexa is a high-performance platform that transforms complex food labels into clear, actionable health insights using AI and scientific scoring.
+# 🛡️ Ingrexa — Smart Ingredient Analysis
+
+**Decode what you eat.**
+
+Ingrexa transforms complex food labels into clear, actionable health insights using AI and scientific scoring — free, forever.
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![GSSoC 2026](https://img.shields.io/badge/GSSoC-2026-orange.svg)](https://gssoc.girlscript.tech/)
+[![Made with Django](https://img.shields.io/badge/Backend-Django-green)](https://djangoproject.com)
+[![Made with React](https://img.shields.io/badge/Frontend-React-blue)](https://reactjs.org)
+
+</div>
 
 ---
 
-### 🌟 Our Vision & Philosophy
-- **Health First**: We believe health should never be compromised. Our mission is to provide transparency so you know exactly what goes into your body.
-- **Free Forever**: Ingrexa is committed to remaining free for everyone, for a lifetime. Access to health information is a right, not a privilege.
-- **Keep it Simple**: We prioritize a simple, minimalist design. No clutter—just the insights you need to make better health choices.
+## 📖 Table of Contents
+
+- [Vision & Philosophy](#-vision--philosophy)
+- [Live Features](#-live-features)
+- [Tech Stack](#-tech-stack)
+- [Quick Start](#-quick-start)
+  - [Prerequisites](#1-prerequisites)
+  - [Backend Setup](#2-backend-setup)
+  - [Frontend Setup](#3-frontend-setup)
+- [Project Structure](#-project-structure)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+---
+
+
+## 🌟 Vision & Philosophy
+
+| Principle | What it means |
+|-----------|--------------|
+| **Health First** | Transparency so you know exactly what goes into your body — no hidden risks. |
+| **Free Forever** | Access to health information is a right, not a privilege. Ingrexa will always be free. |
+| **Keep it Simple** | A minimal, clutter-free design. Just the insights you need to make better choices. |
 
 ---
 
@@ -19,49 +50,107 @@
 
 ---
 
-### 🛠️ Tech Stack (The Simple Version)
-- **Frontend**: React (The user interface)
-- **Backend**: Django (The brain that processes data)
-- **AI**: OpenAI GPT-4o-mini (The expert analysis)
-- **Database**: OpenFoodFacts (The world's largest food database)
+## 🛠️ Tech Stack
+
+| Layer | Technology | Role |
+|-------|-----------|------|
+| Frontend | React | User interface |
+| Backend | Django | Core application logic |
+| AI | OpenAI GPT-4o-mini | Ingredient analysis |
+| Database | OpenFoodFacts | World's largest food database |
+| Cache / Queue | Redis + Celery | Async analysis tasks |
+| Auth / Storage | Supabase | Secure data layer |
 
 ---
 
-### ⚡ Quick Start for Beginners
 
-Getting started is easy! Follow these steps to run Ingrexa on your computer:
+## ⚡ Quick Start
 
-#### 1. Pre-requisites
-Make sure you have [Python](https://www.python.org/) and [Node.js](https://nodejs.org/) installed.
+### 1. Prerequisites
 
-#### 2. Setup the Backend (The Brain)
+Make sure you have the following installed:
+
+- [Python 3.9+](https://www.python.org/downloads/)
+- [Node.js 18+](https://nodejs.org/)
+- [Git](https://git-scm.com/)
+
+### 2. Backend Setup
+
 ```bash
+# Clone the repository
+git clone https://github.com/Jaiminkansagara1327/Smart-Ingredient-Checker.git
+cd Smart-Ingredient-Checker
+
+# Navigate to backend
 cd backend
-python3 -m venv venv           # Create a virtual environment
-# Activate it:
-# Mac/Linux:
+
+# Create and activate a virtual environment
+python3 -m venv venv
+
+# Mac / Linux
 source venv/bin/activate
 
-# Windows:
+# Windows
 venv\Scripts\activate
-pip install -r requirements.txt # Install dependencies
-cp .env.example .env           # Create your environment file
-python3 manage.py migrate      # Prepare the database
-python3 manage.py runserver    # Start the engine!
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env and add your API keys (see Environment Variables section below)
+
+# Run database migrations
+python3 manage.py migrate
+
+# Start the development server
+python3 manage.py runserver
 ```
 
-#### 3. Setup the Frontend (The Interface)
+> The backend will be running at `http://localhost:8000`
+
+### 3. Frontend Setup
+
 Open a **new terminal window** and run:
+
 ```bash
 cd frontend
-npm install                    # Install dependencies
-npm run dev                    # Start the app!
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
 ```
-Now open `http://localhost:3000` in your browser! 🎉
+
+> Open [http://localhost:3000](http://localhost:3000) in your browser. 🎉
 
 ---
 
-### 🤝 Contributing
+## 📁 Project Structure
+
+```
+Smart-Ingredient-Checker/
+├── backend/               # Django application
+│   ├── .env.example       # Environment variable template
+│   └── requirements.txt   # Python dependencies
+├── frontend/              # React application
+├── docs/                  # Project documentation & memory
+├── docker-compose.yml     # Docker configuration (Redis, Celery)
+├── CONTRIBUTING.md        # Contribution guidelines
+└── README.md
+```
+
+---
+
+
+## 📄 License
+
+Distributed under the [GNU General Public License v3.0](LICENSE).
+
+---
+
+## 🤝 Contributing
 Want to help build the future of food transparency? We love contributors!
 Please read our [**Contributing Guidelines**](CONTRIBUTING.md) to get started.
 

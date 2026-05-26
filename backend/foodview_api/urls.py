@@ -15,11 +15,13 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from accounts.views import AdditiveListAPIView
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/additives/', AdditiveListAPIView.as_view(), name='additive-list'),
     path('api/', include('analyzer.urls')),
     path('api/auth/', include('accounts.urls')),
 

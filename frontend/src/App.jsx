@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Layout/Header';
+import Encyclopedia from "./pages/Encyclopedia";
 import HomePage from './components/Home/HomePage';
 import VerifyEmailPage from './components/Auth/VerifyEmailPage';
 import UploadSection from './components/Analyzer/UploadSection';
@@ -137,6 +138,7 @@ function App() {
         }
         if (currentPage === 'home') return <HomePage onNavigate={handleNavigate} user={user} />;
         if (currentPage === 'contact') return <ContactPage />;
+        if (currentPage === 'encyclopedia') return <Encyclopedia />;
 
         if (currentPage === 'login' || currentPage === 'signup') {
             if (user) {

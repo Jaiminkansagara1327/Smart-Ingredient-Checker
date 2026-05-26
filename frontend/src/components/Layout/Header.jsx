@@ -170,6 +170,14 @@ function Header({ onNavigate, currentPage, user, setUser }) {
           Contact
         </a>
         
+        <a
+           href="#"
+           className={`nav-link ${currentPage === 'encyclopedia' ? 'active' : ''}`}
+           onClick={(e) => {e.preventDefault();handleNavClick('encyclopedia'); }}
+        >
+           Encyclopedia
+        </a>
+        
         <button
           onClick={handleSupport}
           className="nav-link btn-support"

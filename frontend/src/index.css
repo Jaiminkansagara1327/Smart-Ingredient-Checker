@@ -5121,5 +5121,75 @@ html {
     animation: spin 1s linear infinite;
     margin: 0 auto 1.5rem;
 }
+/* --- Polished, Light & Cute Additive Cards --- */
+.additive-card {
+    background: var(--color-bg-primary);
+    border-radius: 20px; /* Sweeter, rounder corners for that cute feel */
+    padding: var(--spacing-lg);
+    border: 1px solid rgba(0, 0, 0, 0.04); /* Ultra-faint border to hold structure */
+    
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    position: relative;
+    overflow: hidden;
+    
+    /* Smooth transition for that floating animation */
+    transition: transform var(--transition-base), box-shadow var(--transition-base), background var(--transition-base);
+}
+
+/* --- The Cute Micro-Lift Animation --- */
+.additive-card:hover {
+    transform: translateY(-6px); /* Lifts nicely upward */
+    /* Soft, airy, premium shadow that spreads out naturally */
+    box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.06); 
+}
+
+/* --- Soft, Muted Pastel Variants --- */
+.additive-card.status-safe {
+    background: #f4faf6; /* Incredibly soft pastel mint */
+}
+.additive-card.status-safe:hover {
+    background: #ffffff;
+    border-color: rgba(30, 142, 62, 0.2);
+    box-shadow: 0 16px 32px -8px rgba(30, 142, 62, 0.08); /* Tiny hint of green in shadow */
+}
+
+.additive-card.status-caution {
+    background: #fffbf2; /* Soft vanilla / warm cream */
+}
+.additive-card.status-caution:hover {
+    background: #ffffff;
+    border-color: rgba(249, 171, 0, 0.25);
+    box-shadow: 0 16px 32px -8px rgba(249, 171, 0, 0.06); /* Tiny hint of warm gold in shadow */
+}
+
+.additive-card.status-avoid {
+    background: #fff6f5; /* Delicate blush pink */
+}
+.additive-card.status-avoid:hover {
+    background: #ffffff;
+    border-color: rgba(219, 48, 37, 0.2);
+    box-shadow: 0 16px 32px -8px rgba(219, 48, 37, 0.06); /* Tiny hint of soft red in shadow */
+}
+
+/* --- Mini-Pill Badge Refinements --- */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: fit-content;
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* Clean, non-vibrant flat badges inside the pastel cards */
+.status-badge.safe { background: #e6f4ea; color: #137333; }
+.status-badge.caution { background: #fef7e0; color: #b06000; }
+.status-badge.avoid { background: #fce8e6; color: #c5221f; }
 
 @keyframes spin { to { transform: rotate(360deg); } }

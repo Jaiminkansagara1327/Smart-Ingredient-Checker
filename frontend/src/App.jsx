@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Layout/Header';
-import Encyclopedia from "./pages/Encyclopedia";
+import Encyclopedia from "./pages/encyclopedia";
 import HomePage from './components/Home/HomePage';
 import VerifyEmailPage from './components/Auth/VerifyEmailPage';
 import UploadSection from './components/Analyzer/UploadSection';

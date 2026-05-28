@@ -32,7 +32,7 @@ export default function AdditiveCard({ item }) {
           {item.name}
         </h2>
         <p style={{ color: "#94a3b8", fontSize: "0.9rem", marginBottom: "16px", fontWeight: "500" }}>
-          {item.category}
+          {item.role}
         </p>
 
         <div

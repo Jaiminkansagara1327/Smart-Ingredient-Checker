@@ -273,6 +273,7 @@ class IngredientScorer:
             'score': display_score,
             'score_breakdown': notes,
             'nova_group': nova_group,
+            'allergens': self._detect_allergens(ingredients_list),
             'details': {
                 'raw_penalties': total_penalties,
                 'raw_benefits': total_benefits,
@@ -446,6 +447,7 @@ class IngredientScorer:
             'score': display_score,
             'score_breakdown': notes,
             'nova_group': nova_group,
+            'allergens': self._detect_allergens(ingredients),
             'details': {
                 'legacy_fallback': True,
                 'goal_used': user_goal,

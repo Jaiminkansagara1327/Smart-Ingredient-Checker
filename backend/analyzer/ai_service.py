@@ -315,6 +315,7 @@ Provide a JSON response with the following structure:
             'method': 'gemini+scientific_scorer',
             'score': score_data['score'],
             'nova_group': score_data['nova_group'],
+            'allergens': score_data.get('allergens', []),
             'food_type': final_food_type,
             'details': score_data.get('details', {}),
             'overview': {

@@ -73,13 +73,16 @@ class IngredientScorer:
     # -------------------------------------------------------------------------
     # 2. DIETARY GOAL WEIGHTS & LIMITS
     # -------------------------------------------------------------------------
+    # Penalty weights (We, Ws, Wna, Wsf, Wp2, Wa) are normalized to sum=1.0 per goal
+    # so that the total penalty budget is consistent across goals. Relative emphasis
+    # between factors is preserved. Benefit weights (Wp, Wf) are unchanged.
     GOAL_CONFIGS = {
-        'Regular':     {'We': 0.15, 'Ws': 0.20, 'Wna': 0.15, 'Wsf': 0.15, 'Wp2': 0.20, 'Wa': 0.15, 'Wp': 0.15, 'Wf': 0.15, 'sugar_limit': 50, 'Ws_exp': 1.0, 'Wna_exp': 1.0, 'Wsf_exp': 1.0, 'We_exp': 1.0},
-        'Weight Loss': {'We': 0.35, 'Ws': 0.35, 'Wna': 0.10, 'Wsf': 0.10, 'Wp2': 0.15, 'Wa': 0.05, 'Wp': 0.10, 'Wf': 0.30, 'sugar_limit': 25, 'Ws_exp': 1.2, 'Wna_exp': 1.0, 'Wsf_exp': 1.0, 'We_exp': 1.2},
-        'Weight Gain': {'We': 0.05, 'Ws': 0.15, 'Wna': 0.10, 'Wsf': 0.10, 'Wp2': 0.15, 'Wa': 0.10, 'Wp': 0.50, 'Wf': 0.10, 'sugar_limit': 50, 'Ws_exp': 1.0, 'Wna_exp': 1.0, 'Wsf_exp': 1.0, 'We_exp': 1.0},
-        'Diabetic':    {'We': 0.15, 'Ws': 0.60, 'Wna': 0.10, 'Wsf': 0.10, 'Wp2': 0.10, 'Wa': 0.05, 'Wp': 0.10, 'Wf': 0.15, 'sugar_limit': 20, 'Ws_exp': 1.5, 'Wna_exp': 1.0, 'Wsf_exp': 1.0, 'We_exp': 1.0},
-        'Heart Health':{'We': 0.10, 'Ws': 0.10, 'Wna': 0.45, 'Wsf': 0.40, 'Wp2': 0.10, 'Wa': 0.05, 'Wp': 0.10, 'Wf': 0.10, 'sugar_limit': 50, 'Ws_exp': 1.0, 'Wna_exp': 1.5, 'Wsf_exp': 1.5, 'We_exp': 1.0},
-        'Gym':         {'We': 0.10, 'Ws': 0.10, 'Wna': 0.10, 'Wsf': 0.10, 'Wp2': 0.15, 'Wa': 0.10, 'Wp': 0.70, 'Wf': 0.10, 'sugar_limit': 50, 'Ws_exp': 1.0, 'Wna_exp': 1.0, 'Wsf_exp': 1.0, 'We_exp': 1.0},
+        'Regular':     {'We': 0.1500, 'Ws': 0.2000, 'Wna': 0.1500, 'Wsf': 0.1500, 'Wp2': 0.2000, 'Wa': 0.1500, 'Wp': 0.15, 'Wf': 0.15, 'sugar_limit': 50, 'Ws_exp': 1.0, 'Wna_exp': 1.0, 'Wsf_exp': 1.0, 'We_exp': 1.0},
+        'Weight Loss': {'We': 0.3182, 'Ws': 0.3182, 'Wna': 0.0909, 'Wsf': 0.0909, 'Wp2': 0.1364, 'Wa': 0.0454, 'Wp': 0.10, 'Wf': 0.30, 'sugar_limit': 25, 'Ws_exp': 1.2, 'Wna_exp': 1.0, 'Wsf_exp': 1.0, 'We_exp': 1.2},
+        'Weight Gain': {'We': 0.0769, 'Ws': 0.2308, 'Wna': 0.1538, 'Wsf': 0.1538, 'Wp2': 0.2308, 'Wa': 0.1539, 'Wp': 0.50, 'Wf': 0.10, 'sugar_limit': 50, 'Ws_exp': 1.0, 'Wna_exp': 1.0, 'Wsf_exp': 1.0, 'We_exp': 1.0},
+        'Diabetic':    {'We': 0.1364, 'Ws': 0.5455, 'Wna': 0.0909, 'Wsf': 0.0909, 'Wp2': 0.0909, 'Wa': 0.0454, 'Wp': 0.10, 'Wf': 0.15, 'sugar_limit': 20, 'Ws_exp': 1.5, 'Wna_exp': 1.0, 'Wsf_exp': 1.0, 'We_exp': 1.0},
+        'Heart Health':{'We': 0.0833, 'Ws': 0.0833, 'Wna': 0.3750, 'Wsf': 0.3333, 'Wp2': 0.0833, 'Wa': 0.0418, 'Wp': 0.10, 'Wf': 0.10, 'sugar_limit': 50, 'Ws_exp': 1.0, 'Wna_exp': 1.5, 'Wsf_exp': 1.5, 'We_exp': 1.0},
+        'Gym':         {'We': 0.1538, 'Ws': 0.1538, 'Wna': 0.1538, 'Wsf': 0.1538, 'Wp2': 0.2308, 'Wa': 0.1540, 'Wp': 0.70, 'Wf': 0.10, 'sugar_limit': 50, 'Ws_exp': 1.0, 'Wna_exp': 1.0, 'Wsf_exp': 1.0, 'We_exp': 1.0},
     }
 
     # Reference Limits

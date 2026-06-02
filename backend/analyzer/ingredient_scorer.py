@@ -46,6 +46,14 @@ class IngredientScorer:
         'cocoa', 'cacao', 'coffee', 'tea', 'water', 'spices', 'herbs'
     }
 
+    ALLERGENS = {
+    'Milk': ['milk', 'casein', 'whey', 'cheese', 'butter', 'paneer'],
+    'Gluten': ['wheat', 'gluten', 'barley', 'rye', 'maida'],
+    'Nuts': ['almond', 'cashew', 'walnut', 'peanut', 'nuts'],
+    'Soy': ['soy', 'soya', 'soybean'],
+    'Eggs': ['egg', 'albumin'],
+    'Shellfish': ['shrimp', 'prawn', 'crab', 'lobster', 'shellfish']
+    }
     ADDITIVE_CONCERNS = {
         # High Concern
         'aspartame': 9, 'acesulfame': 8, 'saccharin': 8, 'sucralose': 7,
@@ -95,7 +103,7 @@ class IngredientScorer:
         Calculates score based on exact macronutrient variables and food type.
         """
         if not ingredients_list:
-            return {'score': 0.0, 'score_breakdown': [], 'nova_group': 4, 'details': {}}
+            return {'score': 0.0, 'score_breakdown': [], 'nova_group': 4,'allergens': self._detect_allergens(ingredients_list), 'details': {}}
 
         # Use exact macros if provided, otherwise assume worst-case proxies from ingredients
         has_macros = macros is not None and len(macros.keys()) > 0
@@ -265,6 +273,7 @@ class IngredientScorer:
             'score': display_score,
             'score_breakdown': notes,
             'nova_group': nova_group,
+            'allergens': self._detect_allergens(ingredients_list),
             'details': {
                 'raw_penalties': total_penalties,
                 'raw_benefits': total_benefits,
@@ -438,12 +447,26 @@ class IngredientScorer:
             'score': display_score,
             'score_breakdown': notes,
             'nova_group': nova_group,
+            'allergens': self._detect_allergens(ingredients),
             'details': {
                 'legacy_fallback': True,
                 'goal_used': user_goal,
                 'type_used': food_type
             }
         }
+
+    def _detect_allergens(self, ingredients: List[str]) -> List[str]:
+        detected = []
+
+        for allergen, keywords in self.ALLERGENS.items():
+            for ingredient in ingredients:
+                ingredient_lower = ingredient.lower()
+
+                if any(keyword in ingredient_lower for keyword in keywords):
+                    if allergen not in detected:
+                        detected.append(allergen)
+
+        return detected
 
     def _is_whole_food(self, ingredient: str) -> bool:
         if any(x in ingredient for x in ['artificial', 'flavor', 'flavour', 'synthetic']):

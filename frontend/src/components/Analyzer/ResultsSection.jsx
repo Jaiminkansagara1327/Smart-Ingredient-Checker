@@ -307,7 +307,39 @@ function ResultsSection({ data, image, onAnalyzeNew, onNavigate }) {
                         ))}
                     </div>
                 </div>
+                
+                {/* Allergy Awareness */}
+                {data.allergens && data.allergens.length > 0 && (
+                    <div className="results-card">
+                        <h3 className="results-section-title">Allergy Awareness</h3>
 
+                        <div
+                            style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: '0.75rem',
+                                marginTop: '1rem'
+                            }}
+                        >
+                            {data.allergens.map((allergen, idx) => (
+                                <div
+                                    key={idx}
+                                    style={{
+                                        background: 'rgba(255, 87, 87, 0.15)',
+                                        border: '1px solid rgba(255, 87, 87, 0.35)',
+                                        color: '#ff6b6b',
+                                        padding: '0.7rem 1rem',
+                                        borderRadius: '12px',
+                                        fontWeight: '600',
+                                        backdropFilter: 'blur(10px)'
+                                    }}
+                                >
+                                    ⚠ Contains {allergen}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 {/* Nutrition */}
                 <NutritionPanel nutriments={meta.nutriments} />
 

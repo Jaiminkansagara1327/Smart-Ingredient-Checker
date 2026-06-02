@@ -395,6 +395,7 @@ Provide a JSON response with the following structure:
             'method': 'factual_analysis',
             'score': score,
             'nova_group': nova_group,
+            'allergens': score_data.get("allergens", []),
             'details': score_data.get('details', {}),
             'score_breakdown': score_data.get('score_breakdown', []),
             

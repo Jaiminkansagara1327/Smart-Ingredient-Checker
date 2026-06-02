@@ -290,20 +290,26 @@ class IngredientScorer:
                any(m in ing_lower for m in self.ADDITIVE_CONCERNS):
                 markers += 1
                 
-        total = max(1, len(ingredients))
-        marker_ratio = markers / total
-        
-        if markers == 0 and total > 1:
-            if all(any(x in ing.lower() for x in self.ADDED_SUGARS | self.SODIUM_SOURCES | self.UNHEALTHY_FATS | {'oil', 'butter', 'starch'}) for ing in ingredients):
-                return 2, [{'description': "Culinary ingredient mapping", 'points': 0}]
-            return 1, [{'description': "Minimally processed (NOVA 1)", 'points': 0}]
+        # By scientific NOVA standards, ANY industrial additive makes it NOVA 4
+        if markers > 0:
+            return 4, [{'description': "Ultra-processed product", 'points': -1.5}]
             
-        elif markers >= 1 or (markers >= 5 and marker_ratio > 0.3):
-             if markers >= 2 or marker_ratio > 0.2:
-                 return 4, [{'description': "Ultra-processed product", 'points': -1.5}]
-             return 3, [{'description': "Processed product", 'points': -0.5}]
-             
-        return 2, []
+        total = max(1, len(ingredients))
+        
+        # Check culinary ingredients
+        culinary_ingredients = self.ADDED_SUGARS | self.SODIUM_SOURCES | self.UNHEALTHY_FATS | {'oil', 'butter', 'starch', 'salt', 'sugar'}
+        culinary_count = 0
+        for ing in ingredients:
+            if any(x in ing.lower() for x in culinary_ingredients):
+                culinary_count += 1
+                
+        if culinary_count == total and total > 0:
+            return 2, [{'description': "Culinary ingredient", 'points': 0}]
+            
+        if culinary_count > 0 and culinary_count < total:
+            return 3, [{'description': "Processed product", 'points': -0.5}]
+            
+        return 1, [{'description': "Minimally processed (NOVA 1)", 'points': 0}]
 
     def _calculate_additive_risk(self, ingredients: List[str]) -> Tuple[float, List[Dict]]:
         risk = 0.0

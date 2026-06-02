@@ -289,10 +289,13 @@ class IngredientScorer:
                 return 2, [{'description': "Culinary ingredient mapping", 'points': 0}]
             return 1, [{'description': "Minimally processed (NOVA 1)", 'points': 0}]
             
-        elif markers >= 1 or (markers >= 5 and marker_ratio > 0.3):
-             if markers >= 2 or marker_ratio > 0.2:
-                 return 4, [{'description': "Ultra-processed product", 'points': -1.5}]
-             return 3, [{'description': "Processed product", 'points': -0.5}]
+        elif markers >= 5 and marker_ratio > 0.3:
+            return 4, [{'description': "Ultra-processed product", 'points': -1.5}]
+
+        elif markers >= 1:
+            if markers >= 2 or marker_ratio > 0.2:
+                return 4, [{'description': "Ultra-processed product", 'points': -1.5}]
+            return 3, [{'description': "Processed product", 'points': -0.5}]
              
         return 2, []
 

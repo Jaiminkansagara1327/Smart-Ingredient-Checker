@@ -367,3 +367,179 @@ class SecurityInputValidationTest(TestCase):
         """Normal unicode ingredient text (e.g., µg, %, °) must not be blocked."""
         response = self._post("water, sugar (12%), vitamin C (ascorbic acid), salt")
         self.assertEqual(response.status_code, 200)
+
+
+# =============================================================================
+# 4. Idempotent AnalysisRecord writes on Celery retry
+# =============================================================================
+
+from unittest.mock import patch, MagicMock
+from django.contrib.auth import get_user_model
+
+from .models import AnalysisRecord
+
+
+class AnalysisRecordIdempotencyTest(TestCase):
+    """
+    Verifies that analyze_ingredients_task is idempotent when retried with
+    the same Celery task ID (fix for issue #49).
+
+    Strategy: we bypass the real Celery machinery and call the task's
+    underlying function directly twice with a mocked `self.request.id` set
+    to the same UUID, simulating what Celery does on a retry.
+    """
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username="testretry",
+            email="retry@example.com",
+            password="testpass123",
+        )
+
+    def _make_mock_self(self, task_id="test-celery-task-uuid-1234", retries=0):
+        """Return a mock Celery task instance with a fixed request.id."""
+        mock_self = MagicMock()
+        mock_self.request.id = task_id
+        mock_self.request.retries = retries
+        # Make self.retry() re-raise so we can catch it in tests.
+        mock_self.retry.side_effect = Exception("retry called")
+        return mock_self
+
+    FAKE_ANALYSIS = {
+        "score": 72.5,
+        "confidence": 0.9,
+        "nova_group": 2,
+        "product": {"name": "Test Product", "brand": "Test Brand", "nutriscore_grade": "b"},
+        "ingredients": [],
+    }
+
+    @patch("analyzer.tasks.analyze_product_from_text")
+    def test_second_call_with_same_task_id_does_not_create_duplicate(self, mock_analyze):
+        """
+        Calling the task body twice with the same task UUID (simulating a
+        Celery retry) must result in exactly ONE AnalysisRecord row.
+        """
+        mock_analyze.return_value = dict(self.FAKE_ANALYSIS)
+
+        from analyzer.tasks import analyze_ingredients_task
+
+        task_id = "idempotency-test-uuid-abcd-1234"
+        common_kwargs = dict(
+            text="water, sugar, salt",
+            macros={},
+            food_type="Solid",
+            user_goal="Regular",
+            user_id=self.user.pk,
+            input_method="manual",
+            barcode="",
+            product_info=None,
+            ai_provider=None,
+        )
+
+        # First execution (initial run).
+        mock_self_1 = self._make_mock_self(task_id=task_id, retries=0)
+        analyze_ingredients_task.__wrapped__(mock_self_1, **common_kwargs)
+
+        self.assertEqual(
+            AnalysisRecord.objects.filter(celery_task_id=task_id).count(),
+            1,
+            "Expected exactly 1 AnalysisRecord after the first execution.",
+        )
+
+        # Second execution (simulated retry — same task_id).
+        mock_self_2 = self._make_mock_self(task_id=task_id, retries=1)
+        analyze_ingredients_task.__wrapped__(mock_self_2, **common_kwargs)
+
+        self.assertEqual(
+            AnalysisRecord.objects.filter(celery_task_id=task_id).count(),
+            1,
+            "Expected still exactly 1 AnalysisRecord after the retry — no duplicate.",
+        )
+        self.assertEqual(
+            AnalysisRecord.objects.filter(user=self.user).count(),
+            1,
+            "Total user history must remain 1 after a simulated retry.",
+        )
+
+    @patch("analyzer.tasks.analyze_product_from_text")
+    def test_different_task_ids_create_separate_records(self, mock_analyze):
+        """
+        Two genuinely separate task invocations (distinct task UUIDs) must
+        each create their own AnalysisRecord — normal behaviour is preserved.
+        """
+        mock_analyze.return_value = dict(self.FAKE_ANALYSIS)
+
+        from analyzer.tasks import analyze_ingredients_task
+
+        common_kwargs = dict(
+            text="water, sugar, salt",
+            macros={},
+            food_type="Solid",
+            user_goal="Regular",
+            user_id=self.user.pk,
+            input_method="manual",
+            barcode="",
+            product_info=None,
+            ai_provider=None,
+        )
+
+        mock_self_a = self._make_mock_self(task_id="task-uuid-aaaa")
+        analyze_ingredients_task.__wrapped__(mock_self_a, **common_kwargs)
+
+        mock_self_b = self._make_mock_self(task_id="task-uuid-bbbb")
+        analyze_ingredients_task.__wrapped__(mock_self_b, **common_kwargs)
+
+        self.assertEqual(
+            AnalysisRecord.objects.filter(user=self.user).count(),
+            2,
+            "Two distinct task IDs must produce two AnalysisRecord rows.",
+        )
+
+    @patch("analyzer.tasks.analyze_product_from_text")
+    def test_celery_task_id_is_stored_on_record(self, mock_analyze):
+        """The celery_task_id field on the created record must equal self.request.id."""
+        mock_analyze.return_value = dict(self.FAKE_ANALYSIS)
+
+        from analyzer.tasks import analyze_ingredients_task
+
+        task_id = "stored-task-id-check-5678"
+        mock_self = self._make_mock_self(task_id=task_id)
+        analyze_ingredients_task.__wrapped__(
+            mock_self,
+            text="water, sugar",
+            macros={},
+            food_type="Solid",
+            user_goal="Regular",
+            user_id=self.user.pk,
+            input_method="manual",
+            barcode="",
+            product_info=None,
+            ai_provider=None,
+        )
+
+        record = AnalysisRecord.objects.get(celery_task_id=task_id)
+        self.assertEqual(record.celery_task_id, task_id)
+        self.assertEqual(record.user, self.user)
+
+    def test_unique_constraint_on_celery_task_id(self):
+        """
+        The DB-level unique constraint on celery_task_id must reject a raw
+        second INSERT with the same value (regression guard for the migration).
+        """
+        from django.db import IntegrityError
+
+        AnalysisRecord.objects.create(
+            user=self.user,
+            celery_task_id="constraint-test-uuid",
+            input_text_preview="water",
+            score=50.0,
+        )
+
+        with self.assertRaises(IntegrityError):
+            AnalysisRecord.objects.create(
+                user=self.user,
+                celery_task_id="constraint-test-uuid",  # duplicate!
+                input_text_preview="sugar",
+                score=60.0,
+            )

@@ -37,7 +37,7 @@ function UploadSection({ onAnalyze, user }) {
     const [error, setError] = useState(null);
     const [userGoal, setUserGoal] = useState('Regular');
     const [showDropdown, setShowDropdown] = useState(false);
-    const [aiProvider, setAiProvider] = useState('auto');
+    const [aiProvider] = useState(() => localStorage.getItem('ingrexa_ai_provider') || 'auto');
 
     const searchTimer = useRef(null);
     const searchInputRef = useRef(null);
@@ -189,21 +189,7 @@ function UploadSection({ onAnalyze, user }) {
                         Raw Ingredients
                     </button>
                 </div>
-                <div className="ai-provider-selector">
-                    {[
-                        { value: 'auto',   label: 'Auto' },
-                        { value: 'openai', label: 'GPT-4o' },
-                        { value: 'gemini', label: 'Gemini' },
-                    ].map(opt => (
-                        <button
-                            key={opt.value}
-                            className={`provider-chip ${aiProvider === opt.value ? 'active' : ''}`}
-                            onClick={() => setAiProvider(opt.value)}
-                        >
-                            {opt.label}
-                        </button>
-                    ))}
-                </div>
+
 
                 <div className="analyzer-content-wrapper">
                     {activeTab === 'search' && (

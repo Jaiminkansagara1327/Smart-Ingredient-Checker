@@ -82,6 +82,92 @@ function ScoreBadge({ score, grade, size = 'normal' }) {
     );
 }
 
+function NovaBadge({ group }) {
+    if (group === undefined || group === null) return <span className="nova-badge nova-unknown">NOVA —</span>;
+    const val = parseInt(group, 10);
+    let bg = '#E63E11';
+    let label = 'Ultra-Processed (NOVA 4)';
+    
+    if (val === 1) { bg = '#038141'; label = 'Unprocessed (NOVA 1)'; }
+    else if (val === 2) { bg = '#85BB2F'; label = 'Culinary (NOVA 2)'; }
+    else if (val === 3) { bg = '#EE8100'; label = 'Processed (NOVA 3)'; }
+    else if (val === 4) { bg = '#E63E11'; label = 'Ultra-Processed (NOVA 4)'; }
+    
+    return (
+        <span className="nova-badge" style={{ background: bg, color: '#fff', padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold', fontSize: '0.85rem' }} title={label}>
+            NOVA {val}
+        </span>
+    );
+}
+
+function getNutrimentValue(nutriments, labelName) {
+    if (!nutriments || !nutriments.rows) return null;
+    const found = nutriments.rows.find(
+        row => row.label.toLowerCase() === labelName.toLowerCase()
+    );
+    return found ? { value: found.value, unit: found.unit } : null;
+}
+
+function getFlaggedIngredients(breakdown) {
+    if (!breakdown) return [];
+    return breakdown.filter(item => item.risk === '🔴' || item.risk === '🟡');
+}
+
+function NutrientCompareRow({ label, currentVal, altVal, unit, lowerIsBetter = true }) {
+    const cVal = currentVal !== null && currentVal !== undefined ? parseFloat(currentVal) : null;
+    const aVal = altVal !== null && altVal !== undefined ? parseFloat(altVal) : null;
+    
+    let isCurrentHealthier = false;
+    let isAltHealthier = false;
+    
+    if (cVal !== null && aVal !== null) {
+        if (cVal === aVal) {
+            // equal
+        } else if (lowerIsBetter) {
+            if (cVal < aVal) isCurrentHealthier = true;
+            else isAltHealthier = true;
+        } else {
+            if (cVal > aVal) isCurrentHealthier = true;
+            else isAltHealthier = true;
+        }
+    }
+    
+    const maxVal = Math.max(cVal || 0, aVal || 0, 1);
+    const cPct = cVal !== null ? (cVal / maxVal) * 100 : 0;
+    const aPct = aVal !== null ? (aVal / maxVal) * 100 : 0;
+    
+    return (
+        <div className="nutrient-compare-item">
+            <div className="nutrient-compare-label">{label}</div>
+            <div className="nutrient-compare-bars">
+                <div className="nutrient-compare-side current-side">
+                    <span className={`nutrient-compare-val ${isCurrentHealthier ? 'healthier' : ''}`}>
+                        {cVal !== null ? `${cVal.toFixed(1)} ${unit}` : '—'}
+                    </span>
+                    <div className="compare-bar-bg">
+                        <div 
+                            className={`compare-bar-fill ${isCurrentHealthier ? 'healthier-fill' : 'normal-fill'}`}
+                            style={{ width: `${cPct}%` }}
+                        ></div>
+                    </div>
+                </div>
+                
+                <div className="nutrient-compare-side alt-side">
+                    <div className="compare-bar-bg">
+                        <div 
+                            className={`compare-bar-fill ${isAltHealthier ? 'healthier-fill' : 'normal-fill'}`}
+                            style={{ width: `${aPct}%` }}
+                        ></div>
+                    </div>
+                    <span className={`nutrient-compare-val ${isAltHealthier ? 'healthier' : ''}`}>
+                        {aVal !== null ? `${aVal.toFixed(1)} ${unit}` : '—'}
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function parseServingGrams(str) {
     if (!str) return null;
     const match = str.match(/(\d+\.?\d*)\s*(g|gm|ml|cl|l)\b/i);
@@ -211,6 +297,14 @@ function addToHistory(product) {
 
 function ResultsSection({ data, image, onAnalyzeNew, onNavigate }) {
     const [expandedIdx, setExpandedIdx] = useState(null);
+    const [alternatives, setAlternatives] = useState([]);
+    const [loadingAlternatives, setLoadingAlternatives] = useState(false);
+
+    const [isCompareOpen, setIsCompareOpen] = useState(false);
+    const [selectedAltForCompare, setSelectedAltForCompare] = useState(null);
+    const [compareData, setCompareData] = useState(null);
+    const [loadingCompare, setLoadingCompare] = useState(false);
+    const [compareError, setCompareError] = useState(null);
 
     if (!data) return null;
 
@@ -220,6 +314,57 @@ function ResultsSection({ data, image, onAnalyzeNew, onNavigate }) {
     useEffect(() => {
         if (meta.name) addToHistory(meta);
     }, [meta.name]);
+
+    useEffect(() => {
+        if (!meta.categories) {
+            setAlternatives([]);
+            return;
+        }
+        setLoadingAlternatives(true);
+        const prefetched = getPrefetchedAlternatives(meta.categories, meta.nutriscore_grade, meta.name);
+        if (prefetched) {
+            setAlternatives(prefetched);
+            setLoadingAlternatives(false);
+        } else {
+            api.get('/api/alternatives/', {
+                params: { category: meta.categories, nutriscore: meta.nutriscore_grade || '', name: meta.name || '' }
+            })
+            .then(res => {
+                if (res.data.success) {
+                    setAlternatives(res.data.alternatives || []);
+                }
+            })
+            .catch(err => console.error(err))
+            .finally(() => setLoadingAlternatives(false));
+        }
+    }, [meta.categories, meta.nutriscore_grade, meta.name]);
+
+    const handleCompareClick = (altProduct) => {
+        setIsCompareOpen(true);
+        setSelectedAltForCompare(altProduct);
+        setLoadingCompare(true);
+        setCompareError(null);
+        setCompareData(null);
+        
+        api.post('/api/analyze-product/', {
+            barcode: altProduct.barcode,
+            user_goal: data.details?.goal_used || 'Regular',
+        })
+        .then(res => {
+            if (res.data.success) {
+                setCompareData(res.data);
+            } else {
+                setCompareError(res.data.message || 'Failed to fetch comparison details.');
+            }
+        })
+        .catch(err => {
+            console.error("Failed to fetch comparison:", err);
+            setCompareError('Could not fetch details for the alternative product.');
+        })
+        .finally(() => {
+            setLoadingCompare(false);
+        });
+    };
 
     if (!hasFormat) {
         return <div style={{ textAlign: 'center', padding: '3rem' }}><p>Analysis format not recognized. Please re-analyze.</p></div>;
@@ -380,6 +525,65 @@ function ResultsSection({ data, image, onAnalyzeNew, onNavigate }) {
                         ))}
                     </div>
                 </div>
+                {/* Healthier Alternatives / Suggestions */}
+                {meta.name && (
+                    <div className="results-card alternatives-section-card">
+                        <h3 className="results-section-title">Smart Swap Suggestions</h3>
+                        
+                        {loadingAlternatives && (
+                            <div className="alternatives-loading">
+                                <div className="spinner-minimal"></div>
+                                <p>Scanning database for healthier alternatives...</p>
+                            </div>
+                        )}
+                        
+                        {!loadingAlternatives && alternatives.length === 0 && (
+                            <div className="alternatives-empty">
+                                {meta.nutriscore_grade?.toLowerCase() === 'a' ? (
+                                    <p className="best-choice-msg">🎉 This product already has a top Nutri-Score of A. Great choice!</p>
+                                ) : (
+                                    <p className="no-alternatives-msg">No healthier alternatives found in this category.</p>
+                                )}
+                            </div>
+                        )}
+                        
+                        {!loadingAlternatives && alternatives.length > 0 && (
+                            <div className="alternatives-grid">
+                                {alternatives.map((alt) => (
+                                    <div key={alt.barcode} className="alt-product-card">
+                                        <div className="alt-product-image-box">
+                                            {alt.image_url ? (
+                                                <img src={alt.image_url} alt={alt.name} className="alt-product-img" />
+                                            ) : (
+                                                <div className="alt-product-img-placeholder">🍲</div>
+                                            )}
+                                        </div>
+                                        <div className="alt-product-info">
+                                            <span className="alt-product-brand">{alt.brand || 'Unknown Brand'}</span>
+                                            <h4 className="alt-product-name" title={alt.name}>{alt.name}</h4>
+                                            <div className="alt-product-badges">
+                                                <ScoreBadge grade={alt.nutriscore_grade} size="small" />
+                                                {alt.nova_group && (
+                                                    <span className="nova-mini-pill" title={`NOVA Group ${alt.nova_group}`}>
+                                                        NOVA {alt.nova_group}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="alt-product-action">
+                                            <button 
+                                                className="compare-btn-premium"
+                                                onClick={() => handleCompareClick(alt)}
+                                            >
+                                                Compare ⚔️
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {data.transparency_note && (
                     <div style={{ textAlign: 'center', padding: 'var(--spacing-lg)', borderTop: '1px solid var(--color-border)', marginTop: 'var(--spacing-xl)' }}>
@@ -399,6 +603,207 @@ function ResultsSection({ data, image, onAnalyzeNew, onNavigate }) {
                     </button>
                 </div>
             </div>
+
+            {/* Comparison Modal (Smart Swap Duel) */}
+            {isCompareOpen && (
+                <div className="compare-modal-backdrop" onClick={() => setIsCompareOpen(false)}>
+                    <div className="compare-modal-container" onClick={e => e.stopPropagation()}>
+                        <div className="compare-modal-header">
+                            <div>
+                                <h2 className="compare-modal-title">Smart Swap Duel ⚔️</h2>
+                                <p className="compare-modal-subtitle">Comparing {meta.name} with {selectedAltForCompare?.name}</p>
+                            </div>
+                            <button className="compare-modal-close" onClick={() => setIsCompareOpen(false)}>
+                                &times;
+                            </button>
+                        </div>
+                        
+                        <div className="compare-modal-body">
+                            {loadingCompare && (
+                                <div className="compare-modal-loading">
+                                    <div className="spinner-minimal"></div>
+                                    <p>Analyzing alternative product for comparison...</p>
+                                </div>
+                            )}
+                            
+                            {compareError && (
+                                <div className="compare-modal-error">
+                                    <p className="error-message">⚠️ {compareError}</p>
+                                    <button 
+                                        className="analyze-btn" 
+                                        style={{ padding: '8px 16px', fontSize: 'var(--font-size-sm)', margin: '1rem auto 0', display: 'block' }} 
+                                        onClick={() => handleCompareClick(selectedAltForCompare)}
+                                    >
+                                        Retry
+                                    </button>
+                                </div>
+                            )}
+                            
+                            {compareData && (
+                                <div className="compare-duel-dashboard">
+                                    {/* Products Header Side-by-side */}
+                                    <div className="compare-products-header">
+                                        <div className="compare-product-item current-product">
+                                            <span className="product-type-label">Current Product</span>
+                                            <div className="compare-product-img-wrapper">
+                                                {meta.image_url ? (
+                                                    <img src={meta.image_url} alt={meta.name} className="compare-product-img" />
+                                                ) : (
+                                                    <span style={{ fontSize: '2rem' }}>🍲</span>
+                                                )}
+                                            </div>
+                                            <span className="compare-product-brand">{meta.brand || 'Unknown Brand'}</span>
+                                            <h3 className="compare-product-name">{meta.name}</h3>
+                                        </div>
+                                        
+                                        <div className="compare-duel-vs">VS</div>
+                                        
+                                        <div className="compare-product-item alt-product">
+                                            <span className="product-type-label bg-green">Better Swap</span>
+                                            <div className="compare-product-img-wrapper">
+                                                {selectedAltForCompare?.image_url ? (
+                                                    <img src={selectedAltForCompare.image_url} alt={selectedAltForCompare.name} className="compare-product-img" />
+                                                ) : (
+                                                    <span style={{ fontSize: '2rem' }}>🍲</span>
+                                                )}
+                                            </div>
+                                            <span className="compare-product-brand">{selectedAltForCompare?.brand || 'Unknown Brand'}</span>
+                                            <h3 className="compare-product-name">{selectedAltForCompare?.name}</h3>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* 1. Processing Grades */}
+                                    <div className="compare-section">
+                                        <h4 className="compare-section-title">1. Health & Processing Grades</h4>
+                                        <div className="compare-row-grid">
+                                            <div className="compare-row-cell current-cell">
+                                                <div className="badge-pair">
+                                                    <ScoreBadge score={data.score} grade={meta.nutriscore_grade} size="small" />
+                                                    <NovaBadge group={data.nova_group || (data.overview && data.overview.processing_level)} />
+                                                </div>
+                                            </div>
+                                            <div className="compare-row-label">Grades</div>
+                                            <div className="compare-row-cell alt-cell">
+                                                <div className="badge-pair">
+                                                    <ScoreBadge score={compareData.score} grade={compareData._product_meta?.nutriscore_grade || selectedAltForCompare?.nutriscore_grade} size="small" />
+                                                    <NovaBadge group={compareData.nova_group || (compareData.overview && compareData.overview.processing_level) || selectedAltForCompare?.nova_group} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* 2. Nutritional Comparison */}
+                                    <div className="compare-section">
+                                        <h4 className="compare-section-title">2. Nutritional Comparison (per 100g)</h4>
+                                        <div className="nutrient-compare-list">
+                                            <NutrientCompareRow 
+                                                label="Sugar"
+                                                currentVal={getNutrimentValue(meta.nutriments, "Total Sugars")?.value ?? getNutrimentValue(meta.nutriments, "Sugars")?.value}
+                                                altVal={getNutrimentValue(compareData._product_meta?.nutriments || compareData.product_info?.nutriments, "Total Sugars")?.value ?? getNutrimentValue(compareData._product_meta?.nutriments || compareData.product_info?.nutriments, "Sugars")?.value}
+                                                unit="g"
+                                                lowerIsBetter={true}
+                                            />
+                                            <NutrientCompareRow 
+                                                label="Saturated Fat"
+                                                currentVal={getNutrimentValue(meta.nutriments, "Saturated Fat")?.value}
+                                                altVal={getNutrimentValue(compareData._product_meta?.nutriments || compareData.product_info?.nutriments, "Saturated Fat")?.value}
+                                                unit="g"
+                                                lowerIsBetter={true}
+                                            />
+                                            <NutrientCompareRow 
+                                                label="Sodium"
+                                                currentVal={getNutrimentValue(meta.nutriments, "Sodium")?.value}
+                                                altVal={getNutrimentValue(compareData._product_meta?.nutriments || compareData.product_info?.nutriments, "Sodium")?.value}
+                                                unit="mg"
+                                                lowerIsBetter={true}
+                                            />
+                                            <NutrientCompareRow 
+                                                label="Dietary Fiber"
+                                                currentVal={getNutrimentValue(meta.nutriments, "Dietary Fiber")?.value ?? getNutrimentValue(meta.nutriments, "Fiber")?.value}
+                                                altVal={getNutrimentValue(compareData._product_meta?.nutriments || compareData.product_info?.nutriments, "Dietary Fiber")?.value ?? getNutrimentValue(compareData._product_meta?.nutriments || compareData.product_info?.nutriments, "Fiber")?.value}
+                                                unit="g"
+                                                lowerIsBetter={false}
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {/* 3. Ingredient Count */}
+                                    <div className="compare-section">
+                                        <h4 className="compare-section-title">3. Ingredient Count Comparison</h4>
+                                        {(() => {
+                                            const cCount = parseInt(data.overview?.ingredient_count, 10) || 0;
+                                            const aCount = parseInt(compareData.overview?.ingredient_count, 10) || 0;
+                                            const diff = cCount - aCount;
+                                            return (
+                                                <div className="ingredient-count-compare-box">
+                                                    <div className="count-display">
+                                                        <div className="count-circle current-circle">{cCount} <span className="sub">ingredients</span></div>
+                                                        <div className="count-delta-pill-wrapper">
+                                                            {diff > 0 ? (
+                                                                <span className="delta-badge saves">Saves {diff} ingredients</span>
+                                                            ) : diff < 0 ? (
+                                                                <span className="delta-badge adds">Adds {Math.abs(diff)} ingredients</span>
+                                                            ) : (
+                                                                <span className="delta-badge same">Same count</span>
+                                                            )}
+                                                        </div>
+                                                        <div className="count-circle alt-circle">{aCount} <span className="sub">ingredients</span></div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                    
+                                    {/* 4. Additives & Concern Flags */}
+                                    <div className="compare-section">
+                                        <h4 className="compare-section-title">4. Flagged Additives & Concern Ingredients</h4>
+                                        <div className="flagged-compare-columns">
+                                            <div className="flagged-column current-flagged">
+                                                <h5>Flagged in Current</h5>
+                                                {(() => {
+                                                    const flagged = getFlaggedIngredients(data.ingredient_breakdown);
+                                                    if (flagged.length === 0) return <p className="no-flagged-text">None! 🎉</p>;
+                                                    return (
+                                                        <ul className="flagged-compare-list">
+                                                            {flagged.map((item, idx) => (
+                                                                <li key={idx} className="flagged-compare-item">
+                                                                    <span className={`risk-indicator ${item.risk === '🔴' ? 'risk-high' : 'risk-mod'}`}></span>
+                                                                    <span className="flagged-item-name">{item.name}</span>
+                                                                    <span className="flagged-item-role">{item.role}</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    );
+                                                })()}
+                                            </div>
+                                            
+                                            <div className="flagged-column alt-flagged">
+                                                <h5>Flagged in Better Swap</h5>
+                                                {(() => {
+                                                    const flagged = getFlaggedIngredients(compareData.ingredient_breakdown);
+                                                    if (flagged.length === 0) return <p className="no-flagged-text">None! 🎉</p>;
+                                                    return (
+                                                        <ul className="flagged-compare-list">
+                                                            {flagged.map((item, idx) => (
+                                                                <li key={idx} className="flagged-compare-item">
+                                                                    <span className={`risk-indicator ${item.risk === '🔴' ? 'risk-high' : 'risk-mod'}`}></span>
+                                                                    <span className="flagged-item-name">{item.name}</span>
+                                                                    <span className="flagged-item-role">{item.role}</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    );
+                                                })()}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </section>
     );
 }

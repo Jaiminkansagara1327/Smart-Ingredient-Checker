@@ -17,9 +17,9 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'foodview_api.settings')
 try:
     import django
     django.setup()
-    print("🚀 Auto-syncing Database Migrations...")
+    print("Auto-syncing Database Migrations...")
     call_command('migrate', '--noinput')
 except Exception as e:
-    print(f"⚠️ Startup Migration Failed: {e}")
+    print(f"Startup Migration Failed: {e}")
 
 application = get_wsgi_application()

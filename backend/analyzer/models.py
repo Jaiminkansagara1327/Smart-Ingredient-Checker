@@ -194,7 +194,7 @@ class AnalysisRecord(models.Model):
     nutriscore_grade = models.CharField(max_length=10, blank=True, default="")
 
     analysis_json = models.JSONField(null=True, blank=True)
-
+    celery_task_id = models.CharField(max_length=64, null=True, blank=True, unique=True, db_index=True, help_text="Celery task UUID — used for retry-safe deduplication.")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

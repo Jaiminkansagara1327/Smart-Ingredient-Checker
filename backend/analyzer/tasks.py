@@ -128,24 +128,34 @@ def analyze_ingredients_task(
                     for k, v in analysis_result.items()
                     if k != "raw_ingredients_text"
                 }
-                AnalysisRecord.objects.create(
-                    user=user,
-                    input_method=(
-                        AnalysisRecord.INPUT_BARCODE
-                        if barcode
-                        else AnalysisRecord.INPUT_TEXT
+                record, created = AnalysisRecord.objects.get_or_create(
+                    celery_task_id=self.request.id,
+                    defaults=dict(
+                        user=user,
+                        input_method=(
+                            AnalysisRecord.INPUT_BARCODE
+                            if barcode
+                            else AnalysisRecord.INPUT_TEXT
+                        ),
+                        input_text_preview=text.strip()[:400],
+                        product_name=product_data.get("name", ""),
+                        product_brand=product_data.get("brand", ""),
+                        user_goal=user_goal,
+                        food_type=food_type,
+                        confidence=analysis_result.get("confidence"),
+                        score=analysis_result.get("score"),
+                        nova_group=analysis_result.get("nova_group"),
+                        nutriscore_grade=product_data.get("nutriscore_grade", "") or "",
+                        analysis_json=analysis_for_storage,
                     ),
-                    input_text_preview=text.strip()[:400],
-                    product_name=product_data.get("name", ""),
-                    product_brand=product_data.get("brand", ""),
-                    user_goal=user_goal,
-                    food_type=food_type,
-                    confidence=analysis_result.get("confidence"),
-                    score=analysis_result.get("score"),
-                    nova_group=analysis_result.get("nova_group"),
-                    nutriscore_grade=product_data.get("nutriscore_grade", "") or "",
-                    analysis_json=analysis_for_storage,
                 )
+                if created:
+                    print(f"[CELERY] AnalysisRecord saved for user {user_id}")
+                else:
+                    print(
+                        f"[CELERY] AnalysisRecord already exists for task "
+                        f"{self.request.id} (retry #{self.request.retries}) — skipped duplicate write"
+                    )
                 print(f"[CELERY] AnalysisRecord saved for user {user_id}")
             except Exception as db_err:
                 # Don't fail the task if DB write fails

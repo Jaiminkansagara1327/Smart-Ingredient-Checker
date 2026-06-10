@@ -14,13 +14,16 @@ from .ai_service import analyze_product_from_text
 from .openfoodfacts_service import search_products as off_search, get_product_details as off_get_product, find_healthier_alternatives as off_find_alternatives
 
 # ── Celery / Redis helpers ────────────────────────────────────────────────────
-try:
-    from celery.result import AsyncResult
-    from .tasks import analyze_ingredients_task, send_contact_email_task
-    CELERY_AVAILABLE = True
-except Exception:
-    CELERY_AVAILABLE = False
-    AsyncResult = None
+CELERY_AVAILABLE = False
+AsyncResult = None
+if os.getenv('CELERY_DISABLED', 'False') != 'True':
+    try:
+        from celery.result import AsyncResult
+        from .tasks import analyze_ingredients_task, send_contact_email_task
+        CELERY_AVAILABLE = True
+    except Exception:
+        CELERY_AVAILABLE = False
+        AsyncResult = None
 
 
 class AuthenticatedOnlyUserRateThrottle(UserRateThrottle):

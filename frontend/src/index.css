@@ -5213,3 +5213,210 @@ html {
 .status-badge.avoid { background: #fce8e6; color: #c5221f; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===================================
+   RESPONSIVE PATCH
+   Append at end of index.css
+   =================================== */
+
+/* Large Tablets */
+@media (max-width: 1024px) {
+  .container,
+  .main-content,
+  .results-container-new {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .header {
+    padding: 1rem;
+  }
+
+  .main-title {
+    font-size: clamp(2rem, 4vw, 3rem);
+  }
+
+  .product-header-name {
+    white-space: normal;
+  }
+}
+
+/* Tablets */
+@media (max-width: 768px) {
+
+  .container,
+  .main-content,
+  .results-container-new {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .upload-container {
+    width: 100%;
+  }
+
+  .upload-box {
+    padding: 1rem;
+  }
+
+  .text-input {
+    min-height: 180px;
+    font-size: 1rem;
+    padding: 1rem;
+  }
+
+  .overview-stats-grid,
+  .signals-grid,
+  .suitability-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .alternatives-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .product-header-top {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .product-header-info {
+    align-items: center;
+  }
+
+  .nutrition-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .score-circle {
+    width: 130px;
+    height: 130px;
+  }
+
+  .score-number {
+    font-size: 2rem;
+  }
+}
+
+/* Mobile Devices */
+@media (max-width: 480px) {
+
+  .header {
+    height: auto;
+    min-height: 64px;
+    padding: 0.75rem 1rem;
+  }
+
+  .logo-text {
+    font-size: 1.2rem;
+  }
+
+  .main-title {
+    font-size: 1.9rem;
+    line-height: 1.2;
+  }
+
+  .main-subtitle {
+    font-size: 0.95rem;
+  }
+
+  .upload-tabs {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .tab-btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 0.75rem 1rem;
+  }
+
+  .overview-stats-grid,
+  .signals-grid,
+  .alternatives-grid,
+  .suitability-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .results-card,
+  .verdict-card,
+  .contact-card,
+  .about-story {
+    padding: 1rem;
+  }
+
+  .product-img-box {
+    width: 60px;
+    height: 60px;
+  }
+
+  .product-header-name {
+    font-size: 1rem;
+  }
+
+  .ingredient-row {
+    grid-template-columns: 6px 1fr 30px;
+    padding: 0.8rem 0.8rem 0.8rem 0;
+  }
+
+  .ingredient-main-info {
+    padding-left: 16px;
+    font-size: 0.9rem;
+    white-space: normal;
+  }
+
+  .ingredient-role {
+    margin-left: 16px;
+  }
+
+  .score-bar-container {
+    padding: 1rem;
+  }
+
+  .score-value .score-number {
+    font-size: 1.75rem;
+  }
+
+  .contact-title,
+  .about-title {
+    font-size: 2rem;
+  }
+
+  .footer {
+    text-align: center;
+    padding: 1rem;
+  }
+}
+
+/* Extra Small Devices */
+@media (max-width: 360px) {
+
+  .main-title {
+    font-size: 1.6rem;
+  }
+
+  .tab-btn {
+    min-width: 100%;
+  }
+
+  .btn-support {
+    min-width: 100%;
+  }
+
+  .product-header-name {
+    font-size: 0.95rem;
+  }
+
+  .score-number {
+    font-size: 1.5rem;
+  }
+
+  .score-circle {
+    width: 110px;
+    height: 110px;
+  }
+}
+

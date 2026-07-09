@@ -129,7 +129,7 @@ npm run dev
 
 ## 📁 Project Structure
 
-```
+```text
 Smart-Ingredient-Checker/
 ├── backend/               # Django application
 │   ├── .env.example       # Environment variable template

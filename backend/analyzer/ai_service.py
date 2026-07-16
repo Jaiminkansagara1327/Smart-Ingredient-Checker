@@ -581,7 +581,7 @@ Provide a JSON response with the following structure:
             'verdict': frequency_verdict,  # For backward compatibility
             'food_type': food_type
         }
-    
+
     def _extract_ingredients_from_text(self, text: str) -> list:
         """
         Extract individual ingredients from text using robust parsing.
@@ -591,74 +591,108 @@ Provide a JSON response with the following structure:
         - varied delimiters (comma, newline, semicolon, bullets)
         - Contextual delimiters ('and', '&', 'contains')
         - cleaning (removing 'permitted', 'added', etc.)
+        - Multilingual packaging: strips German/French/other language sections
         """
         if not text:
             return []
-            
-        # 1. Lowercase everything as requested
+
+        # 1. Lowercase everything
         text = text.lower()
-            
-        # 2. Pre-processing
-        # Normalize newlines
+
+        # 2. Normalize whitespace / newlines
         text = text.replace('\r\n', '\n').replace('\r', '\n')
-        
-        # Remove common start prefixes
+
+        # ── NEW: strip multilingual sections ─────────────────────────────────
+        # Many Indian products print ingredients in EN / DE / FR.
+        # We detect where the second-language block starts and cut there so
+        # the parser only sees the English section.
+        _secondary_lang_markers = [
+            # German
+            r'\bzutaten\b',
+            r'\bzutaten:', r'\butaten:',          # OCR variants
+            r'\bpflanzenoel\b', r'\bpflanzeno\b',
+            r'\bkartoffel\b', r'\bkichererbsen\b',
+            r'\bcashew nuesse\b', r'\brosinen\b',
+            r'\bspeisesalz\b', r'\bmangopulver\b',
+            r'\bkreuzkuemmel\b', r'\bfenchel\b',
+            r'\bingwer\b', r'\bkardamom\b',
+            r'\bmuskatbluete\b', r'\bsaeuerungsmittel\b',
+            # French
+            r'\bingrédients:', r'\bngrédients:',  # OCR typo
+            r'\bingredients\s+:', r'\bficcon\b',
+            r'\bhuile végétale\b', r'\bhuile vegetale\b',
+            r'\bpomme de terre\b', r'\bfarine de\b',
+            r'\bnoix de cajou\b', r'\braisins secs\b',
+            r'\bpoudre de\b', r'\bfenouil\b',
+            r'\base fétide\b', r'\bacide citrique\b',
+            r'\bacidifiant\b',
+            # Generic 2nd-language section boundaries often found on Indian packs
+            r'suess-wuerzige', r'mischung aus',
+            r'melange aperitif', r'mélange apéritif',
+            r'produit de l\'inde', r'hergestellt',
+            r'inden hergestellt', r'indien hergestellt',
+        ]
+        earliest_cut = len(text)
+        for marker in _secondary_lang_markers:
+            m = re.search(marker, text)
+            if m and m.start() < earliest_cut:
+                # Only cut if we're past the first ~30 chars
+                # (avoid cutting on short texts where the word appears first)
+                if m.start() > 30:
+                    earliest_cut = m.start()
+
+        if earliest_cut < len(text):
+            text = text[:earliest_cut]
+        # ─────────────────────────────────────────────────────────────────────
+
+        # 3. Remove common start prefixes
         prefixes = ['ingredients:', 'contains:', 'ingredients', 'contains']
         start_index = 0
         for prefix in prefixes:
             if text.startswith(prefix):
-                 start_index = len(prefix)
-                 while start_index < len(text) and not text[start_index].isalnum():
-                     start_index += 1
-                 break
+                start_index = len(prefix)
+                while start_index < len(text) and not text[start_index].isalnum():
+                    start_index += 1
+                break
         processed_text = text[start_index:]
-        
-        # 3. Tokenization state machine
+
+        # 4. Tokenisation state machine
         ingredients = []
         current = []
         depth = 0
-        
-        # Delimiters
+
         hard_delimiters = {',', ';', '\n', '|', '•', '·', '—'}
-        
+
         i = 0
         n = len(processed_text)
-        
+
         while i < n:
             char = processed_text[i]
-            
-            # Parenthesis tracking
-            if char in '([{' :
+
+            if char in '([{':
                 depth += 1
                 current.append(char)
             elif char in ')]}':
                 if depth > 0:
                     depth -= 1
                 current.append(char)
-            
-            # Check for delimiters at ALL levels (flattened)
             else:
                 is_delimiter = False
                 skip_len = 1
-                
+
                 if char in hard_delimiters:
                     is_delimiter = True
-                
                 elif char == '&':
-                     is_delimiter = True
-                     
-                # Word-based separators
+                    is_delimiter = True
                 elif char == ' ':
                     remaining = n - i
-                    # Check for " and "
                     if remaining > 5 and processed_text[i:i+5] == ' and ':
                         is_delimiter = True
                         skip_len = 5
-                    # Check for " contains "
                     elif remaining > 10 and processed_text[i:i+10] == ' contains ':
                         is_delimiter = True
                         skip_len = 10
-                
+
                 if is_delimiter:
                     item = "".join(current).strip()
                     if item:
@@ -668,35 +702,38 @@ Provide a JSON response with the following structure:
                 else:
                     current.append(char)
             i += 1
-            
+
         item = "".join(current).strip()
         if item:
             ingredients.append(item)
-            
-        # 4. Post-processing & Cleaning
+
+        # 5. Post-processing & Cleaning
         final_list = []
         seen = set()
-        
-        # Clean and finalize
+
         for raw in ingredients:
-            # Aggressive cleanup of leftover brackets and symbols
             clean = raw.replace('(', '').replace(')', '').replace('[', '').replace(']', '').replace('{', '').replace('}', '')
             clean = re.sub(r'[*•·—]', '', clean).strip()
-            
-            # Skip noise
-            if not clean or len(clean) < 2: continue
-            if clean in {'and', '&', 'contains', 'contains 2% or less', 'less than 2%'}: continue
-            
-            # Remove leading numbers/percents 
+
+            if not clean or len(clean) < 2:
+                continue
+            if clean in {'and', '&', 'contains', 'contains 2% or less', 'less than 2%'}:
+                continue
+
+            # Remove leading numbers/percents
             clean = re.sub(r'^\d+(\.\d+)?%?\s*', '', clean).strip()
-            
-            # Remove "contains 2% or less of"
+
+            # Remove common label prefix words
             clean = re.sub(r'^(contains|added|natural|artificial|permitted|organic)\s+', '', clean)
-            
+
+            # Skip suspiciously long tokens — these are usually stray label text
+            if len(clean) > 60:
+                continue
+
             if clean and clean not in seen:
                 final_list.append(clean)
                 seen.add(clean)
-                
+
         return final_list
 
 

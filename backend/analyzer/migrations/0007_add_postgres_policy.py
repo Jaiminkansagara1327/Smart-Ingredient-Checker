@@ -39,22 +39,17 @@ _TABLES = [
 ]
 
 def add_owner_policies(apps, schema_editor):
-    # Use 'postgres' role which is the default owner/superuser for Supabase.
+    if schema_editor.connection.vendor != 'postgresql':
+        return
     role_name = 'postgres'
-
     with schema_editor.connection.cursor() as cursor:
         for table in _TABLES:
-            # Check table exists
             cursor.execute(
                 "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = %s);",
                 [table]
             )
             (exists,) = cursor.fetchone()
-            
             if exists:
-                # 1. Create a policy that allows the DB user to do EVERYTHING
-                # We use TO PUBLIC or TO role_name. To be safe for the pooler, 
-                # we grant it to the role explicitly used by Django.
                 cursor.execute(f"""
                     DO $$ 
                     BEGIN
@@ -73,6 +68,8 @@ def add_owner_policies(apps, schema_editor):
                 print(f"  [RLS] Added owner policy to public.{table} for role {role_name}")
 
 def remove_owner_policies(apps, schema_editor):
+    if schema_editor.connection.vendor != 'postgresql':
+        return
     with schema_editor.connection.cursor() as cursor:
         for table in _TABLES:
             cursor.execute(f'DROP POLICY IF EXISTS django_owner_policy ON public."{table}";')

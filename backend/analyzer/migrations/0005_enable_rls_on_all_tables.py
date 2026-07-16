@@ -62,20 +62,11 @@ _TABLES = [
 
 
 def enable_rls(apps, schema_editor):
-    """
-    Enable RLS on every Django-managed table in the public schema.
-
-    We intentionally do NOT add any permissive policies here.
-    The default Postgres behavior when RLS is enabled with no policies is
-    DENY ALL — which is exactly what we want for the Supabase PostgREST layer.
-
-    Django itself connects as the database owner (or a role with BYPASSRLS),
-    so it is unaffected.
-    """
+    # RLS is a PostgreSQL-only feature. Skip silently when using SQLite (local dev).
+    if schema_editor.connection.vendor != 'postgresql':
+        return
     with schema_editor.connection.cursor() as cursor:
         for table in _TABLES:
-            # Check table exists before enabling RLS (safety guard for
-            # environments that may not have run all migrations yet).
             cursor.execute(
                 """
                 SELECT EXISTS (
@@ -93,14 +84,9 @@ def enable_rls(apps, schema_editor):
                 print(f"  [RLS] Skipping '{table}' — table does not exist yet.")
                 continue
 
-            # Enable RLS.  ALTER TABLE … ENABLE ROW LEVEL SECURITY is
-            # idempotent: running it on a table that already has RLS enabled
-            # is a no-op, so re-running migrations is safe.
             cursor.execute(
                 f'ALTER TABLE public."{table}" ENABLE ROW LEVEL SECURITY;'
             )
-            # Force RLS even for the table owner so the deny-all default
-            # applies consistently (optional but adds defence-in-depth).
             cursor.execute(
                 f'ALTER TABLE public."{table}" FORCE ROW LEVEL SECURITY;'
             )
@@ -108,10 +94,9 @@ def enable_rls(apps, schema_editor):
 
 
 def disable_rls(apps, schema_editor):
-    """
-    Reverse migration: disable RLS on all tables.
-    Only needed if you roll back this migration.
-    """
+    # RLS is a PostgreSQL-only feature. Skip silently when using SQLite (local dev).
+    if schema_editor.connection.vendor != 'postgresql':
+        return
     with schema_editor.connection.cursor() as cursor:
         for table in _TABLES:
             cursor.execute(

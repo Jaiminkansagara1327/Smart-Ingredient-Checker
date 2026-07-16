@@ -258,7 +258,6 @@ class GoogleLoginAPIView(APIView):
     def post(self, request):
         credential = request.data.get("credential")
         access_token = request.data.get("access_token")
-        nonce = request.data.get("nonce", "")
 
         if not credential and not access_token:
             return Response(
@@ -270,7 +269,6 @@ class GoogleLoginAPIView(APIView):
             email, first_name, last_name = None, "", ""
 
             if credential:
-                import requests as py_requests
                 from google.oauth2 import id_token
                 from google.auth.transport import requests as google_requests
 
@@ -278,15 +276,6 @@ class GoogleLoginAPIView(APIView):
                 idinfo = id_token.verify_oauth2_token(
                     credential, google_requests.Request(), client_id
                 )
-
-                if nonce:
-                    token_nonce = idinfo.get("nonce", "")
-                    if not secrets.compare_digest(nonce, token_nonce):
-                        logger.warning("Google OAuth nonce mismatch from %s", request.META.get("REMOTE_ADDR"))
-                        return Response(
-                            {"success": False, "message": "Authentication failed."},
-                            status=status.HTTP_401_UNAUTHORIZED,
-                        )
 
                 email = idinfo["email"]
                 first_name = idinfo.get("given_name", "")

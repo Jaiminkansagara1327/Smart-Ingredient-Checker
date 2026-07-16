@@ -35,20 +35,22 @@ _TABLES = [
 ]
 
 def unforce_rls(apps, schema_editor):
+    if schema_editor.connection.vendor != 'postgresql':
+        return
     with schema_editor.connection.cursor() as cursor:
         for table in _TABLES:
-            # Check table exists
             cursor.execute(
                 "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = %s);",
                 [table]
             )
             (exists,) = cursor.fetchone()
             if exists:
-                # Remove FORCE but keep ENABLE
                 cursor.execute(f'ALTER TABLE public."{table}" NO FORCE ROW LEVEL SECURITY;')
                 print(f"  [RLS] Unforced RLS on public.{table}")
 
 def reforce_rls(apps, schema_editor):
+    if schema_editor.connection.vendor != 'postgresql':
+        return
     with schema_editor.connection.cursor() as cursor:
         for table in _TABLES:
             cursor.execute(f'ALTER TABLE public."{table}" FORCE ROW LEVEL SECURITY;')

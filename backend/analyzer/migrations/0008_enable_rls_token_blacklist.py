@@ -23,23 +23,18 @@ _TABLES = [
 ]
 
 def enable_rls_and_add_policy(apps, schema_editor):
+    if schema_editor.connection.vendor != 'postgresql':
+        return
     role_name = 'postgres'
-
     with schema_editor.connection.cursor() as cursor:
         for table in _TABLES:
-            # 1. Check if table exists
             cursor.execute(
                 "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = %s);",
                 [table]
             )
             (exists,) = cursor.fetchone()
-            
             if exists:
-                # 2. Enable RLS
                 cursor.execute(f'ALTER TABLE public."{table}" ENABLE ROW LEVEL SECURITY;')
-                
-                # 3. Create a policy that allows the DB user to do EVERYTHING
-                # This is required because Supabase pooler (port 6543) does not bypass RLS.
                 cursor.execute(f"""
                     DO $$ 
                     BEGIN
@@ -60,6 +55,8 @@ def enable_rls_and_add_policy(apps, schema_editor):
                 print(f"  [RLS] Skipping '{table}' — table does not exist.")
 
 def disable_rls_and_remove_policy(apps, schema_editor):
+    if schema_editor.connection.vendor != 'postgresql':
+        return
     with schema_editor.connection.cursor() as cursor:
         for table in _TABLES:
             cursor.execute(f'DROP POLICY IF EXISTS django_owner_policy ON public."{table}";')

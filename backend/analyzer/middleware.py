@@ -36,7 +36,11 @@ class SecurityHeadersMiddleware:
         response['Permissions-Policy'] = (
             'camera=(), microphone=(), geolocation=(), payment=(self)'
         )
-        response['Cross-Origin-Opener-Policy'] = 'same-origin'
+        # 'same-origin' blocks the Google OAuth popup from postMessage-ing back.
+        # 'same-origin-allow-popups' is the correct value: it preserves security
+        # but allows popups YOUR page opened (like the Google OAuth popup) to
+        # communicate back — works on both local dev and production HTTPS.
+        response['Cross-Origin-Opener-Policy'] = 'unsafe-none' if settings.DEBUG else 'same-origin-allow-popups'
         response['Cross-Origin-Resource-Policy'] = 'same-site'
 
         # ── Content-Security-Policy ───────────────────────────────────────

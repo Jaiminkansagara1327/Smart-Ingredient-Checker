@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './AuthPremium.css';
 import api from '../../api';
-import { GoogleLogin } from '@react-oauth/google';
+import { GoogleLogin, useGoogleLogin } from '@react-oauth/google';
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 
 const LoginPage = ({ onNavigate, onLoginSuccess }) => {
@@ -10,6 +10,30 @@ const LoginPage = ({ onNavigate, onLoginSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Fallback: access_token flow (useGoogleLogin)
+  const googleLoginFallback = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setLoading(true);
+      setError('');
+      try {
+        const response = await api.post('/api/auth/google-login/', {
+          access_token: tokenResponse.access_token,
+        });
+        if (onLoginSuccess) onLoginSuccess(response.data.access);
+        onNavigate('analyze');
+      } catch (err) {
+        console.error('Google login (access_token flow) error:', err);
+        setError(err.response?.data?.message || 'Google authentication failed.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    onError: (err) => {
+      console.error('Google OAuth Error (access_token flow):', err);
+      setError(`Google OAuth Error: ${err.error || JSON.stringify(err)}`);
+    },
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -141,12 +165,22 @@ const LoginPage = ({ onNavigate, onLoginSuccess }) => {
               setLoading(false);
             }
           }}
-          onError={() => {
-            console.error('Google Authentication Failed');
-            setError('Google Authentication Failed.');
+          onError={(err) => {
+            console.error('Google Button Error:', err);
+            setError(`Google Auth Error: ${err?.error || err?.error_description || 'Popup blocked or not authorized. Check Google Cloud Console (Authorized JS Origins must include http://localhost:3000)'}`);
           }}
-          useOneTap
         />
+      </div>
+
+      <div style={{textAlign: 'center', marginTop: '8px'}}>
+        <button
+          type="button"
+          onClick={() => googleLoginFallback()}
+          disabled={loading}
+          style={{fontSize: '12px', color: '#aaa', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline'}}
+        >
+          Try alternate Google login
+        </button>
       </div>
 
       <div className="auth-footer-premium">

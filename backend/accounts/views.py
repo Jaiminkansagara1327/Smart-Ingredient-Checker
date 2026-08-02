@@ -331,10 +331,10 @@ class GoogleLoginAPIView(APIView):
             _set_refresh_cookie(response, refresh_str)
             return response
 
-        except Exception:
+        except Exception as e:
             logger.error("Google Login error", exc_info=True)
             return Response(
-                {"success": False, "message": "Authentication failed."},
+                {"success": False, "message": f"Authentication failed: {str(e)}"},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 

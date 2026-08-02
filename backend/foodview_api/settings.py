@@ -256,7 +256,7 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 100
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 # In production use 'same-origin'. In dev, 'unsafe-none' is required so
 # Google OAuth popup can send window.postMessage back to the page.
-SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin' if not DEBUG else 'unsafe-none'
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'unsafe-none' if DEBUG else 'same-origin-allow-popups'
 
 # SimpleJWT configuration
 from datetime import timedelta

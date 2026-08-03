@@ -141,7 +141,7 @@ function UploadSection({ onAnalyze, user }) {
                         timeout: 10000,
                     }).then(alt => {
                         if (alt.data.success) savePrefetch(product.categories, product.nutriscore_grade, product.name, alt.data.alternatives);
-                    }).catch(() => {});
+                    }).catch( => console.error());
                 }
                 onAnalyze(res.data, null);
             } else {

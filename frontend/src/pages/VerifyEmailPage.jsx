@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import './VerifyEmail.css';
-import api from '../../api';
+import '../components/Auth/VerifyEmail.css';
+import api from '../api';
 
 const VerifyEmailPage = ({ onNavigate }) => {
   const [status, setStatus] = useState('verifying'); // verifying | success | error

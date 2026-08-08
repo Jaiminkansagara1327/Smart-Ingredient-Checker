@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Layout/Header';
-import Encyclopedia from "./pages/EncyclopediaPage";
-import HomePage from './components/Home/HomePage';
-import VerifyEmailPage from './components/Auth/VerifyEmailPage';
+import Footer from './components/Layout/Footer';
 import UploadSection from './components/Analyzer/UploadSection';
 import ResultsSection from './components/Analyzer/ResultsSection';
-import ContactPage from './components/Other/ContactPage';
-import LoginPage from './components/Auth/LoginPage';
-import SignupPage from './components/Auth/SignupPage';
-import SettingsPage from './components/Other/SettingsPage';
-import HistoryPage from './components/Other/HistoryPage';
-import Footer from './components/Layout/Footer';
+
+// Page Views
+import HomePage from './pages/HomePage';
+import EncyclopediaPage from './pages/EncyclopediaPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
+import ContactPage from './pages/ContactPage';
+import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
+import SettingsPage from './pages/SettingsPage';
+import HistoryPage from './pages/HistoryPage';
 import api, { setAccessToken, clearAccessToken, getAccessToken } from './api';
 
 
@@ -125,7 +127,7 @@ function App() {
         }
         if (currentPage === 'home') return <HomePage onNavigate={handleNavigate} user={user} />;
         if (currentPage === 'contact') return <ContactPage />;
-        if (currentPage === 'encyclopedia') return <Encyclopedia />;
+        if (currentPage === 'encyclopedia') return <EncyclopediaPage />;
 
         if (currentPage === 'login' || currentPage === 'signup') {
             if (user) {

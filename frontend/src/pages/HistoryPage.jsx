@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import api from '../../api';
-import '../Auth/AuthPremium.css'; // Utilizing the existing Clinical Sanctuary styles
+import api from '../api';
+import '../components/Auth/AuthPremium.css'; // Utilizing the existing Clinical Sanctuary styles
 
 function HistoryPage({ onNavigate, user, onSelectHistoryItem }) {
     const [history, setHistory] = useState([]);

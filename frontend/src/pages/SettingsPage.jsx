@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import api from '../../api';
-import '../Auth/AuthPremium.css';
+import api from '../api';
+import '../components/Auth/AuthPremium.css';
 
 const AI_PROVIDER_KEY = 'ingrexa_ai_provider';
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import './AuthPremium.css';
-import api from '../../api';
+import '../components/Auth/AuthPremium.css';
+import api from '../api';
 import { GoogleLogin } from '@react-oauth/google';
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 

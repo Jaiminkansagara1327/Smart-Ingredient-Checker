@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import './HomePage.css';
+import '../components/Home/HomePage.css';
 
 function HomePage({ onNavigate, user }) {
     const [showScrollToTop, setShowScrollToTop] = useState(false);

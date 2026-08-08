@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import api from "../api";
-import SearchBar from "../components/encyclopedia/SearchBar";
-import Filter from "../components/encyclopedia/Filter";
-import AdditiveGrid from "../components/encyclopedia/AdditiveGrid";
+import SearchBar from "../components/Encyclopedia/SearchBar";
+import Filter from "../components/Encyclopedia/Filter";
+import AdditiveGrid from "../components/Encyclopedia/AdditiveGrid";
 
 export default function Encyclopedia() {
   // 1. Search, filter, loading, and error states

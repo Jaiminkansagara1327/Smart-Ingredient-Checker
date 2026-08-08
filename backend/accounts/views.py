@@ -309,8 +309,16 @@ class GoogleLoginAPIView(APIView):
                 if created:
                     user.set_unusable_password()
                     user.save()
-                    from analyzer.models import UserProfile
-                    UserProfile.objects.get_or_create(user=user)
+
+                # Ensure UserProfile exists
+                from analyzer.models import UserProfile
+                UserProfile.objects.get_or_create(user=user)
+
+                # Auto-verify email token for Google OAuth users
+                token_obj, _ = EmailVerificationToken.objects.get_or_create(user=user)
+                if not token_obj.verified:
+                    token_obj.verified = True
+                    token_obj.save()
 
             refresh = RefreshToken.for_user(user)
             access_str = str(refresh.access_token)
@@ -391,6 +399,9 @@ class VerifyEmailAPIView(APIView):
             {"success": True, "message": "Email verified successfully.", "access": access_str},
             status=status.HTTP_200_OK,
         )
+        _set_refresh_cookie(response, refresh_str)
+        return response
+
 # --- Encyclopedia View — data is imported from foodview_api/additives_data.py ---
 from foodview_api.additives_data import ADDITIVES_DATA
 

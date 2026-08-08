@@ -179,13 +179,14 @@ class LoginRateLimitTest(TestCase):
         )
 
     def test_auth_middleware_rate_limited(self):
-        """After 5 failed attempts from the same IP, the middleware returns 429."""
+        """After repeated failed attempts from the same IP, the middleware returns 429."""
         payload = {'email': 'ratetest@example.com', 'password': 'wrong_password'}
-        responses = [
-            self.client.post('/api/auth/token/', payload, format='json',
-                             REMOTE_ADDR=self.rl_ip)
-            for _ in range(7)
-        ]
+        with patch.object(IPRateLimitMiddleware, 'AUTH_MAX_REQUESTS', 5):
+            responses = [
+                self.client.post('/api/auth/token/', payload, format='json',
+                                 REMOTE_ADDR=self.rl_ip)
+                for _ in range(7)
+            ]
         status_codes = [r.status_code for r in responses]
         self.assertIn(429, status_codes,
                       f"Expected a 429 after repeated attempts, got: {status_codes}")

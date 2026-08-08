@@ -24,7 +24,11 @@ const LoginPage = ({ onNavigate, onLoginSuccess }) => {
         onNavigate('analyze');
       } catch (err) {
         console.error('Google login (access_token flow) error:', err);
-        setError(err.response?.data?.message || 'Google authentication failed.');
+        if (!err.response) {
+          setError('Cannot connect to Django backend on http://127.0.0.1:8000. Please ensure the backend is running (python manage.py runserver).');
+        } else {
+          setError(err.response?.data?.message || err.response?.data?.detail || 'Google authentication failed.');
+        }
       } finally {
         setLoading(false);
       }
@@ -160,7 +164,11 @@ const LoginPage = ({ onNavigate, onLoginSuccess }) => {
               onNavigate('analyze');
             } catch (err) {
               console.error('Google login error', err);
-              setError(err.response?.data?.message || 'Google authentication failed.');
+              if (!err.response) {
+                setError('Cannot connect to Django backend on http://127.0.0.1:8000. Please ensure the backend is running (python manage.py runserver).');
+              } else {
+                setError(err.response?.data?.message || err.response?.data?.detail || 'Google authentication failed.');
+              }
             } finally {
               setLoading(false);
             }

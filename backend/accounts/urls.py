@@ -10,7 +10,6 @@ from .views import (
     RegisterAPIView,
     GoogleLoginAPIView,
     AdditiveListAPIView,  # Kept from your feature branch
-    ResendOTPAPIView,     # Kept from main branch
     ResendOTPAPIView,
 )
 

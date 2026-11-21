@@ -84,3 +84,8 @@ celery==5.4.0
 django-celery-results==2.5.1
 redis==5.2.1
 django-redis==5.4.0
+
+# ── Testing (Pytest) ────────────────────────────────────────────────────────
+pytest>=8.0.0
+pytest-django>=4.9.0
+

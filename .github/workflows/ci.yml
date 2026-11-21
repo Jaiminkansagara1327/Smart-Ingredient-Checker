@@ -32,6 +32,7 @@ jobs:
         env:
           SECRET_KEY: "ci-insecure-test-key-for-github-actions"
           DEBUG: "True"
+          CELERY_ENABLED: "False"
           CELERY_BROKER_URL: "memory://"
           CELERY_RESULT_BACKEND: "cache+memory://"
         run: |

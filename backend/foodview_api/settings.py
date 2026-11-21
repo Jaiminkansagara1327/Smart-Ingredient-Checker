@@ -375,3 +375,9 @@ CELERY_TASK_ROUTES = {
 
 CELERY_TASK_ALWAYS_EAGER = os.getenv('CELERY_TASK_ALWAYS_EAGER', 'False') == 'True'
 CELERY_TASK_EAGER_PROPAGATES = os.getenv('CELERY_TASK_EAGER_PROPAGATES', 'False') == 'True'
+
+# Allow disabling Celery for testing or environments without Redis workers
+CELERY_ENABLED = os.getenv('CELERY_ENABLED', 'True') == 'True'
+import sys
+if 'test' in sys.argv or 'pytest' in sys.modules or any('pytest' in arg for arg in sys.argv):
+    CELERY_ENABLED = False

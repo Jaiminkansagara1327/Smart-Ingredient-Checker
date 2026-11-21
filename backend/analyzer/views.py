@@ -13,6 +13,8 @@ from .serializers import ContactMessageSerializer, AnalysisRecordSerializer, Pro
 from .ai_service import analyze_product_from_text
 from .openfoodfacts_service import search_products as off_search, get_product_details as off_get_product, find_healthier_alternatives as off_find_alternatives
 
+from django.conf import settings
+
 # ── Celery / Redis helpers ────────────────────────────────────────────────────
 try:
     from celery.result import AsyncResult
@@ -21,6 +23,11 @@ try:
 except Exception:
     CELERY_AVAILABLE = False
     AsyncResult = None
+
+
+def is_celery_enabled():
+    return CELERY_AVAILABLE and getattr(settings, 'CELERY_ENABLED', True)
+
 
 
 class AuthenticatedOnlyUserRateThrottle(UserRateThrottle):
@@ -179,7 +186,7 @@ def analyze_text(request):
     try:
         print(f"[SECURITY] Analyzing text (length: {len(sanitized_text)}, lines: {line_count})")
 
-        if CELERY_AVAILABLE:
+        if is_celery_enabled():
             # ── ASYNC path: dispatch to Celery worker ─────────────────────
             task = analyze_ingredients_task.apply_async(
                 kwargs=dict(
@@ -315,7 +322,7 @@ def contact_submit(request):
         serializer.save()
 
         # ── Send email: async via Celery if available, sync fallback ──────
-        if CELERY_AVAILABLE:
+        if is_celery_enabled():
             send_contact_email_task.apply_async(
                 kwargs=dict(
                     name=sanitized_data['name'],
@@ -500,7 +507,7 @@ def analyze_product(request):
 
         macros = product_info.get('nutriments', {}) if product_info else {}
 
-        if CELERY_AVAILABLE:
+        if is_celery_enabled():
             # ── ASYNC path ────────────────────────────────────────────────
             task = analyze_ingredients_task.apply_async(
                 kwargs=dict(
@@ -612,7 +619,7 @@ def task_status(request, task_id: str):
     Failure  : { "state": "FAILURE",  "status": "error", "error": "..." }
     Retry    : { "state": "RETRY",    "status": "retrying" }
     """
-    if not CELERY_AVAILABLE or AsyncResult is None:
+    if not is_celery_enabled() or AsyncResult is None:
         return Response(
             {'error': 'Async tasks are not available (Celery/Redis not configured).'},
             status=status.HTTP_503_SERVICE_UNAVAILABLE,

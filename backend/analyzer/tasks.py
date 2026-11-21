@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 analyzer/tasks.py
 =================
